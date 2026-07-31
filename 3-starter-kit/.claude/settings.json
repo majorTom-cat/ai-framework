@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Bash(git worktree *)",
+      "Bash(git branch *)",
+      "PowerShell(npm run *)",
+      "PowerShell(npm test*)",
+      "PowerShell(npm install)",
+      "PowerShell(git fetch*)",
+      "PowerShell(git log *)",
+      "PowerShell(git status*)",
+      "PowerShell(git diff *)",
+      "PowerShell(git show *)",
+      "PowerShell(git add *)",
+      "PowerShell(git commit *)",
+      "PowerShell(git push *)",
+      "PowerShell(git pull *)",
+      "PowerShell(git checkout *)",
+      "PowerShell(git switch *)",
+      "PowerShell(git merge *)",
+      "PowerShell(git worktree *)",
+      "PowerShell(git branch *)",
+      "PowerShell(glab *)",
+      "PowerShell(docker compose *)",
+      "PowerShell(node --test *)",
+      "PowerShell(curl *)",
+      "Bash(npm run *)",
+      "Bash(npm test*)",
+      "Bash(npm install)",
+      "Bash(git fetch*)",
+      "Bash(git log *)",
+      "Bash(git status*)",
+      "Bash(git diff *)",
+      "Bash(git show *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git pull *)",
+      "Bash(git checkout *)",
+      "Bash(git switch *)",
+      "Bash(git merge *)",
+      "Bash(glab *)",
+      "Bash(docker compose *)",
+      "Bash(node --test *)",
+      "Bash(curl *)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "PowerShell(git push * --force*)",
+      "PowerShell(git push --force*)",
+      "PowerShell(git push -f*)",
+      "PowerShell(git push * -f*)",
+      "Bash(git push * --force*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * -f*)"
+    ]
+  },
+  "enabledPlugins": {
+    "security-guidance@claude-plugins-official": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check-push.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '세션 시작: /todo 를 실행해 담당 이슈와 멘션을 브리핑하라.'"
+          }
+        ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '컨텍스트가 압축되었다. 핵심 규칙 재확인: 남의 모듈 수정 금지 · 공통 영역 변경은 공지 후 · 마무리는 /done 으로만 · 검수요청 전 사용자 화면 확인.'"
+          }
+        ]
+      }
+    ]
+  }
+}

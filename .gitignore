@@ -1,0 +1,23 @@
+# 최상위 Claude Code 런타임·로컬 설정 (이 작업폴더 전용 — 프레임워크 내용 아님)
+# 앞의 / 로 루트만 지정: 3-starter-kit/.claude(프레임워크 실물)는 커밋된다
+/.claude/
+
+# 로컬 개인값·비밀 (커밋 금지)
+CLAUDE.local.md
+.env
+.env.local
+*.local
+
+# 의존성·빌드 산출물
+node_modules/
+dist/
+build/
+.next/
+coverage/
+
+# OS·에디터
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

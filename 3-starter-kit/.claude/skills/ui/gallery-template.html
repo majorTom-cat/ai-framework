@@ -1,0 +1,52 @@
+<!-- 시안 갤러리 정본 템플릿 — /ui 시안(갈래1)이 docs/05_UIUX/index.html 이 없을 때 이 파일을 그 자리로 복사한 뒤 아래 <section>을 화면 수만큼 채운다. -->
+<!-- 갈래2(채택)는 이 구조의 클래스를 그대로 편집한다: picked-tag의 hidden 제거·텍스트 채움 / 채택안 링크에 class="picked" / 탈락안 링크에 class="dropped" + href를 _drafts/ 로. -->
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><프로젝트> · 화면 시안 모음</title>
+<style>
+  :root { --bd:#e5e7eb; --mut:#6b7280; --ac:#2563eb; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:16px/1.6 system-ui,"Malgun Gothic",sans-serif; color:#111; background:#fafafa; }
+  header { padding:28px 20px 16px; background:#fff; border-bottom:1px solid var(--bd); }
+  header h1 { margin:0 0 4px; font-size:20px; }
+  header p { margin:0; color:var(--mut); font-size:14px; }
+  main { max-width:860px; margin:0 auto; padding:20px; }
+  .screen { background:#fff; border:1px solid var(--bd); border-radius:12px; padding:18px 20px; margin:16px 0; }
+  .screen h2 { margin:0 0 12px; font-size:17px; }
+  .variants { display:flex; flex-wrap:wrap; gap:10px; }
+  .variants a { display:block; padding:10px 16px; border:1px solid var(--bd); border-radius:8px; text-decoration:none; color:var(--ac); font-weight:600; }
+  .variants a:hover { background:#eff6ff; }
+  .variants a.picked { border-color:var(--ac); background:#eff6ff; }          /* 채택안 강조 */
+  .variants a.dropped { color:var(--mut); border-style:dashed; opacity:.75; font-weight:500; } /* 탈락안(보관) */
+  .picked-tag { color:#16a34a; font-weight:700; }
+  .notes { margin-top:10px; font-size:13px; }
+  .notes a { color:var(--mut); }
+  footer { text-align:center; color:var(--mut); font-size:12px; padding:24px; }
+</style>
+</head>
+<body>
+<header>
+  <h1><프로젝트> · 화면 시안 모음</h1>
+  <p>후보를 클릭해 브라우저에서 보고, 그 화면의 <b>시안 선택 카드</b>에서 <b>체크박스로 하나</b>를 골라주세요. 새 시안은 여기에 자동으로 추가됩니다.</p>
+</header>
+<main>
+
+  <!-- ▼ 화면 하나당 이 <section> 한 벌. 갈래1이 생성 시 미선택 상태로 넣고, 갈래2 채택 때 위 주석대로 표시를 바꾼다. -->
+  <section class="screen">
+    <h2>{화면이름} <span class="picked-tag" hidden>· 선택: —</span></h2>
+    <div class="variants">
+      <a href="screens/{화면이름}/시안A.html">A안 · {A 컨셉 한 줄}</a>
+      <a href="screens/{화면이름}/시안B.html">B안 · {B 컨셉 한 줄}</a>
+      <!-- 안 수만큼 (2~3) -->
+    </div>
+    <p class="notes"><a href="screens/{화면이름}/notes.md">비교 노트(notes.md)</a> · 아직 미선택</p>
+  </section>
+  <!-- ▲ 새 화면 시안이 오면 /ui 시안(갈래1)이 이 위에 <section>을 추가한다 -->
+
+</main>
+<footer>이 페이지는 저장소의 <code>docs/05_UIUX/</code>를 시안 허브(git-sync)가 실시간 동기화해 보여줍니다.</footer>
+</body>
+</html>

@@ -1,0 +1,173 @@
+# CI — 골격판 (킷 템플릿) · 새 프로젝트에 그대로 복사해서 시작
+# ⚠️ test·boundaries 는 스택(언어·테스트 러너·모듈 구조)이 확정되는 Day 0 이후 활성화한다.
+#    지금은 스택 무관 게이트(tamper·high-risk·deploy 문법·AI 통신 확인)만 둔다.
+#    → Charter/기술설계로 스택이 정해지면 아래 "스택 확정 후" 블록의 주석을 해제하고
+#      <스택이미지>·<테스트명령>·<경계검사명령>을 채운다. (/scaffold 가 이 활성화를 돕는다)
+stages:
+  - test
+  - gate
+  - deploy
+
+# ─────────────────────────────────────────────────────────
+# 스택 확정(Day 0) 후 주석 해제 — 여기가 셀프머지의 핵심 게이트다
+# ─────────────────────────────────────────────────────────
+# test:
+#   stage: test
+#   image: <스택이미지>            # 예: node:20-alpine
+#   script:
+#     - <테스트명령>               # 예: npm ci && npm test
+#   rules:
+#     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+#     - if: '$CI_COMMIT_BRANCH == "main"'
+#
+# boundaries:                       # 다른 모듈은 index로만 import (직접 내부 import = 빨간불)
+#   stage: test
+#   image: <스택이미지>
+#   script:
+#     - <경계검사명령>             # 예: npm run boundaries
+#   rules:
+#     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+#     - if: '$CI_COMMIT_BRANCH == "main"'
+
+# ─────────────────────────────────────────────────────────
+# 스택 무관 게이트 — 지금부터 동작
+# ─────────────────────────────────────────────────────────
+
+# AI 리뷰 잡 전제: 사내 러너에서 api.anthropic.com 에 통신되나? (막히면 CI AI리뷰 잡 불가)
+ai-connectivity:
+  stage: test
+  image: alpine:3
+  script:
+    - apk add --no-cache curl >/dev/null
+    - |
+      CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 -X POST \
+        -H "content-type: application/json" -d '{}' \
+        https://api.anthropic.com/v1/messages || echo "000")
+      echo "api.anthropic.com 응답: $CODE  (4xx=통신 성공(인증만 실패) / 000=방화벽 차단)"
+      case "$CODE" in
+        4*) echo "OK — 필요 시 AI 리뷰 잡을 사내 러너에서 돌릴 수 있다";;
+        *)  echo "차단 — 러너 아웃바운드 방화벽/프록시 확인 필요";;
+      esac
+  allow_failure: true
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+# 테스트 변조 감지: src와 test(또는 CI설정)를 같은 MR에서 동시 수정 → 검토 필요
+tamper-check:
+  stage: test
+  image: alpine:3
+  script:
+    - apk add --no-cache git >/dev/null
+    - git fetch -q origin main
+    - CH=$(git diff --name-only origin/main...HEAD)
+    - echo "변경 파일:"; echo "$CH"
+    - |
+      # 테스트 감지는 파일명 기준 — 테스트가 src 안에 코로케이션되는 스택(Vitest 등)에서도 걸리게 (bnsone 실측 2026-07-29: '^test/'만으로는 src/**/*.test.ts가 영원히 미매칭)
+      if echo "$CH" | grep -qE '^src/' && echo "$CH" | grep -qE '\.test\.|\.spec\.|(^|/)tests?/|gitlab-ci'; then
+        echo "⚠ src와 test(또는 CI설정)를 동시 수정 — 테스트를 통과시키려 테스트를 고친 게 아닌지 검토"
+        exit 1
+      fi
+      echo "동시 수정 아님 — OK"
+  allow_failure: true
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+# 밀도 검사 — 규칙 문서(CLAUDE.md·스킬)가 자기 밀도 규약을 지키나 (allow_failure=경고).
+# 초과 줄을 매 MR마다 나열해 "추가만 하고 안 줄인다"를 상시 가시화한다. 근거: _reference/density.md
+density-check:
+  stage: test
+  image: alpine:3
+  script:
+    - apk add --no-cache bash >/dev/null
+    - bash scripts/check-density.sh
+  allow_failure: true
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: [CLAUDE.md, ".claude/skills/**/*", scripts/check-density.sh]
+
+# 시안(HTML) 자동 발행 — GitLab Pages (관리자가 서버에 Pages를 활성화한 경우 주석 해제)
+# 활성화되면: docs/05_UIUX 가 바뀔 때마다 상시 URL로 발행 → 기획자는 링크 클릭만 (앱·스택 무관, 설계 단계부터 동작)
+# pages:
+#   stage: deploy
+#   image: alpine:3
+#   script:
+#     - mkdir -p public && cp -r docs/05_UIUX/* public/ 2>/dev/null || echo "시안 없음"
+#   artifacts:
+#     paths: [public]
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == "main"'
+#       changes: [docs/05_UIUX/**/*]
+
+# 시크릿 스캔 — 커밋에 비밀값(키·암호·토큰)이 섞였는지 (발견 = 빨간불 차단)
+# 러너가 docker hub에서 gitleaks 이미지를 못 받으면: 잡 로그로 확인 후 사내 미러 경로로 교체
+secret-scan:
+  stage: test
+  image:
+    name: zricethezav/gitleaks:latest
+    entrypoint: [""]
+  script:
+    - gitleaks detect --source . --no-git --redact -v || (echo "⛔ 비밀값 의심 발견 — 커밋에서 제거하라. 이미 push됐으면 키 교체부터(공통 개발자 가이드 '사건 대응' 표)"; exit 1)
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# 검수 서버 배포 — main 머지 시 자동 (실 배포 대상은 공통 개발자가 세팅, 지금은 문법·environment 등록만)
+deploy-review:
+  stage: deploy
+  image: alpine:3
+  script:
+    - echo "검수 서버로 배포 - 커밋 $CI_COMMIT_SHORT_SHA"
+    - echo "배포 후 /api/health 200 확인 (실 배포는 인프라 필요, 지금은 시뮬)"
+  environment:
+    name: review-server
+    url: http://localhost:4321      # 실 배포 세팅 시 <검수서버URL>로 교체
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# 고위험 경로(shared 등) 변경 = 무료 티어의 Ask 강제 (수동 게이트 = 동료 1명 승인)
+high-risk-gate:
+  stage: gate
+  image: alpine:3
+  script:
+    - echo "고위험 경로(shared·마이그레이션·의존성·lock 등) 변경 — 동료 개발자 1명의 승인(이 잡 수동 실행)이 필요합니다."
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes:
+        - src/shared/**/*
+        - db/migrations/**/*
+        - "**/package.json"
+        - "**/package-lock.json"
+        # ↑ 스택 무관 고위험 경로. /scaffold가 스택 확정 후 인증·라우팅·설정 경로를 여기 추가한다.
+        #   경로로 못 잡는 고위험(모듈 내부 인증·결제 로직 등)은 `고위험` 라벨 + /done이 사람 승인으로 막는다 — 라벨이 정본.
+      when: manual
+      allow_failure: false
+
+# 비개발자(기획/디자이너) 직접 push 안전망
+# CE엔 경로별 push 제한(CODEOWNERS·Push Rules)이 없어 '사후 감지'로 대체한다.
+# 공통 개발자가 CI/CD Variables 에 PLANNER_EMAILS(기획/디자이너 이메일, 쉼표구분)를 등록하면 발효.
+# 그 계정이 docs/·README 외(코드·CI·설정) 파일을 바꾸면 파이프라인 실패 → 되돌린다.
+planner-guard:
+  stage: test
+  image: alpine:3
+  script:
+    - apk add --no-cache git >/dev/null
+    - 'echo "author=$CI_COMMIT_AUTHOR"'
+    - |
+      if [ -z "$PLANNER_EMAILS" ]; then echo "PLANNER_EMAILS 미설정 — 감지 비활성(무해). 공통 개발자가 등록하면 발효"; exit 0; fi
+      HIT=0
+      for e in $(echo "$PLANNER_EMAILS" | tr ',' ' '); do
+        case "$CI_COMMIT_AUTHOR" in *"<$e>"*) HIT=1;; esac
+      done
+      if [ "$HIT" != "1" ]; then echo "개발자 커밋 — 통과"; exit 0; fi
+      CH=$(git show --name-only --pretty=format: "$CI_COMMIT_SHA" | sed '/^$/d')
+      echo "변경 파일:"; echo "$CH"
+      BAD=$(echo "$CH" | grep -vE '^(docs/|README)' || true)
+      if [ -n "$BAD" ]; then
+        echo "⛔ 기획/디자이너 계정이 docs/·README 외 파일을 변경했습니다:"; echo "$BAD"
+        echo "코드·CI·배포설정은 개발자만 변경합니다. 이 커밋을 되돌리세요(공통 개발자 문의)."
+        exit 1
+      fi
+      echo "docs/ 내 변경만 — OK"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
