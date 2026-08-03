@@ -2,9 +2,9 @@
 
 > **배포 잡(빌드→배포처럼 `needs`로 이어지는 잡)을 만들거나 고칠 때 읽어라.**
 
-## 무슨 일 (bnsone 2026-08-03 실사고)
+## 무슨 일 (bnsone 2026-07-31·08-03 실사고)
 
-문서만 바꾼 main 푸시 **9회 전부** 파이프라인 잡 0개. `secret-scan`(차단)·`planner-guard`·`tamper-check`·`density-check`가 모두 미실행.
+코드 경로를 안 건드린 main 푸시 **8회 전부** 파이프라인 잡 0개(#2786 · #2797~2803). `secret-scan`(차단)·`planner-guard`·`tamper-check`·`density-check`가 모두 미실행.
 
 ```
 yaml_errors: 'service-deploy' job needs 'docker-build' job,
@@ -60,7 +60,9 @@ needs:
     optional: true
 ```
 
-**★`optional`을 아무 데나 붙이지 마라.** 배포 잡이 빌드 잡의 이미지·아티팩트를 쓰는데 `optional`로 두면, 빌드가 안 돈 커밋에서도 배포 잡이 실행 가능해진다 → 올라간 적 없는 태그를 가리켜 **CI에서 시끄럽게 실패하는 대신 k8s에서 조용히 `ImagePullBackOff`**. 시끄러운 실패를 조용한 실패로 바꾸는 건 개악이다.
+**★`optional`을 아무 데나 붙이지 마라.** 배포 잡이 빌드 잡의 이미지·아티팩트를 쓰는데 `optional`로 두면, 빌드가 안 돈 커밋에서도 **눌러봤자 반드시 실패하는 버튼**이 남는다 — 올라간 적 없는 태그를 가리키니 rollout이 안 끝나고 타임아웃까지 기다렸다 빨간불. ①에서 잡을 아예 안 만들면 그 헛수고 자체가 없다.
+
+> ※ 이 실패가 **조용하지는 않다**(2026-08-03 리뷰 정정). `rollout status --timeout`이 붙어 있으면 잡이 빨간불로 끝나고, `maxUnavailable: 0`이면 기존 파드가 계속 서비스한다. 다만 `rollout status` 없이 `set image`만 하는 배포 잡이라면 **진짜로 조용히 깨진다** — 배포 잡 끝에 `rollout status`가 있는지 확인하라.
 
 ## 확인 방법
 

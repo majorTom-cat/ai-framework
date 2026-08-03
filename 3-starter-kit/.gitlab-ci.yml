@@ -88,7 +88,7 @@ density-check:
 # ★needs 함정 — 배포 잡을 추가할 때 반드시 읽어라: `_reference/ci-needs.md`
 #   needs가 rules(changes)로 빠질 수 있는 잡을 가리키면, 그 잡이 빠지는 커밋에서 GitLab이
 #   파이프라인 생성 자체를 거부한다(잡 0개 = 시크릿 스캔·planner-guard 포함 전 게이트 무효).
-#   bnsone 2026-08-03 실사고 9회. glab ci lint·dry_run 둘 다 통과하니 문법 검증으론 안 잡힌다.
+#   bnsone 2026-07-31·08-03 실사고 8회. glab ci lint·dry_run 둘 다 통과하니 문법 검증으론 안 잡힌다.
 
 # 시안(HTML) 자동 발행 — GitLab Pages (관리자가 서버에 Pages를 활성화한 경우 주석 해제)
 # 활성화되면: docs/05_UIUX 가 바뀔 때마다 상시 URL로 발행 → 기획자는 링크 클릭만 (앱·스택 무관, 설계 단계부터 동작)
