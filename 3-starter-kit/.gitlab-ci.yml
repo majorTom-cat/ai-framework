@@ -85,6 +85,21 @@ density-check:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       changes: [CLAUDE.md, ".claude/skills/**/*", scripts/check-density.sh]
 
+# needs 함정 검사 — needs가 rules(changes)로 빠질 수 있는 잡을 가리키면, 그 잡이 빠지는 커밋에서
+# GitLab이 **파이프라인 생성 자체를 거부**한다(잡 0개 = 시크릿 스캔·planner-guard 포함 전 게이트 무효).
+# bnsone 2026-08-03 실사고: 문서만 바꾼 main 푸시 9회가 전부 이랬다. 재현·검증 = 파일럿 #90.
+# ★`glab ci lint`도 `POST /ci/lint?dry_run=true`도 통과하므로 이 잡이 유일한 기계 방어다.
+#   (자기 자신은 changes를 안 걸어 항상 돈다 — 걸면 정작 필요한 커밋에서 같이 빠진다)
+ci-needs-check:
+  stage: test
+  image: alpine:3
+  script:
+    - apk add --no-cache python3 py3-yaml >/dev/null
+    - python3 scripts/check-ci-needs.py
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
 # 시안(HTML) 자동 발행 — GitLab Pages (관리자가 서버에 Pages를 활성화한 경우 주석 해제)
 # 활성화되면: docs/05_UIUX 가 바뀔 때마다 상시 URL로 발행 → 기획자는 링크 클릭만 (앱·스택 무관, 설계 단계부터 동작)
 # pages:
