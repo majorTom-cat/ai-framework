@@ -3,7 +3,7 @@
 > 🟢 **프레임워크 구축은 완료돼 bnsone에 push됐다. 이제 프로젝트 실행은 `E:\bnsone` 에서 `claude` 켜고 `/start`.**
 > (bnsone = CLAUDE.md·스킬 자동 로드 → 실행 단계엔 이게 맞다. second-brain = 메모리·archive 전용)
 > **이 `E:\ai-framework` 파일은 프레임워크(가이드·킷) 자체를 고칠 때만** 다시 본다 — 그 맥락은 아래에 다 있다.
-> 최종 업데이트: 2026-07-28
+> 최종 업데이트: 2026-08-03
 
 ---
 
@@ -18,6 +18,10 @@
 **미검증 잔여**: 실 배포(검수서버 미세팅 — 구조적) · /metrics 0회(회고 액션 1 — bnsone에서 1회 실행 권장) · 이형 이탈 기록의 **자발성**(힌트 없는 조건으로 파일럿 재검증 진행 중 — 7-29 밤, **스펙·계획·댓글 전 단계에서 자발 기록 실증됨** — 마무리 중).
 
 **7-30 완료분**: ①**함정 분리 실험(#78) = 유지 판정** — done 함정 4묶음을 `함정.md`로 분리, 실카드 #72 한 바퀴에서 워커가 §3·§4 실사용·§1·§2 접근 확인. **핵심 발견: 포인터는 명령형("~전에 읽어라")만 열게 한다** — 참조형은 지나침(자가 보고). 킷 정본 채택 완료(본문 13.6→11.4KB), 확대는 다음 13KB 초과 스킬에서 ②**#72 CI 사각지대 수리 완주**(bnsone 레시피 이식) — 새 high-risk-gate가 자기 MR에서 실발동·tamper 경고 정상, 임시 repo+변이 검증 ③파생: CI 무효 실사고(잡 0개 파이프라인) → **dev·fix·done에 `glab ci lint` 단계**(#79, 3배포처 중 킷·파일럿 완료) ④A 동기 7건·존댓말 규칙 파일럿 반영 ⑤D 판정: fix 신규 줄 쪼갬, change 548자는 기존 줄이라 소급 안 함. **미검증 잔여 = 실 배포·(bnsone 몫) /metrics 재실행** — 파일럿에서 할 수 있는 검증은 소진.
+
+**7-31~8-01 완료분**: ①**밀도 규약 기계강제** — `scripts/check-density.sh` + CI `density-check` 잡(allow_failure=경고)으로 CLAUDE.md(줄당 300)·스킬(줄당 500) 상시 검사. "추가만 하고 안 줄인다"의 발동지점(그간 부재가 단조 증가의 뿌리였음). 근거는 `_reference/{density,schema-conflicts,worktree}.md`로 이관 ②**규칙문서 슬림**: 스킬 11개 500자 초과 40줄→0(fresh-context 서브에이전트 리플로 + 백틱토큰·frontmatter 기준선 대조로 무손실 검증), CLAUDE.md 최장 1137→634자·24000→21425B. **3배포처 동기**(킷·파일럿 MR!112·bnsone MR!56 — 둘 다 high-risk-gate 셀프 증적 후 머지). CLAUDE.md는 각 repo 채운값 보존하며 밀도 7블록만 이식(파일럿 notice/npm start, bnsone docker/5454/6모듈 생존 확인) ③**ai-framework 전체를 GitHub Private 백업**: https://github.com/majorTom-cat/ai-framework (`main`, `915e1a8`, GCM 인증). 최상위 `/.claude/`(런타임)는 .gitignore 제외. **남은 것**: 킷/파일럿/bnsone CLAUDE.md 각 21~23줄이 여전히 300자 초과 — CI가 매 MR 경고하니 손댈 때 점진 정리(무리한 일괄 분해는 규칙 유실 위험이라 보류).
+
+**📦 다른 PC에서 이어받기**: ①프레임워크 repo = `git clone https://github.com/majorTom-cat/ai-framework`(GCM 또는 gh 인증 필요, Private) ②**파일럿·bnsone은 별개 GitLab repo**(gitlab.bns.co.kr, 이 백업에 없음) — 필요하면 각각 clone + `glab auth login` ③⚠️**메모리(`C:\Users\...\.claude\...\memory`)는 이 PC 로컬이라 안 따라간다** — 다른 PC 새 세션엔 이 HANDOFF이 유일한 맥락. 중요 교훈(부재 단정 금지·검수 전 서버 커밋 확인·밀도 발동지점 등)은 여기 본문에 있음.
 
 ---
 <details><summary>📜 이전 🎯 (7-28 시점 — 이력)</summary>
