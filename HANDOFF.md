@@ -21,7 +21,7 @@
 
 **7-31~8-01 완료분**: ①**밀도 규약 기계강제** — `scripts/check-density.sh` + CI `density-check` 잡(allow_failure=경고)으로 CLAUDE.md(줄당 300)·스킬(줄당 500) 상시 검사. "추가만 하고 안 줄인다"의 발동지점(그간 부재가 단조 증가의 뿌리였음). 근거는 `_reference/{density,schema-conflicts,worktree}.md`로 이관 ②**규칙문서 슬림**: 스킬 11개 500자 초과 40줄→0(fresh-context 서브에이전트 리플로 + 백틱토큰·frontmatter 기준선 대조로 무손실 검증), CLAUDE.md 최장 1137→634자·24000→21425B. **3배포처 동기**(킷·파일럿 MR!112·bnsone MR!56 — 둘 다 high-risk-gate 셀프 증적 후 머지). CLAUDE.md는 각 repo 채운값 보존하며 밀도 7블록만 이식(파일럿 notice/npm start, bnsone docker/5454/6모듈 생존 확인) ③**ai-framework 전체를 GitHub Private 백업**: https://github.com/majorTom-cat/ai-framework (`main`, `915e1a8`, GCM 인증). 최상위 `/.claude/`(런타임)는 .gitignore 제외. **남은 것**: 킷/파일럿/bnsone CLAUDE.md 각 21~23줄이 여전히 300자 초과 — CI가 매 MR 경고하니 손댈 때 점진 정리(무리한 일괄 분해는 규칙 유실 위험이라 보류).
 
-**📦 다른 PC에서 이어받기**: ①프레임워크 repo = `git clone https://github.com/majorTom-cat/ai-framework`(GCM 또는 gh 인증 필요, Private) ②**파일럿·bnsone은 별개 GitLab repo**(gitlab.bns.co.kr, 이 백업에 없음) — 필요하면 각각 clone + `glab auth login` ③⚠️**메모리(`C:\Users\...\.claude\...\memory`)는 이 PC 로컬이라 안 따라간다** — 다른 PC 새 세션엔 이 HANDOFF이 유일한 맥락. 중요 교훈(부재 단정 금지·검수 전 서버 커밋 확인·밀도 발동지점 등)은 여기 본문에 있음.
+**📦 다른 PC에서 이어받기**: ①프레임워크 repo = `git clone https://github.com/majorTom-cat/ai-framework`(GCM 또는 gh 인증 필요, Private) ②**파일럿·bnsone은 별개 GitLab repo**(gitlab.bns.co.kr, 이 백업에 없음) — 필요하면 각각 clone + `glab auth login` ③⚠️**메모리(`~/.claude/.../memory`)는 PC를 안 따라간다**(맥으로 이동 — 복사 불가) → **그 핵심을 repo의 `AI-CONTEXT.md`로 이식해 뒀다. 맥 새 세션은 `AI-CONTEXT.md` + 이 HANDOFF부터 읽어라**(사용자 협업방식·핵심 교훈·지형·주의사항 전부 거기).
 
 ---
 <details><summary>📜 이전 🎯 (7-28 시점 — 이력)</summary>
