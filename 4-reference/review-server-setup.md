@@ -46,13 +46,17 @@ CI에 별도 migrate Job을 만들지 않는다(CI SA RBAC이 Job 생성을 보�
 ### ⑤ CI 잡 교체
 킷/bnsone `.gitlab-ci.yml`의 `deploy-review` 스텁(echo)을 실제 잡으로: dind 빌드 → Harbor push → `kubectl -n bnspace set image deployment/<앱> …:$CI_COMMIT_SHORT_SHA` → `rollout status --timeout=300s`. `environment.url`을 실제 검수 도메인으로 교체. 원본 = `E:\intra\.gitlab-ci.yml`의 `release` 잡. RBAC이 부족한 환경 대비 graceful degradation(권한 있으면 매니페스트 동기화, 없으면 `set image`만 — llm-wiki 패턴).
 
-**★`changes:`로 빌드 범위를 좁혔으면 `needs`를 반드시 `optional: true`로** — 빌드 잡이 빠지는 커밋(문서만 수정 등)에서 **파이프라인 생성 자체가 거부**되어 잡 0개가 된다(시크릿 스캔·planner-guard 포함 전 게이트 무효). bnsone 2026-08-03 실사고, 9회. `glab ci lint`·dry_run 다 통과하니 문법 검증으론 안 잡힌다 → 킷 `ci-needs-check` 잡이 기계 방어. 경위: G-10 · `3-starter-kit/_reference/ci-needs.md`
+**★`changes:`로 빌드 범위를 좁혔으면 그 빌드를 `needs`로 쓰는 잡에도 같은 `changes:`를 걸어라** — 한쪽만 빠지는 커밋(문서만 수정 등)에서 **파이프라인 생성 자체가 거부**되어 잡 0개가 된다(시크릿 스캔·planner-guard 포함 전 게이트 무효). bnsone 2026-08-03 실사고, 9회. `glab ci lint`·dry_run 다 통과하니 문법 검증으론 안 잡힌다. 경위·처방: G-10 · `3-starter-kit/_reference/ci-needs.md`
 
 ```yaml
-needs:
-  - job: docker-build
-    optional: true
+docker-build:
+  rules: [{ if: '$CI_COMMIT_BRANCH == "main"', changes: &code_changes [src/**/*, Dockerfile] }]
+service-deploy:
+  needs: ["docker-build"]
+  rules: [{ if: '$CI_COMMIT_BRANCH == "main"', changes: *code_changes }]   # 같이 들어오고 같이 빠진다
 ```
+
+`optional: true`는 **그 잡의 산출물(이미지·아티팩트)을 안 쓸 때만** — 쓰면서 optional로 두면 빌드 없이 배포가 실행 가능해져 올라간 적 없는 태그를 가리킨다(**시끄러운 CI 실패 → 조용한 `ImagePullBackOff`**).
 
 ### ⑥ 확인 (완료 기준)
 main에 **코드 파일을 실제로 건드리는** 커밋 1개 → 파이프라인 초록 → 검수 URL에서 앱 렌더 + 하단 버전 표시가 방금 커밋 해시로 갱신 + `/api/health` 200.

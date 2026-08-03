@@ -52,7 +52,7 @@ allowed-tools: Read Glob Grep Edit Write Bash(git *) Bash(npm *) Bash(docker com
      - 실행법은 스택마다 다르니 "이 스택에서 어떻게 할지 적고 만들라":
      ① 마이그레이션→시드 순서로 **실제 DB에 실행**  ② **두 번 연속 돌려 결과가 같은지**(멱등성 실증 — 지금은 주석으로만 "멱등")  ③ 고의로 깨뜨리면 빨간불이 되는지
 4. **CI 활성화** — `.gitlab-ci.yml`의 주석 처리된 **`test`·`boundaries` 스테이지를 이 스택 명령으로 채워 활성화** (`<스택이미지>`·`<테스트명령>`·`<경계검사명령>`) + **`high-risk-gate`의 `changes:`에 이 스택의 인증·라우팅·설정 경로를 추가**(기본은 shared·db/migrations·lock만 매칭 — 스택별 고위험 경로를 넓혀야 그 카드도 승인 게이트를 탄다). 고치면 `glab ci lint`로 문법 검증.
-   ★**`needs`가 가리키는 잡이 `rules`의 `changes:`로 빠질 수 있으면 `- job: X` + `optional: true`** — 안 그러면 그 잡이 빠지는 커밋에서 **파이프라인 생성이 거부**되어 잡 0개(전 게이트 무효)가 된다. `ci lint`·dry_run 다 통과하니 `ci-needs-check` 잡이 유일한 방어다. 경위·재현: `_reference/ci-needs.md`
+   ★**`needs`를 쓰면 가리키는 잡과 `rules`를 맞춰라** — 한쪽만 `changes:`로 빠지면 그 커밋에서 **파이프라인 생성이 거부**되어 잡 0개(전 게이트 무효)가 된다. 원칙: 같은 `changes:`를 공유(앵커)하거나, 산출물을 안 쓰는 경우에만 `optional: true`. `ci lint`·dry_run 다 통과하니 문법 검증으론 안 잡힌다 — **배포 잡을 만들 땐 `_reference/ci-needs.md`를 읽어라.**
    ★**자기 검증 대조표(필수 — 지시만 있고 이행이 새는 게 실측됐다)**:
      - CLAUDE.md '머지 등급'의 고위험 유형 **각각**(인증·결제·마이그레이션·shared 승격·라우팅·설정·lockfile)에 대해 **이 스택에서의 실제 경로를 적고**, `high-risk-gate`의 `changes:`와 `tamper-check` 조건에 반영됐는지 **항목별로 대조해 보고**한다.
      - 대응 경로가 없으면 **"없음"이라고 명시**(빈칸 금지).
