@@ -7,10 +7,12 @@ allowed-tools: Bash(glab *) Bash(git *) Bash(npm *) Read Edit Write Glob Grep
 ---
 
 이슈 내용 (자동 조회됨):
-!`glab issue view $0 2>&1 | head -40`
+!`case "$0" in ''|*[!0-9]*) echo "⛔ 이슈 번호가 없다(또는 숫자가 아니다) — 조회를 건너뛰었다.";; *) glab issue view "$0" 2>&1 | head -40;; esac`
 
 최근 댓글 (반려 사유·추가 지시는 여기 있다):
-!`glab issue view $0 --comments 2>&1 | tail -40`
+!`case "$0" in ''|*[!0-9]*) echo "⛔ 위와 같음.";; *) glab issue view "$0" --comments 2>&1 | tail -40;; esac`
+
+> **★위 조회가 ⛔면 여기서 멈춘다** — 번호를 문맥으로 추측하지 마라(엉뚱한 카드에 브랜치·커밋이 생긴다). `/fix {번호}` 로 다시 부르라고 안내하고 종료.
 
 # /fix — 이슈 #$0 작은 수정
 
