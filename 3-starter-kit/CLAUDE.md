@@ -24,7 +24,7 @@
 
 ## 머지 등급 — 대부분 셀프, 고위험만 동료 1명 확인
 - **기본 = 셀프 머지**: CI가 초록불이면 사람 승인 없이 머지한다. 이게 표준 흐름이다 — 전담 승인자는 없다.
-  - **★킷 기본 상태에선 초록불이 셀프 머지 근거가 못 된다** — `.gitlab-ci.yml`의 `test`·`boundaries`가 주석이라 없고, `tamper-check`·`density-check`·`ai-connectivity`는 `allow_failure: true`. 실제로 막는 건 `secret-scan`·`planner-guard`뿐.
+  - **★킷 기본 상태에선 초록불이 셀프 머지 근거가 못 된다** — `test`·`boundaries`가 주석이라 없고, `tamper-check`·`density-check`·`ai-connectivity`는 `allow_failure: true`. 실제로 막는 건 `secret-scan`·`planner-guard`·**`high-risk-gate`(수동 승인)**뿐.
   - `/scaffold`가 스택 확정 후 `test`·`boundaries`를 활성화한 뒤에야 위 기본 규칙이 성립한다. 그 전까지는 셀프 머지 대신 **동료 1명 확인**을 붙이고, 활성화하면서 이 두 줄을 그 repo의 실제 잡 목록으로 고쳐라.
 - **★고위험 카드 = Ask 레인**: 아래에 해당하면 CI 통과에 더해 **아무 동료 개발자 1명의 MR 승인** 후 머지(전담 리뷰어가 아니라, 손 빈 동료 아무나 1명). 자기 코드를 자기가 승인하지 않는다.
   - 인증·인가·세션·비밀값 취급 / 결제·과금성 로직 / **DB 마이그레이션** / **shared 승격**(2개 모듈+가 쓰는 코드) / 라우팅·설정·lockfile 등 핫스팟 파일
