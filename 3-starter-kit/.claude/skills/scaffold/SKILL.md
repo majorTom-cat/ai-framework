@@ -44,7 +44,7 @@ allowed-tools: Read Glob Grep Edit Write Bash(git *) Bash(npm *) Bash(docker com
    - **스택에 맞춰 다시 쓸 것 2가지**(킷 제공본은 CommonJS·JS 기준이다):
      - ①**경계검사 스크립트** — 스택이 ESM/TS면 `import`·`export from`·경로 alias를 해석하도록 재작성(+shared→모듈 역방향 의존 금지)
      - ②**CI 잡** — 타입 검사·빌드가 있는 스택이면 test 잡에 typecheck 추가 + build 잡 신설, `high-risk-gate`의 `changes` 목록에 그 스택의 설정 핫스팟(미들웨어·빌드 설정·compose·Dockerfile·CI 자신)을 더한다.
-     - `check-push`의 민감 패턴 예시(`user|account`)도 이 설계의 실제 공용 테이블 이름으로 교체.
+     - `check-push`는 **파일 경로로만** 감지한다(테이블 이름 패턴은 없다 — 초기 커밋부터 0건, 2026-08-06 실측). 폴더 구조가 킷 기본값과 다를 때만 경로 패턴을 고친다.
    - **시드·리셋**(Day 5): `modules/*/seed.ts`(멱등) · `scripts/reset-review-server.sh`(확인 프롬프트) · `npm run reseed`. (ship은 킷의 `/done` 스킬이 감싸므로 별도 스크립트 불필요)
    - ★**시드를 실제 DB에 붙여 돌리는 테스트도 함께 만든다** — 시드는 파드 기동마다 도는 경로라 **깨지면 앱이 아예 안 뜬다**.
      - 가장 치명적인데 검증이 없다: bnsone 실측 — 시드의 `$queryRawUnsafe`가 P2010으로 죽어 검수 서버 첫 기동 CrashLoopBackOff인데 `npm test`·typecheck·`ci lint`·CI 잡 넷 다 초록이었다. 넷 중 시드를 돌리는 게 하나도 없다.
@@ -59,7 +59,9 @@ allowed-tools: Read Glob Grep Edit Write Bash(git *) Bash(npm *) Bash(docker com
      - `tamper-check`의 소스 감지(`^src/` 등)에 스택 가정이 박혀 있지 않은지도 함께 — 예시 두 경우:
        - **라우팅이 `src/app/**`인 스택**(Next.js)이면 `src/app/**/page.*`·`route.*`·`layout.*`·`middleware.*`를 `changes:`에 추가
        - **라우팅이 루트 파일인 스택**(단일 `server.js`)이면 그 루트 파일 자체를 추가하고 tamper의 `^src/`도 `^src/|^server\.` 처럼 넓힌다(bnsone은 라우팅 경로 누락·파일럿은 루트 파일 누락으로 고위험 3카드가 게이트 없이 수동 우회 — 2026-07-29 실측).
-5. **CLAUDE.md 빈칸 채우기** — 이 스택으로 결정되는 플레이스홀더 채움(`<기동명령>` 등, '실행·테스트' 절). **+ check-push의 민감 테이블 패턴(예시 `user`·`account`)을 이 설계의 shared·고위험 테이블 이름으로** 바꾼다(안 하면 훅이 조용히 안 뜬다). (`<검수서버URL>`·`<본보기모듈>`·소유표는 인프라·Day 6·합류 후 — `/setup-gitlab`·`/assign-module`이 채운다.)
+5. **CLAUDE.md 빈칸 채우기** — 이 스택으로 결정되는 플레이스홀더 채움(`<기동명령>` 등, '실행·테스트' 절). 
+   — **+ check-push의 경로 패턴을 이 스택에 맞춘다**: 마이그레이션 폴더가 `db/migrations/`가 아니면(Prisma는 `prisma/`) 그 경로로 바꾸고, **CI `high-risk-gate`의 `changes:` 목록과 같게 맞춰라**(훅=로컬 앞단, CI=백스톱 — 어긋나면 한쪽만 뜬다).
+   (`<검수서버URL>`·`<본보기모듈>`·소유표는 인프라·Day 6·합류 후 — `/setup-gitlab`·`/assign-module`이 채운다.)
 6. **커밋** (첫 줄 `#<카드> chore: 앱 골격`, 카드 = 2-1 발행분) — **새 clone 검증(7)은 커밋된 상태만 보므로 커밋이 먼저다**(순서 뒤집지 말 것).
    - ⚠️ Day 1 골격 커밋은 공통 영역(shared·CI·CLAUDE.md) 전부를 건드리지만 `<팀채팅주소>`가 아직 비어 채팅 공지를 할 수 없다 — **이 최초 골격 커밋만은 카드 번호로 공지를 갈음한다**(예외; Day 2 `/setup-gitlab`에서 채팅주소가 채워지면 이후 공통 변경은 정상 공지).
 7. **✅ 눈으로 확인** — **다른 폴더에 새로 clone → `docker compose up` → 브라우저에 빈 앱이 뜨는지.** 안 뜨면 여기서 고쳐 **수정 커밋을 추가**한다(뜨는 게 완료 기준).

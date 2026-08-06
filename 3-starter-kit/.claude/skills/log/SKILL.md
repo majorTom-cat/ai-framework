@@ -13,6 +13,8 @@ allowed-tools: Bash(git log *) Bash(git blame *) Bash(git shortlog *) Bash(glab 
 
 대상: $0 / 기간: $1 (없으면 최근 1개월)
 
+> **★대상이 안 왔으면 여기서 멈춘다** — 위 `대상:` 자리가 비었거나 `$0`가 그대로거나 `/bin/zsh`·`bash` 같은 **셸 이름으로 보이면**(인자 없이 부르면 셸이 `$0`을 셸 이름으로 펼친다) 조회를 하지 마라 — 엉뚱한 경로를 "이력 없음"으로 보고하게 된다. 대상을 추측하지 말고 `/log {모듈|shared|경로}` 로 다시 부르라고 안내하고 종료.
+
 1. 대상을 경로로 해석: 모듈명 → `src/modules/{이름}` · `shared` → `src/shared` · 그 외는 경로 그대로
 2. `git log --since="{기간}" --stat -- {경로}` 로 이력 수집 (기여자 집계가 필요하면 `git shortlog -sn`)
 3. **사람이 읽는 표로 요약**:

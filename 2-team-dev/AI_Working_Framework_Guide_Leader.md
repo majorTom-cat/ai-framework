@@ -1,8 +1,8 @@
 # 공통 개발자 실전 가이드 — 골격 구축 (Day 0~6) + 운영 루틴
 
-> **Type:** Guide (설계 근거는 `_reference/TeamDevMode_Playbook.md`)
+> **Type:** Guide (설계 근거는 `2-team-dev/AI_Working_Framework_Playbook_TeamDevMode.md`(프레임워크 홈))
 > **대상:** 공통 골격을 만들고 운영하는 개발자(공통 개발자)
-> **이 가이드 하나로 골격을 지을 수 있습니다.** 더 깊은 설계 근거(왜 이 구조인지)가 궁금할 때만 `_reference/TeamDevMode_Playbook.md`(선택 — 일상 작업엔 불필요). 공통 개발자도 개발자처럼 **스킬로** 작업한다(`/design`·`/scaffold`·`/setup-gitlab` 등) — 자연어로 시켜도 AI가 맞는 스킬로 안내한다.
+> **이 가이드 하나로 골격을 지을 수 있습니다.** 더 깊은 설계 근거(왜 이 구조인지)가 궁금할 때만 `2-team-dev/AI_Working_Framework_Playbook_TeamDevMode.md`(프레임워크 홈)(선택 — 일상 작업엔 불필요). 공통 개발자도 개발자처럼 **스킬로** 작업한다(`/design`·`/scaffold`·`/setup-gitlab` 등) — 자연어로 시켜도 AI가 맞는 스킬로 안내한다.
 
 > **공통 개발자의 두 가지 일:** ① 골격 주간(1주차) — 팀이 올라탈 레일을 만든다. ② 운영 중 — 하루 10분 모니터링 + 사건 대응. 골격 주간에는 골격에만 전념한다(자기 모듈 개발은 2주차부터).
 > 📚 **별책 4권 중 1권 — 공통 개발자 전용.** 전체 지도: [README](/README.md) · 형제: [개발자 ONBOARDING](ONBOARDING.md) · [GitLab 실전 가이드](AI_Working_Framework_Guide_GitLab.md) · [Claude Code로 문서 올리기](AI_Working_Framework_Guide_ClaudeCode.md)
@@ -75,7 +75,8 @@
 
 > ★**이 프로젝트는 스타터 킷(`3-starter-kit`)을 repo에 복사해 시작한다.** 그래서 아래 Day 3~6의 **`CLAUDE.md`·`.claude/rules`·훅·스킬 전부(개수·목록의 정본 = [repo README §4](/README.md#4-스킬--하나씩), Day 6 체크리스트에도 있음)는 이미 킷에 들어 있다** — "만들어줘"가 아니라 **① 플레이스홀더를 채우고(`<기동명령>`·`<검수서버URL>` 등) ② 스택에 맞게 연결하고 ③ 실제로 로드·동작하는지 검증**한다. 진짜로 새로 만드는 건 §0의 "셋"(Day 0 설계문서 · Day 6 본보기 모듈 · Day 4 강제 장치 일부)뿐.
 > 📦 **킷의 출처와 업데이트**: 원본 킷 = 사내 프레임워크 설계 홈의 `3-starter-kit`(이 repo 밖, 프레임워크 유지보수자 관리). **순수 프레임워크 파일(`.claude/skills`·`rules`)은 킷이 정본** — 개선은 킷을 먼저 고치고 각 repo에 복사(byte 동일)로 반영한다. `CLAUDE.md`·가이드처럼 프로젝트 값이 섞인 파일은 **로직만 동기**하고 채워진 값은 보존. 이 동기가 끊기면 낡은 프레임워크로 일하게 된다 — 프레임워크 변경 공지가 오면 반영 여부를 확인하라.
-> 📎 **청사진·근거는 `_reference/`에 있다** (사람 일상 읽기 폴더 밖 — 어떤 규칙도 자동 로드하지 않음): 설계 청사진 `_reference/TeamDevMode_Playbook.md` · Day 6 상세 `_reference/GoldenPath.md` · 근거·출처 `_reference/evidence/*`. **이 가이드로 충분하고, 그 폴더는 "왜?"가 궁금할 때만** 펼친다.
+> 📎 **청사진·근거 문서는 킷에 동봉되지 않는다 — 프레임워크 홈(`ai-framework/`)에 있다.** 설계 청사진 `2-team-dev/AI_Working_Framework_Playbook_TeamDevMode.md` · Day 6 상세 `2-team-dev/AI_Working_Framework_Guide_GoldenPath.md` · 근거·출처 `4-reference/*.md`. **이 가이드로 충분하고, 그 문서들은 "왜?"가 궁금할 때만** 펼친다(프레임워크 유지보수자에게 요청하거나 프레임워크 repo에서 직접 연다).
+> ※ repo에 복사되는 `_reference/`는 **다른 것**이다 — CLAUDE.md·CI가 본문에서 가리키는 실전 노트 5종(`worktree`·`push-guard`·`schema-conflicts`·`density`·`ci-needs`)만 들어 있다. 위 청사진·근거를 이 repo에서도 보고 싶으면 프레임워크 홈에서 `_reference/`로 복사해 오되, **사본을 늘리면 드리프트한다**는 점을 감수하라.
 
 ### Day 0 — 요구사항 정리 + 기술 설계 〔P1, 골격보다 먼저〕
 
@@ -152,7 +153,7 @@
 > - **`high-risk-gate`**(when:manual): db/migrations·인증·shared 공개 API를 건드린 MR은 수동 통과 전 머지 불가 — 작성자 본인도 누를 수 있으니 **'자기 승인 금지' 규율과 병행**(유료 티어면 승인 규칙으로 기계 강제)
 > - docs만 바뀐 커밋은 test 생략 / main 머지 = 검수 서버 자동 배포(+헬스체크)
 
-> ★**사람 코드리뷰가 없는 구조에서는 CI가 유일한 자동 안전망**이다 — 외부 증거가 강하게 경고하는 지점이다(무리뷰 머지와 결함률 급증의 상관, AI 코드의 보안 결함 급증은 빌드·타입·테스트로는 안 잡힘). 그래서 위 security·guard 스테이지는 "여유되면"이 아니라 **P1(셀프 머지를 켜기 전 필수)**다. 근거·출처: `_reference/evidence/team-ai-collab-evidence.md` §2-1·§2-2·§3.
+> ★**사람 코드리뷰가 없는 구조에서는 CI가 유일한 자동 안전망**이다 — 외부 증거가 강하게 경고하는 지점이다(무리뷰 머지와 결함률 급증의 상관, AI 코드의 보안 결함 급증은 빌드·타입·테스트로는 안 잡힘). 그래서 위 security·guard 스테이지는 "여유되면"이 아니라 **P1(셀프 머지를 켜기 전 필수)**다. 근거·출처: `4-reference/team-ai-collab-evidence.md`(프레임워크 홈) §2-1·§2-2·§3.
 
 > ★**AI 리뷰는 기본적으로 "개발자 구독으로 도는 `/done`의 `/code-review`"로 한다 — 추가 결제 0.** 자기선호 편향은 그 `/code-review`를 **새 서브에이전트(fresh context)**로 돌려 피한다(같은 Claude Code 구독 안이라 비용 없음). 이게 셀프 머지의 AI 안전망이다.
 > 〔P2 — 선택, **별도 API 결제**〕 CI에서 MR마다 `claude -p` 자동 리뷰 잡을 추가할 수도 있으나 **"비용 신경 끄기" 원칙이면 도입하지 않는다** — 구독 `/code-review`로 충분하다.
@@ -165,7 +166,12 @@
 - **필수 안전장치**: main 보호(MR 전용) + Pipelines must succeed. 이러면 비개발자의 문서 변경도 MR로 흐르고(본인이 셀프 머지 — Maintainer라 가능), 실수로 코드를 건드려도 CI·고위험 게이트가 잡는다.
 - **CE 한계와 백스톱**: 사내 GitLab(CE)은 "docs만 허용" 같은 경로별 보호가 안 된다(유료 기능) → "비개발자는 docs만"은 **가이드 명시 + CI 사후 감지 잡 planner-guard**(`PLANNER_EMAILS` 등록으로 발효)로 백스톱한다.
 
-> ⚠️**고위험 카드 = 동료 1명 승인 후 머지** (인증·결제성·DB 마이그레이션·shared 승격·핫스팟〔라우팅·설정·lockfile 등 전원이 만지는 충돌 잦은 파일〕). GitLab **무료 티어는 '필수 승인 강제'가 유료**라 기계 차단이 안 되므로 — **`고위험` 라벨 + `/done`이 auto-merge 대신 승인 요청 흐름으로 전환**하는 팀 규율로 운영한다(스킬이 강제 — **승인 행위 = 동료가 요청 댓글의 잡 링크 ▶ 1클릭, 또는 자기 세션 `/todo`에서 "승인"**). 전담 승인자가 아니라 손 빈 동료 아무나 1명이고, 대다수 일반 카드는 셀프 머지 그대로다. 유료 티어면 `고위험` 라벨에 승인 규칙을 걸어 기계 강제로 승격 가능. 이 등급 도입 근거는 `_reference/evidence/team-ai-collab-evidence.md` §2-1.
+> ⚠️**고위험 카드 = 동료 1명 승인 후 머지** (인증·결제성·DB 마이그레이션·shared 승격·핫스팟〔라우팅·설정·lockfile 등 전원이 만지는 충돌 잦은 파일〕). GitLab **무료 티어는 '필수 승인 강제'가 유료**라 기계 차단이 안 되므로 — **`고위험` 라벨 + `/done`이 auto-merge 대신 승인 요청 흐름으로 전환**하는 팀 규율로 운영한다(스킬이 강제 — **승인 행위 = 동료가 요청 댓글의 잡 링크 ▶ 1클릭, 또는 자기 세션 `/todo`에서 "승인"**). 전담 승인자가 아니라 손 빈 동료 아무나 1명이고, 대다수 일반 카드는 셀프 머지 그대로다. 유료 티어면 `고위험` 라벨에 승인 규칙을 걸어 기계 강제로 승격 가능. 이 등급 도입 근거는 `4-reference/team-ai-collab-evidence.md`(프레임워크 홈) §2-1.
+>
+> ★**누가 승인하나 — `CLAUDE.md`가 정본, 아래는 그 요약이다**(2026-08-06 추가분 반영):
+> - **승인자는 개발자끼리 서로 — 공통 개발자는 승인자가 아니다**(개발자가 1명뿐일 때만 예외). 공통 개발자에게 몰리면 그가 전담 리뷰어가 되어, 이 등급이 막으려던 병목 구조가 그대로 생긴다(2026-08-06 실측). 자기 코드를 자기가 승인하지 않는 것도 그대로.
+> - **셀프 승인도 인정한다 — 단 증적 3종을 남길 때만**(동료 승인이 불가능할 때: 혼자 골격 작업·전원 부재·긴급). ①fresh-context AI 리뷰(`/code-review`, 새 입력 표면이면 `/security-review`도) ②본인이 diff 직접 확인 ③카드 댓글에 "셀프 승인" + 사유 + 리뷰 결과 + 확인한 diff 범위. **셋이 다 남아야 승인이고, 조용히 머지하면 무승인이다.** AI 리뷰를 구현한 세션에서 돌렸으면 그 사실도 적는다(편향 가능성이 증적의 일부).
+> - **동료가 있으면 동료 승인이 우선** — 셀프는 폴백이지 기본값이 아니다. 반복되면 그 자체가 신호이니 `/metrics` 주간 점검에서 센다.
 
 > ⚠️ **사내 러너 확인:** 공용 러너 큐가 밀리면 auto-merge가 전부 러너 대기에 묶인다. CI 한 바퀴가 5분을 넘으면 프로젝트 전용 러너를 요청하라 — 이 방식 전체가 "CI가 빨라야" 굴러간다.
 
@@ -189,7 +195,7 @@
 | 모듈 **소유자** (소유표 오른쪽 열) | **팀 합류 때 `/assign-module <모듈> <사람>`** | 공통 개발자 |
 | `<본보기모듈>` | **Day 6**(본보기 정하면) | 공통 개발자 |
 
-> ⚠️ **옮겨 적을 초안은 없다 — 킷의 `CLAUDE.md`가 곧 정답이다.** 통째로 새로 쓰지 말고 위 표의 플레이스홀더만 채워라. (킷 없이 맨바닥으로 시작하는 예외 상황이면 규칙 재료는 `_reference/TeamDevMode_Playbook.md`에 있다.)
+> ⚠️ **옮겨 적을 초안은 없다 — 킷의 `CLAUDE.md`가 곧 정답이다.** 통째로 새로 쓰지 말고 위 표의 플레이스홀더만 채워라. (킷 없이 맨바닥으로 시작하는 예외 상황이면 규칙 재료는 `2-team-dev/AI_Working_Framework_Playbook_TeamDevMode.md`(프레임워크 홈)에 있다.)
 
 
 루트 CLAUDE.md 외의 영역 규칙 = **`.claude/rules/` 경로별 파일** — 맨 위 `paths:` 글롭(예: `src/modules/a/**`)이 걸린 경로를 만질 때 자동 로드된다. (모듈 폴더마다 CLAUDE.md를 두는 방식은 "읽을 때만" 로드돼 구멍이 생기므로 안 쓴다.) 양식의 정본 = 킷 `rules/_module-template.md`.
@@ -199,7 +205,7 @@
 같은 날 **킷의 `.claude/settings.json`이 커밋돼 있는지 확인한다** — AI가 읽는 규칙이 아니라 기계가 강제하는 설정이고, Windows 랩탑에선 이게 로컬의 유일한 강제층이다. 내용(권한 허용목록 · `.env` 읽기·force push 차단 · 훅 배선)의 **정본은 킷 파일 그 자체** — 다른 초안으로 덮어쓰지 마라.
 
 **작성 원칙:**
-- **짧게** — 루트 100줄 안쪽(공식 권고 200줄 이하), 파일당 한 주제. **절차(단계 있는 워크플로)는 여기 말고 스킬로**(Day 5) — 공식 가이드: "CLAUDE.md의 한 절이 절차로 자라면 스킬로 옮겨라".
+- **짧게** — 루트 CLAUDE.md의 **기계 상한 = 200줄 · 줄당 300자**(`scripts/check-density.sh`가 검사, CI `density-check`). 킷 기본판이 이미 130줄 안팎이니 "100줄 안쪽"은 목표로 삼을 수 없다 — 상한은 200줄이고, **줄 수보다 "규칙 1건 추가 = 삭제/훅전환 후보 1건"** 규율이 실제 방어선이다. 파일당 한 주제. **절차(단계 있는 워크플로)는 여기 말고 스킬로**(Day 5) — 공식 가이드: "CLAUDE.md의 한 절이 절차로 자라면 스킬로 옮겨라".
 - **중복 없이** — 루트 = 전역 사실·경계·금지, rules = 그 영역의 사실. 두 곳에 쓰면 한쪽만 고쳐져 모순이 생긴다.
 - 다른 AI 도구(Cursor 등) 혼용 팀이면: 내용을 `AGENTS.md`(업계 표준)에 두고 **CLAUDE.md 첫 줄에 `@AGENTS.md` 임포트 한 줄** — 방향 주의(반대로 하면 Claude가 못 읽는다). Windows라 심볼릭 링크는 못 쓴다.
 - 운영 규칙 2개가 킷 CLAUDE.md 세션 규칙에 **있는지 확인**(새로 쓰는 게 아니다): **"세션은 항상 repo 루트에서"** · **"이슈 하나 = 세션 하나"**(시작은 그냥 `claude`, `-n` 이름표는 이어갈 이슈만 선택).
@@ -214,23 +220,23 @@
 
 > ⚠️ **git 훅은 clone만으로 설치되지 않는다.** `.git/hooks`는 버전 관리 밖이다 — repo에 스크립트를 커밋해도 팀원에게 자동 적용되지 않는다. **husky(npm install 때 git 훅을 전원에게 깔아주는 도구)를 쓰고 `package.json`에 `"prepare": "husky"`를 넣어라** — 그러면 `npm install` 순간 전원에게 훅이 깔린다. 이걸 빼먹으면 "훅이 있다고 믿는데 아무한테도 없는" 상태가 된다.
 
-> ⚠️ **Windows 랩탑 주의 4가지:** ①Windows엔 네이티브 샌드박스가 없다 — **권한 규칙(Day 3의 settings.json)이 로컬의 유일한 강제층**이니 반드시 커밋. ②`bypassPermissions`/`--dangerously-skip-permissions`(및 자동승인 auto 모드)는 팀에 절대 안내하지 말 것 — ★**자동승인 세션에선 push 훅의 확인창(ask)을 Claude Code 실행기가 소리 없이 통과시킨다**(파일럿 실측). 그래서 공통 영역 통제의 진짜 백스톱은 훅이 아니라 **①사전 채팅 공지 규율 ②CI 경로감지 경고**(`_reference/TeamDevMode_Playbook.md` §9 표의 "공통 영역 경고" — 머지 후에도 기록이 남음)다. 훅은 대화형 세션의 리마인더로만 신뢰하라. ③전원 Claude Code 최신 버전 사용(구버전엔 Windows 워크트리 삭제 시 링크 대상 파일이 지워지는 버그). ④**전원 `CLAUDE_CODE_GIT_BASH_PATH` 환경변수 설정**(ONBOARDING 첫날 셋업) — 미설정 시 bash 훅이 cmd.exe로 실행돼 **조용히 실패**한다(공식 이슈 #16602). 아래 강제 장치가 전부 bash 스크립트라 이게 빠지면 안전장치 없이 도는 셈.
+> ⚠️ **Windows 랩탑 주의 4가지:** ①Windows엔 네이티브 샌드박스가 없다 — **권한 규칙(Day 3의 settings.json)이 로컬의 유일한 강제층**이니 반드시 커밋. ②`bypassPermissions`/`--dangerously-skip-permissions`(및 자동승인 auto 모드)는 팀에 절대 안내하지 말 것 — ★**자동승인 세션에선 push 훅의 확인창(ask)을 Claude Code 실행기가 소리 없이 통과시킨다**(파일럿 실측). 그래서 공통 영역 통제의 진짜 백스톱은 훅이 아니라 **①사전 채팅 공지 규율 ②CI 경로감지 경고**(`2-team-dev/AI_Working_Framework_Playbook_TeamDevMode.md`(프레임워크 홈) §9 표의 "공통 영역 경고" — 머지 후에도 기록이 남음)다. 훅은 대화형 세션의 리마인더로만 신뢰하라. ③전원 Claude Code 최신 버전 사용(구버전엔 Windows 워크트리 삭제 시 링크 대상 파일이 지워지는 버그). ④**전원 `CLAUDE_CODE_GIT_BASH_PATH` 환경변수 설정**(ONBOARDING 첫날 셋업) — 미설정 시 bash 훅이 cmd.exe로 실행돼 **조용히 실패**한다(공식 이슈 #16602). 아래 강제 장치가 전부 bash 스크립트라 이게 빠지면 안전장치 없이 도는 셈.
 
-> ⚠️ **"이미 킷에 있다"와 "지금 만든다"를 구분하라.** 킷에 실제로 든 건 **check-push 훅·settings.json 훅 배선·security-guidance 플러그인**뿐이다. 나머지 — **husky(+`"prepare":"husky"`)·shared 공개 API 스냅샷 테스트·lock 충돌 머지 드라이버(자체 스크립트+`.gitattributes`)·Edit/Write 모듈 가드 훅**은 **`package.json`이 생긴 뒤(=Day 1 `/scaffold` 후)에야** 만들 수 있다. 그러니 Day 4는 "확인만"이 아니라 이 넷은 **실제로 새로 만든다.**
-> ⚠️ **check-push의 민감 경로 패턴을 이 프로젝트에 맞춰라.** 스크립트에 하드코딩된 예시 테이블 이름(예: `user`·`account`)을 **이 프로젝트의 shared·고위험 테이블 이름**으로 바꾸지 않으면, 정작 민감한 마이그레이션에서 훅이 조용히 안 뜬다.
+> ⚠️ **"이미 킷에 있다"와 "지금 만든다"를 구분하라.** 킷에 실제로 든 건 **check-push 훅·settings.json 훅 배선·security-guidance 플러그인**뿐이다. 나머지 — **husky(+`"prepare":"husky"`)·shared 공개 API 스냅샷 테스트·lock 충돌 안전판(`.gitattributes`의 `merge=binary` — ⚠️머지 드라이버가 아니다, 아래 4번)·Edit/Write 모듈 가드 훅**은 **`package.json`이 생긴 뒤(=Day 1 `/scaffold` 후)에야** 만들 수 있다. 그러니 Day 4는 "확인만"이 아니라 이 넷은 **실제로 새로 만든다.**
+> ⚠️ **check-push의 감지는 "파일 경로" 기준이다 — 테이블 이름이 아니다.** 스크립트의 `grep -iE` 패턴은 변경된 **파일 경로**만 본다(`src/shared/`·`.claude/`·`db/migrations/`·`CLAUDE.md`·`.gitlab-ci.yml`·Dockerfile·docker-compose·lockfile·`middleware.*`). 그래서 마이그레이션은 파일이 `db/migrations/` 아래 있기만 하면 테이블 이름과 무관하게 걸린다. **이 프로젝트의 폴더 구조가 킷과 다를 때만** 그 패턴의 경로를 실제 구조에 맞게 고쳐라(예: `packages/shared/`). 테이블명을 채워 넣는 치환 단계는 없다.
 
 **확인 체크리스트 — 강제 장치 6종.** 생성 주체는 한 문장으로: **1~2·6은 킷 제공(확인만), 3~5는 `/scaffold`가 생성 시도하나 package.json 시점 문제로 누락될 수 있다 — Day 4는 실물 검증이고, 빠진 건 AI에게 "N번 만들어줘"라고 하면 그 자리에서 만든다** (ConfigChange 훅 포함 5번 = 새로 만드는 쪽):
-1. [ ] `check-push.sh`(공통 영역 push 경고) — **husky pre-push 연결** + package.json `"prepare": "husky"`
-2. [ ] settings.json 훅 배선(push 전 위 스크립트 실행) — 킷 제공, 커밋돼 있는지만
+1. [ ] `check-push.sh`(공통 영역 push 경고) — **Claude Code `PreToolUse` 훅으로만 동작한다.** ⛔**husky pre-push에 그대로 붙이지 마라**: 이 스크립트는 stdin으로 들어오는 Claude Code의 **JSON 입력**(`"command"` 필드)에서 명령을 뽑아 판정하므로, husky가 주는 입력(`<local ref> <sha> <remote ref> <sha>` 줄 또는 빈 stdin)에서는 **아무 출력 없이 exit 0**으로 통과한다 — 붙여봐야 경고가 한 번도 안 뜬다(2026-08-03 실측: husky 형식·빈 stdin 모두 무음). git 훅으로도 쓰고 싶으면 **별도 래퍼**가 필요하다(래퍼가 `git diff --name-only origin/main...HEAD`로 경로를 판정해 stderr 경고 + 필요 시 exit 1). 래퍼를 안 만들 거면 이 항목은 **Claude Code 세션 안에서만 유효한 리마인더**로 취급하고 백스톱은 CI(아래 §Day 2 경로감지 경고)에 둔다.
+2. [ ] settings.json 훅 배선(Claude Code가 Bash `git push` 실행 전 위 스크립트 호출) — 킷 제공, 커밋돼 있는지만
 3. [ ] shared 공개 API **스냅샷 테스트** — export 이름 + **시그니처 해시**까지(이름만 기록하면 파괴적 변경이 통과 — 드라이런 실측 갭)
 4. [ ] lock 충돌 안전판: `.gitattributes`에 `package-lock.json merge=binary` — ⚠️**자동 머지 드라이버 금지**(`npm-merge-driver`든 자체 스크립트든 lock을 자동 재생성하면 **한쪽 의존성이 조용히 누락**된다, 2026-07-27 실측). `merge=binary`는 시끄러운 충돌로 강제 → 수동 해결(CLAUDE.md: package.json만 통합 후 `npm install --package-lock-only`)
 5. [ ] PreToolUse 훅(남의 모듈 편집 시점 경고) · ConfigChange 훅(설정 변경 기록·차단)
 6. [ ] security-guidance 플러그인 활성화(settings.json `enabledPlugins`)
 
-**완료 기준:** shared/ 파일을 일부러 고쳐서 push → 경고가 뜨는 걸 직접 본다. 스냅샷 테스트에서 export 하나를 지워보고 CI가 빨간불 되는 것도.
+**완료 기준:** shared/ 파일을 일부러 고쳐 **Claude Code 세션 안에서** push → 확인 창(ask)이 뜨는 걸 직접 본다(터미널에서 맨손 `git push`로는 안 뜬다 — 이 훅은 Claude Code 전용이다. 래퍼를 만들었다면 맨손 push에서도 경고가 뜨는지 함께 본다). 스냅샷 테스트에서 export 하나를 지워보고 CI가 빨간불 되는 것도.
 
 > 〔P2 — 여유 되면 첫 주에〕 **Stop 훅 자가검증:** "완료" 선언 전에 검증(배포 헬스체크·테스트)이 통과할 때까지 턴 종료 자체를 차단하는 공식 훅 — "검수요청 전 자가 확인" 규율을 기계로 승격한다. (**보안·중복·변조 스캔 잡은 Day 2 P1 필수** — 무료다. **AI 리뷰 CI 잡은 별도 API 결제**라 P2 선택이고, 비용 없이는 개발자 구독 `/code-review`가 그 역할을 한다.)
-> 〔P2 — 생태계 도입 후보 3종: gitlab MCP·LSP 플러그인·claude-md-management〕 켜는 법 힌트·미포함 이유·근거 = `_reference/evidence/ecosystem-analysis.md`(이 repo `_reference/`에 동봉).
+> 〔P2 — 생태계 도입 후보 3종: gitlab MCP·LSP 플러그인·claude-md-management〕 켜는 법 힌트·미포함 이유·근거 = `4-reference/ecosystem-analysis.md`(프레임워크 홈 — 이 repo에는 동봉되지 않는다). 켜는 법 요약은 킷 README '도입 후보' 표에도 있다.
 > 〔P3〕 **멘션 실시간화**는 브리핑(/todo)만으로 놓침이 **반복 관찰될 때만** 도입(방법 후보는 evidence 문서).
 
 ### Day 5 — 시드·리셋·ship + 파일럿 〔P1 — 레일 1회전 없이는 팀 착수 금지(§0 철칙)〕
@@ -249,7 +255,7 @@
 > ⚠️파일럿에 **의도적 반려 1회 포함**: 일부러 결함 하나를 반려시켜 "검수 반려 → 카드 진행중 복귀 → 재작업(/fix) → 재검수 → Close" 한 바퀴를 직접 돌려 두라(골격 주간엔 공통 개발자 혼자 — **팀 합류 후 온보딩 파일럿에서 팀도 같은 한 바퀴를 연습**한다). 실전 첫 반려 때 즉석 규칙 발명을 시키지 마라.
 
 > ⚠️파일럿에서 **특히 지켜볼 것** — 설계 검증(시뮬)이 구조상 확인하지 못해 실물에서만 보이는 영역들이다. 여기서 나는 마찰은 카드로 등록:
-> ①CI 파이프라인·**auto-merge 실동작** (러너 속도 포함) ②**check-push 훅 실발화** — 설치 직후 shared 파일을 일부러 고쳐 push해서 확인 창이 뜨는지 1회 확인 ③`/code-review`·`/security-review` 실호출 품질 ④기획자의 **실제 웹 편집** 경로(커밋 번호 없는 docs 커밋 처리 포함) ⑤**서로 다른 PC 두 명이 같은 파일**을 건드렸을 때의 머지 충돌 해소 ⑥husky pre-push·스냅샷 테스트 동작 ⑦glab CLI 전반(스킬의 자동 조회 줄 포함). (④⑤는 팀이 있어야 실제로 확인된다 — 팀 합류 후 확인 항목으로 열어둔다)
+> ①CI 파이프라인·**auto-merge 실동작** (러너 속도 포함) ②**check-push 훅 실발화** — 설치 직후 shared 파일을 일부러 고쳐 **Claude Code 세션 안에서** push해서 확인 창이 뜨는지 1회 확인(맨손 터미널 push는 대상이 아니다 — 위 Day 4 ①) ③`/code-review`·`/security-review` 실호출 품질 ④기획자의 **실제 웹 편집** 경로(커밋 번호 없는 docs 커밋 처리 포함) ⑤**서로 다른 PC 두 명이 같은 파일**을 건드렸을 때의 머지 충돌 해소 ⑥husky pre-push(래퍼를 만들었을 때만 — Day 4 ①)·스냅샷 테스트 동작 ⑦glab CLI 전반(스킬의 자동 조회 줄 포함). (④⑤는 팀이 있어야 실제로 확인된다 — 팀 합류 후 확인 항목으로 열어둔다)
 >
 > 🔧 **레일이 안 돌 때 (증상→원인→처치):**
 >
@@ -259,7 +265,8 @@
 > | auto-merge가 안 걸림 | "Pipelines must succeed" 미설정, 파이프라인 미완 | Day 2 `/setup-gitlab` 재확인 · CI 초록 대기 |
 > | 머지됐는데 배포 noop | deploy 잡 조건·검수서버 접속·헬스체크 실패 | deploy 잡 로그 · `/api/health` 200 확인 |
 > | glab이 403/권한 오류 | 토큰 스코프·멤버 권한 부족 | `glab auth status` · 멤버 권한(Developer+) 확인 |
-> | 훅이 안 뜸 | `CLAUDE_CODE_GIT_BASH_PATH` 미설정, husky 미설치 | 환경변수 설정 · `npm install` 재실행 |
+> | check-push 확인 창이 안 뜸 | `CLAUDE_CODE_GIT_BASH_PATH` 미설정 · repo 루트가 아닌 폴더에서 세션 시작 · 자동승인(auto/bypass) 세션 · **맨손 터미널 push**(이 훅은 Claude Code 전용) | 환경변수 설정 · repo 루트에서 재시작 · 일반 모드로 · git 훅에서도 필요하면 래퍼(Day 4 ①) |
+> | husky로 깐 git 훅이 안 돎 | husky 미설치·`"prepare": "husky"` 누락 | `npm install` 재실행 |
 
 > ⚠️**파일럿은 체감이 아니라 실측으로 판정한다.** 개발자들은 AI로 느려지면서도 빨라졌다고 믿는다는 실험 결과가 있다(체감은 반대로도 틀린다). 그러니 **GitLab 데이터에서 뽑는** 4개 지표를 **첫날부터** 본다: ①리드타임(카드 착수→머지) ②결함률(검수 반려율 + 배포 후 버그 카드 비율) ③리버트/핫픽스율 ④검수 반려 사유 분포.
 > - ⚠️ **self-hosted 무료(CE)에는 DORA(배포 성과 표준 4지표)·리드타임 대시보드가 없다**(Premium/Ultimate 전용). 그러니 **직접 뽑는다 — 이 집계는 `/metrics` 스킬이 한다**(이슈의 라벨 전이 타임스탬프와 커밋·MR 시각을 `glab api`로 긁어 집계, 주 1회 실행). 스킬이 못 뽑는 항목이 생기면 그때 보조 스크립트를 추가한다. 반려율 = (검수요청→진행중 되돌림 수)/(검수요청 수).
@@ -276,7 +283,7 @@
 
 골격 다음은 **골든 패스**다: 진짜 기능 하나를 공통 개발자가 본보기로 끝까지 완성하고(화면 3원형〔목록·상세·폼 같은 대표 화면 유형〕 + API 규약 + 스키마·시드 + 층별 테스트 + shared 실사용), 그 구조를 찍어내는 생성기(`npm run gen:module`)와 절차 스킬(`/dev`·`/fix`·`/module`)을 만든다. 다른 팀원들은 이 본보기를 베끼고, 스킬 파이프라인을 타고 일한다 — "이거 해줘 저거 해줘"가 아니라.
 
-**Day 6 실행 체크리스트** (이것만으로 진행 가능 — 더 깊은 상세·설계 근거는 `_reference/GoldenPath.md`):
+**Day 6 실행 체크리스트** (이것만으로 진행 가능 — 더 깊은 상세·설계 근거는 `2-team-dev/AI_Working_Framework_Guide_GoldenPath.md`(프레임워크 홈)):
 1. [ ] **본보기 모듈 하나를 실제 서비스 기능으로 끝까지** — 화면 3원형(목록·상세·폼) + API 규약 + 스키마·시드 + 층별 테스트 + `shared` 실사용. (가짜 예제는 반드시 썩으니 진짜 기능으로, 모듈들 중 가장 대표적인 걸 공통 개발자가 맡는다)
    - [ ] **`<본보기모듈>` 플레이스홀더를 실제 모듈명으로 전 파일 일괄 치환** — dev·ui·module 스킬·CLAUDE.md·`rules`에 박혀 있어(안 바꾸면 AI가 리터럴 `<본보기모듈>`을 읽는다)
 2. [ ] **생성기 `npm run gen:module`** — 본보기 구조를 그대로 찍어내게 만든다

@@ -133,7 +133,7 @@ our-app/                              ← GitLab repo 루트
 │   │   └── module/ docs/ change/ log/  모듈생성 · 문서수신 · 변경반영 · 이력조회
 │   └── hooks/                        훅 스크립트 (경로 검사·설정변경 감사)
 │
-├── .gitattributes                    package-lock 자동 병합(npm-merge-driver) 등록
+├── .gitattributes                    package-lock 충돌 안전판(`merge=binary` — 자동 머지 드라이버 금지, 8절)
 ├── .gitignore                        CLAUDE.local.md, .env 포함
 ├── .gitlab-ci.yml                    CI(테스트·검사) + main 자동 배포
 ├── docker-compose.yml                db → migrate → app 순서 기동 (5절)
@@ -242,6 +242,10 @@ flowchart TD
 > "공통 영역" = `shared/` · 공용 테이블 · 팀 CLAUDE.md · 패키지 추가. "새 패턴" = 내 모듈이지만 전례 없는 방식을 처음 쓸 때.
 > "고위험 경로" = 인증·인가·세션·비밀값 / 결제·과금성 / DB 마이그레이션 / shared 승격 / 라우팅·설정·lockfile 핫스팟.
 > **Show의 공지는 알림이지 허락이 아니다** — 답을 기다리지 않고 머지한다. **Ask만 승인을 기다린다**(전담 승인자가 아니라 손 빈 동료 아무나 1명, 자기 승인 금지).
+>
+> ★**승인자 규칙 — 정본은 repo `CLAUDE.md` '머지 등급' 절**(2026-08-06 갱신분 반영):
+> - **승인자는 개발자끼리 서로 — 공통 개발자는 승인자가 아니다**(개발자 1명뿐일 때만 예외). 공통 개발자에게 몰리면 그가 전담 리뷰어가 되어, 이 등급이 막으려던 병목 구조가 그대로 생긴다(2026-08-06 실측).
+> - **셀프 승인은 증적 3종을 남길 때만 인정**(동료 승인 불가: 혼자 골격 작업·전원 부재·긴급): ①fresh-context AI 리뷰(`/code-review`, 새 입력 표면이면 `/security-review`도) ②본인이 diff 직접 확인 ③카드 댓글에 "셀프 승인"+사유+리뷰 결과+확인한 diff 범위. **셋이 다 남아야 승인 — 조용히 머지 = 무승인.** 동료가 있으면 동료 승인이 우선이고, 셀프가 반복되면 `/metrics` 주간 점검에서 센다.
 
 | 등급 | 관문 | 강제 방식 |
 | --- | --- | --- |
@@ -249,7 +253,7 @@ flowchart TD
 | Show | Ship과 동일 + **AI 경고 확인 + 채팅 공지(사전)** — 승인 대기 없음 | AI의 경로 검사(CLAUDE.md 규칙 + pre-push 훅) + CI 경로감지 경고(9절) |
 | Ask | Ship과 동일 + **동료 1명 MR 승인** | `고위험` 라벨 + `/done`이 auto-merge 대신 승인 요청(무료 티어는 규율, 유료는 승인 규칙으로 기계 강제) |
 
-> **왜 Ask를 두는가**(원래 2등급이었다가 추가): 전면 무리뷰의 성공 선례가 외부에 없고, 고위험 경로만은 사람 확인을 두라는 게 증거의 일치된 권고다(Anthropic·Google도 사람 리뷰층 유지, 무리뷰와 결함률 급증의 상관). 다만 대다수 카드의 속도를 지키려 **고위험에만** 한정한다. 근거: `evidence/team-ai-collab-evidence.md` §2-1(이 문서가 배포되는 `_reference/` 폴더 기준).
+> **왜 Ask를 두는가**(원래 2등급이었다가 추가): 전면 무리뷰의 성공 선례가 외부에 없고, 고위험 경로만은 사람 확인을 두라는 게 증거의 일치된 권고다(Anthropic·Google도 사람 리뷰층 유지, 무리뷰와 결함률 급증의 상관). 다만 대다수 카드의 속도를 지키려 **고위험에만** 한정한다. 근거: `4-reference/team-ai-collab-evidence.md`(프레임워크 홈 — 킷에 동봉되지 않는다) §2-1.
 
 - 공통 영역을 지키는 건 승인이 아니라 **검사다**: 공통 영역 변경 MR은 CI가 **전 모듈의 테스트·타입 검사**를 돌려 파급을 기계로 확인한다 (모듈만 바꾼 MR보다 검사 범위가 넓어짐).
 - **shared/는 "추가는 자유, 삭제·변경은 기계가 잡는다"**: 공개 API 스냅샷 테스트를 둔다 — shared/가 노출하는 함수·컴포넌트 시그니처가 *없어지거나 바뀌면* CI 실패. 의도적 변경이면 스냅샷 갱신 커밋으로 명시(= 파괴적 변경이 조용히 못 들어감). 승인 없는 셀프 머지가 안전한 것은 이 additive 규율이 전제다 — revert가 항상 가능한 것도 마찬가지.
@@ -268,7 +272,7 @@ Ship 등급(대부분의 작업)은 개발자 본인이 터미널에서 **명령
 
 | 층 | 역할 | 구현 |
 | --- | --- | --- |
-| 로컬 경고 (1차, 빠름) | push 전에 변경 경로를 검사 — shared/·남의 모듈·공용 테이블을 건드렸으면 **심각도와 함께 경고**하고, 공지했는지 확인받음 | **Claude Code 훅 + git pre-push 훅** (둘 다 repo에 커밋해 전원 상속) — "AI가 규칙을 읽고 기억하길 기대"하는 방식이 아니라, **push가 실행되는 순간 스크립트가 기계적으로 개입**한다. AI가 규칙을 잊어도 훅은 잊지 않는다 |
+| 로컬 경고 (1차, 빠름) | push 전에 변경 경로를 검사 — shared/·남의 모듈·공용 테이블을 건드렸으면 **심각도와 함께 경고**하고, 공지했는지 확인받음 | **Claude Code `PreToolUse` 훅**(킷의 `check-push.sh` — repo에 커밋해 전원 상속). ⚠️**이 스크립트를 husky pre-push에 그대로 붙이면 무음 통과한다**(Claude Code의 JSON 입력 전용 — husky 입력·빈 stdin 모두 출력 없이 exit 0, 2026-08-03 실측). git 훅으로도 걸려면 **별도 래퍼**를 만들어야 한다. 래퍼가 없으면 이 층은 **대화형 Claude Code 세션에서만** 작동하는 리마인더이고, 진짜 백스톱은 아래 CI 경로감지다 |
 | 서버 강제 (2차, 최종) | 깨진 코드·경계 위반 차단 + 공통 영역 변경 경고 표시 | CI + 보호 브랜치 — 로컬 훅은 각자 환경이라 우회될 수 있으므로 **신뢰의 최종선은 서버** |
 
 > main **직접 push**를 열지 않는 이유: 직접 push면 CI가 사후 검사가 되어, 깨진 코드가 이미 main에 들어가 전원에게 전파(pull·자동배포)된 뒤에야 발견된다. MR은 사람 승인 장치가 아니라 **기계 검사가 main보다 먼저 서게 하는 지점**이며, auto-merge를 쓰면 직접 push와 체감 차이가 없다.
@@ -280,7 +284,7 @@ Ship 등급(대부분의 작업)은 개발자 본인이 터미널에서 **명령
 | 규칙 | 내용 |
 | --- | --- |
 | ① 손으로 고치지 않는다 | 충돌 마커를 수동 편집하는 것은 오류 유발 — `package.json` 쪽 충돌만 해결한 뒤 **`npm install --package-lock-only`** 를 실행하면 npm이 양쪽 변경을 자동 병합해 잠금 파일을 재생성한다 |
-| ② 자동화를 repo에 커밋 | npm 팀이 만든 **`npm-merge-driver`** 를 `.gitattributes`와 함께 repo에 등록하면 git 병합 시 잠금 파일 충돌이 **자동으로 해결**된다 — 전원이 같은 동작을 상속 |
+| ② 안전판을 repo에 커밋 (⚠️자동 머지 드라이버가 아니다) | `.gitattributes`에 **`package-lock.json merge=binary`** 한 줄. 이러면 git이 lock을 자동 병합하지 *않고* **시끄러운 충돌**로 세워서 ①의 재생성 경로로 몰아준다 — 전원이 같은 동작을 상속. ⛔**`npm-merge-driver`(6년 미유지)든 자체 스크립트든 자동 머지 드라이버는 두지 마라**: git merge 도중 `package.json`이 해결되기 *전에* lock을 재생성해 **한쪽 의존성이 조용히 누락된 valid-but-wrong lock**을 만든다(2026-07-27 파일럿 실측). 킷·`/scaffold`·공통 개발자 가이드가 모두 이 방식으로 통일돼 있다 |
 | ③ AI 루틴에 내장 | ship 루틴(4절)에 "잠금 파일 충돌 시 ①로 재생성"을 포함 — 개발자는 충돌을 인지할 필요도 없어진다. 패키지 추가 자체는 Show 등급(공지) |
 
 > Framework와의 정합: "AI가 생성하고 사람이 검토한다"(Principle 3)는 유지된다.
@@ -404,7 +408,7 @@ Framework의 Playbook은 사람이 읽는 문서였다. AI 에이전트 팀에�
 | 4 | 이슈 보드 | Issue Boards | 열: Open(대기) / 진행중 / 검수요청 / Closed(완료) — 가운데 두 열은 같은 이름의 **상태 라벨**로 만든다. 라벨 세트(정본 = 킷 `/setup-gitlab`): **상태 `진행중`·`검수요청`** + 모듈별(개수는 `/design`이 정한 만큼 — 4개 고정 아님) + `shared` + `docs` + **`무효`**(기획 변경으로 필요 없어진 카드 — 12절) + **`고위험`**(인증·결제·DB 마이그레이션·shared 승격·핫스팟 — 머지 전 동료 1명 승인, §5) + **`대기(불명확)`**(수용 기준 모호로 착수 보류). ★스킬이 적용하므로 미리 생성 필수 |
 | 5 | 공통 영역 경고 | `.gitlab-ci.yml` | MR이 `src/shared/`·공용 테이블·루트 CLAUDE.md를 건드리면 파이프라인에 **경고 표시 + 전 모듈 테스트 확대 실행** (차단 아님 — 로컬 AI 경고·채팅 공지를 잊었을 때의 안전망) |
 | 6 | 알림 정책 | 각자 Preferences → Notifications | 알림은 **@멘션 기반**으로 통일 — 멘션된 사람에게만 알림이 가므로 소음이 없다. 각자 알림 수준을 `Participate`(내가 관련된 것만)로 설정. 전체 이벤트를 채팅 채널로 쏘는 웹훅 연동은 **도입하지 않는다** (이슈마다 알림이 와서 금방 무시하게 됨) |
-| 7 | AI 리뷰 잡 〔P2 — 선택, **별도 API 결제 필요**〕 | `.gitlab-ci.yml` | MR 이벤트마다 `claude -p`로 **작성자가 아닌 새 컨텍스트가 diff를 리뷰 → MR 코멘트**(비차단). ★이건 개발자 구독과 **별개인 Anthropic API 종량제 결제**가 든다(`ANTHROPIC_API_KEY` CI 변수·러너에서 api.anthropic.com 통신 — 파일럿에서 통신 도달 확인). **"비용 신경 끄기"가 원칙이면 도입하지 않는다** — AI 리뷰의 기본은 **`/done`의 `/code-review`(개발자 구독으로 도는 fresh 서브에이전트, 추가 결제 0)**이고, 이 CI 잡은 "있으면 좋은 추가 그물"일 뿐이다. 참고: 3관점 병렬→GO/NO-GO 양식 (`evidence/agent-skills-analysis.md` §5·§8 — 배포 `_reference/` 기준) |
+| 7 | AI 리뷰 잡 〔P2 — 선택, **별도 API 결제 필요**〕 | `.gitlab-ci.yml` | MR 이벤트마다 `claude -p`로 **작성자가 아닌 새 컨텍스트가 diff를 리뷰 → MR 코멘트**(비차단). ★이건 개발자 구독과 **별개인 Anthropic API 종량제 결제**가 든다(`ANTHROPIC_API_KEY` CI 변수·러너에서 api.anthropic.com 통신 — 파일럿에서 통신 도달 확인). **"비용 신경 끄기"가 원칙이면 도입하지 않는다** — AI 리뷰의 기본은 **`/done`의 `/code-review`(개발자 구독으로 도는 fresh 서브에이전트, 추가 결제 0)**이고, 이 CI 잡은 "있으면 좋은 추가 그물"일 뿐이다. 참고: 3관점 병렬→GO/NO-GO 양식 (`4-reference/agent-skills-analysis.md` §5·§8 — 프레임워크 홈, 킷에 동봉되지 않는다) |
 
 ---
 
@@ -525,8 +529,8 @@ flowchart TD
 - [ ] 앱 뼈대 + docker-compose(db→migrate→app 자동 기동)가 준비됨
 - [ ] CI(빌드+테스트+타입+경계검사+빈 DB 마이그레이션 **+ 보안 스캔 + 중복·변조 guard + 고위험 경로 manual gate**)와 main 자동 배포가 동작함 — 사람 리뷰 없는 구조의 자동 안전망이라 P1 (전부 무료). AI 리뷰는 `/done`의 `/code-review`(개발자 구독)가 담당 — CI 자동 잡은 별도 API 결제라 P2 선택
 - [ ] GitLab 설정 완료 (main 보호 · Pipelines must succeed · 이슈 보드 · 공통 영역 경고 · **라벨 생성: 고위험·무효·대기(불명확)** · 유료 티어면 고위험 승인 규칙)
-- [ ] package-lock 자동 병합(npm-merge-driver + .gitattributes)이 repo에 등록됨
-- [ ] 경로 검사 훅(Claude Code 훅 + git pre-push)과 shared/ 공개 API 스냅샷 테스트가 repo에 커밋됨
+- [ ] package-lock 충돌 안전판(`.gitattributes`에 `package-lock.json merge=binary`)이 repo에 등록됨 — **자동 머지 드라이버는 두지 않는다**(8절)
+- [ ] 경로 검사 훅(Claude Code `PreToolUse` — git pre-push로도 쓰려면 별도 래퍼, 8절)과 shared/ 공개 API 스냅샷 테스트가 repo에 커밋됨
 - [ ] 모듈별 멱등 시드 파일 구조 + 검수 서버 온디맨드 리셋 스크립트가 준비됨
 - [ ] 루트 CLAUDE.md + `.claude/`(settings.json 권한·훅 · rules/ 경로별 규칙 · skills/ ship·brief)가 3절 구조대로 커밋됨
 - [ ] security-guidance 플러그인이 settings.json으로 전원 활성화됨

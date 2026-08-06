@@ -56,6 +56,10 @@ ai-connectivity:
 tamper-check:
   stage: test
   image: alpine:3
+  variables:
+    # ★얕은 클론이면 origin/main 과의 merge base 가 없어 `git diff origin/main...HEAD` 가
+    #   fatal 로 죽는다(잡 전체 실패 = 게이트 무효). density-check 와 같은 이유다.
+    GIT_DEPTH: 0
   script:
     - apk add --no-cache git >/dev/null
     - git fetch -q origin main
@@ -63,11 +67,47 @@ tamper-check:
     - echo "변경 파일:"; echo "$CH"
     - |
       # 테스트 감지는 파일명 기준 — 테스트가 src 안에 코로케이션되는 스택(Vitest 등)에서도 걸리게 (bnsone 실측 2026-07-29: '^test/'만으로는 src/**/*.test.ts가 영원히 미매칭)
-      if echo "$CH" | grep -qE '^src/' && echo "$CH" | grep -qE '\.test\.|\.spec\.|(^|/)tests?/|gitlab-ci'; then
-        echo "⚠ src와 test(또는 CI설정)를 동시 수정 — 테스트를 통과시키려 테스트를 고친 게 아닌지 검토"
-        exit 1
+      # ★소스·테스트·CI설정을 서로 다른 축으로 분류한다. 예전엔 '^src/ 매칭 && 테스트 매칭'이라
+      #   src/foo.test.ts 한 파일이 두 조건을 혼자 만족시켜 평범한 TDD MR마다 경고가 떴다
+      #   (오탐 실측 2026-07-29 · 파일럿 #72). 오탐이 반복되면 경고가 무시되어 진짜 변조를 놓친다.
+      #   판정 논리 정본 = 파일럿 scripts/tamper-check.sh (테스트가 붙어 있는 파일판).
+      TEST_RE='\.test\.|\.spec\.|(^|/)tests?/|(^|/)__tests__/'
+      CI_RE='(^|/)\.gitlab-ci\.yml$|(^|/)\.gitlab/'
+      TESTS=$(echo "$CH" | grep -E "$TEST_RE" || true)
+      CICONF=$(echo "$CH" | grep -E "$CI_RE" | grep -vE "$TEST_RE" || true)
+      # 소스 = 테스트가 아닌 src 파일. 스택별 루트 소스(server.js·middleware.ts 등)는 /scaffold 가 여기 추가한다.
+      SRCS=$(echo "$CH" | grep -E '^src/' | grep -vE "$TEST_RE" || true)
+      WARN=0
+      if [ -n "$SRCS" ] && [ -n "$TESTS" ]; then
+        echo "⚠ 소스와 테스트를 동시 수정 — 테스트를 통과시키려 테스트를 고친 게 아닌지 검토"
+        echo "  소스:"; echo "$SRCS" | sed 's/^/    /'
+        echo "  테스트:"; echo "$TESTS" | sed 's/^/    /'
+        WARN=1
       fi
-      echo "동시 수정 아님 — OK"
+      # CI설정은 테스트와 별개 축으로 센다 — 한 덩어리로 세면 CI만 고쳐도 '테스트 동시 수정'으로 오탐난다.
+      if [ -n "$CICONF" ] && [ -n "$TESTS" ]; then
+        echo "⚠ CI설정과 테스트를 동시 수정 — 게이트를 무르게 하면서 테스트를 고친 게 아닌지 검토"
+        WARN=1
+      fi
+      # 소스+CI설정 동시 수정 — 코드를 넣으면서 그걸 검사하는 게이트를 함께 무르게 하는 형태.
+      if [ -n "$SRCS" ] && [ -n "$CICONF" ]; then
+        echo "⚠ 소스와 CI설정을 동시 수정 — 통과시키려고 게이트를 무르게 한 게 아닌지 검토"
+        WARN=1
+      fi
+      # ★위 분리가 만든 감지 공백을 메운다 — 소스를 안 건드리고 테스트만 지우거나 skip 처리하는 변조.
+      #   테스트 '추가·보강'은 조용히 통과시킨다(줄 삭제 · skip/only/todo 추가만 본다).
+      #   ※공백 든 파일명까지 안전하게 다루려면 파일럿의 scripts/tamper-check.sh 판을 쓴다.
+      if [ -z "$SRCS" ] && [ -z "$CICONF" ] && [ -n "$TESTS" ]; then
+        DIFF=$(git --literal-pathspecs diff --no-renames --unified=0 origin/main...HEAD -- $TESTS)
+        DEL=$(echo "$DIFF" | grep -E '^-' | grep -vE '^--- ' || true)
+        OFF=$(echo "$DIFF" | grep -E '^\+' | grep -vE '^\+\+\+ ' | grep -E '(^|[^A-Za-z0-9_])(it|test|describe)(\.[A-Za-z]+)*\.(skip|only|todo|failing)[[:space:]]*[(<`.]|(^|[^A-Za-z0-9_])x(it|test|describe)[[:space:]]*\(' || true)
+        if [ -n "$DEL" ] || [ -n "$OFF" ]; then
+          echo "⚠ 테스트만 변경됐는데 줄 삭제 또는 skip/only/todo 추가가 있다 — 테스트 무력화가 아닌지 검토"
+          WARN=1
+        fi
+      fi
+      if [ "$WARN" = "1" ]; then exit 1; fi
+      echo "변조 의심 조합 아님 — OK"
   allow_failure: true
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
@@ -145,6 +185,10 @@ high-risk-gate:
         - db/migrations/**/*
         - "**/package.json"
         - "**/package-lock.json"
+        # ★방어선 자신을 바꾸는 변경이 게이트를 안 타면 이중화(CI+AI규칙)가 무의미해진다 — 아래 3줄은 스택 무관.
+        - .gitlab-ci.yml                  # CI·게이트 설정 (게이트 자체를 무르게 하는 변경)
+        - .claude/**/*                    # AI 규칙 실물 — 스킬·rules·settings·훅 전부
+        - CLAUDE.md                       # 팀 규칙 정본 (CLAUDE.md 가 스스로 공통 영역으로 지정)
         # ↑ 스택 무관 고위험 경로. /scaffold가 스택 확정 후 인증·라우팅·설정 경로를 여기 추가한다.
         #   경로로 못 잡는 고위험(모듈 내부 인증·결제 로직 등)은 `고위험` 라벨 + /done이 사람 승인으로 막는다 — 라벨이 정본.
       when: manual
@@ -157,6 +201,9 @@ high-risk-gate:
 planner-guard:
   stage: test
   image: alpine:3
+  variables:
+    # 얕은 클론이면 push 범위(BEFORE..SHA)의 앞쪽 커밋이 없어 git log 가 실패한다 → 폴백으로 떨어져 감시 범위가 준다.
+    GIT_DEPTH: 0
   script:
     - apk add --no-cache git >/dev/null
     - 'echo "author=$CI_COMMIT_AUTHOR"'
@@ -167,7 +214,17 @@ planner-guard:
         case "$CI_COMMIT_AUTHOR" in *"<$e>"*) HIT=1;; esac
       done
       if [ "$HIT" != "1" ]; then echo "개발자 커밋 — 통과"; exit 0; fi
-      CH=$(git show --name-only --pretty=format: "$CI_COMMIT_SHA" | sed '/^$/d')
+      # ★push 범위 전체를 본다 — 마지막 커밋 하나(git show $CI_COMMIT_SHA)만 보면
+      #   커밋 2개를 한 번에 push했을 때 앞 커밋의 위반이 그대로 통과한다.
+      CH=""
+      ZERO="0000000000000000000000000000000000000000"
+      if [ -n "${CI_COMMIT_BEFORE_SHA:-}" ] && [ "$CI_COMMIT_BEFORE_SHA" != "$ZERO" ]; then
+        CH=$({ git log --name-only --pretty=format: "$CI_COMMIT_BEFORE_SHA".."$CI_COMMIT_SHA" 2>/dev/null || true; } | sed '/^$/d' | sort -u)
+      fi
+      # 폴백 — 새 브랜치 첫 push는 BEFORE_SHA가 0으로 채워진 SHA다(MR 파이프라인도 동일). 그땐 종전대로 마지막 커밋만 본다.
+      if [ -z "$CH" ]; then
+        CH=$(git show --name-only --pretty=format: "$CI_COMMIT_SHA" | sed '/^$/d')
+      fi
       echo "변경 파일:"; echo "$CH"
       BAD=$(echo "$CH" | grep -vE '^(docs/|README)' || true)
       if [ -n "$BAD" ]; then

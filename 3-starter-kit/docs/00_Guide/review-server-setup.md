@@ -1,5 +1,6 @@
 # 검수 서버 세팅 — 공통 개발자용 (프로젝트당 1회)
 
+> **정본 = 프레임워크 repo `4-reference/review-server-setup.md`판** (사내 실측 상수 포함). 이 파일은 그 정본에서 사내 정보(서버 주소·레지스트리·계정·경로)를 플레이스홀더로 정화한 배포판이다 — **최종 동기: 2026-08-06**. 로직·경고가 어긋나면 정본이 맞다.
 > **자동 로드 안 됨.** main 머지 시 자동 배포되는 리뷰 환경(검수 서버)을 사내 인프라에 **한 번** 세팅하는 방법. 일상 흐름(`/done` → 머지 → 자동 배포 → 검수 요청)은 스킬·가이드가 담당한다. 시안 허브(`sian-hub-setup.md`)와 별개 — 허브는 docs 정적 파일, 검수 서버는 **실행되는 앱**.
 
 ## 무엇인가 (한 문단)
@@ -44,8 +45,22 @@
 - 킷 `.gitlab-ci.yml`의 `deploy-review` 스텁(echo)을 실제 잡으로: 이미지 빌드 → push → `kubectl set image … $CI_COMMIT_SHORT_SHA` → `rollout status`. `environment.url` = 검수 도메인. CI 계정 권한이 부족한 환경 대비 graceful degradation(권한 있으면 매니페스트 동기화, 없으면 `set image`만).
 - ★**기본 CI SA는 `set image`만 보장** → 매니페스트 `apply`가 필요하면 `Forbidden`으로 죽는다. 택1: **㉠관리자가 `ci-rbac.yaml` 적용** / **㉡운영자가 서버에서 직접 `apply`**(CI는 이미지 교체만). 어느 쪽인지 이 절에 명시.
 
+- ★**`changes:`로 빌드 범위를 좁혔으면 그 빌드를 `needs`로 쓰는 잡에도 같은 `changes:`를 걸어라** — 한쪽만 빠지는 커밋(문서만 수정 등)에서 **파이프라인 생성 자체가 거부**되어 잡 0개가 된다(시크릿 스캔·planner-guard 포함 전 게이트가 통째로 무효). 실사고 8회(2026-07-31·08-03). `glab ci lint`·dry_run은 다 통과하니 **문법 검증으로는 안 잡힌다.** 경위·처방: `_reference/ci-needs.md`
+
+```yaml
+docker-build:
+  rules: [{ if: '$CI_COMMIT_BRANCH == "main"', changes: &code_changes [src/**/*, Dockerfile] }]
+service-deploy:
+  needs: ["docker-build"]
+  rules: [{ if: '$CI_COMMIT_BRANCH == "main"', changes: *code_changes }]   # 같이 들어오고 같이 빠진다
+```
+
+- `optional: true`는 **그 잡의 산출물(이미지·아티팩트)을 안 쓸 때만** 쓴다 — 쓰면서 optional로 두면 **눌러봤자 반드시 실패하는 버튼**이 남는다(올라간 적 없는 태그 → rollout 타임아웃까지 대기 후 빨간불). ※`rollout status --timeout`이 있으면 실패는 시끄럽고 `maxUnavailable: 0`이면 서비스도 안 끊긴다 — 다만 `rollout status` 없이 `set image`만 하는 배포 잡이라면 진짜로 조용히 깨진다.
+
 ### ⑥ 확인 (완료 기준)
-- main에 빈 커밋 1개 → 파이프라인 초록 → 검수 URL에서 앱 렌더 + 하단 버전 표시가 방금 커밋 해시로 갱신 + `/api/health` 200.
+- main에 **코드 파일을 실제로 건드리는** 커밋 1개 → 파이프라인 초록 → 검수 URL에서 앱 렌더 + 하단 버전 표시가 방금 커밋 해시로 갱신 + `/api/health` 200.
+- ⛔**빈 커밋·문서만 바꾼 커밋으로 확인하지 마라** — `changes:` 범위 밖이라 빌드·배포 잡이 애초에 안 돌고, 위 `optional` 처방을 안 했으면 그 커밋이 바로 파이프라인을 죽인다(잡 0개 = 게이트 전부 무효).
+- 그다음 **문서만 바꾼 커밋도 한 번 올려 파이프라인이 정상 생성되는지 보라** — 위 사고가 딱 그 케이스에서만 났다.
 
 ## 주의 (이건 정상이다 — "배포가 깨졌다"로 오해하기 쉬운 것들, bnsone 실측)
 - **최초 1회 `deploy-review` 실패는 정상** — Deployment가 아직 없으면 `set image`가 죽는다(첫 배포 후 정상).

@@ -138,9 +138,11 @@ flowchart LR
 
 ```
 .claude/skills/dev/
-├── SKILL.md              # 500줄 이하(공식 상한), disable-model-invocation: true,
-│                         # arguments: [issue], allowed-tools: Bash(glab *) Bash(npm *)
-│                         # 첫머리: !`glab issue view $issue`  ← 이슈 본문 자동 주입
+├── SKILL.md              # 밀도 기계 상한 = 줄당 500'자'(줄 수 상한 없음 — scripts/check-density.sh)
+│                         # 프론트매터: name / description / disable-model-invocation: true /
+│                         #   argument-hint: "[이슈번호]" / allowed-tools: Bash(glab *) Bash(npm *)
+│                         # 인자 참조는 위치 변수 $0·$1 (또는 $ARGUMENTS 전체)
+│                         # 첫머리: !`glab issue view $0`  ← 이슈 본문 자동 주입
 ├── checklist.md          # AI가 응답에 복사해 체크해가는 진행표 (공식 패턴)
 └── references/
     ├── exemplar.md       # "src/modules/<본보기>를 먼저 읽어라" + 핵심 코드 형태
@@ -150,7 +152,7 @@ flowchart LR
 **작성 규칙 (조사에서 수렴된 것):**
 - **자유도를 단계별로 조절**: 생성기 실행 단계는 저자유도("정확히 이 명령만 실행, 수정 금지") / 구현 단계는 고자유도(본보기 + 원칙 제시). 공식 가이드의 "degrees of freedom" 원칙.
 - **"권장(prefer)"이 아니라 "금지(Never)·필수(MUST)"로** — "prefer는 예외를 부른다"가 실사례의 교훈.
-- 마지막에 **❌ 금지 목록**을 명시하되, 가능하면 **"핑계 + 반박" 쌍의 표**로 쓴다 — AI가 단계를 건너뛸 때 실제로 대는 핑계("이건 단순해서 스펙 불필요", "테스트는 나중에")를 미리 반박해 두는 것이 금지 나열보다 준수율이 높다 (agent-skills의 Common Rationalizations 표준절 — `evidence/agent-skills-analysis.md` §3(배포 `_reference/` 기준). 킷의 /dev·/done에 적용됨).
+- 마지막에 **❌ 금지 목록**을 명시하되, 가능하면 **"핑계 + 반박" 쌍의 표**로 쓴다 — AI가 단계를 건너뛸 때 실제로 대는 핑계("이건 단순해서 스펙 불필요", "테스트는 나중에")를 미리 반박해 두는 것이 금지 나열보다 준수율이 높다 (agent-skills의 Common Rationalizations 표준절 — `4-reference/agent-skills-analysis.md` §3(프레임워크 홈 — 킷에 동봉되지 않는다). 킷의 /dev·/done에 적용됨).
 - 스펙 확인 단계에는 **가정 표면화 형식**을 넣는다: "가정: 1)…2)…3)… — 고쳐주거나, 이대로 진행" — 질문이 없어도 가정은 드러내게 (같은 분석 §4).
 - 긴 내용은 참조 파일로 (progressive disclosure) — 참조는 SKILL.md에서 **1단계 깊이까지만**(더 깊으면 AI가 일부만 읽음).
 - 스킬을 다듬는 방법: **사람이 교정한 것을 그때그때 SKILL.md에 반영** — 지적 하나 = 스킬 개선 하나.
@@ -160,7 +162,7 @@ flowchart LR
 | 안티패턴 | 처방 |
 | --- | --- |
 | 처음부터 스킬 수십 개 | **핵심 세트로 시작.** "같은 지시를 세 번 반복하면 그때 스킬로" — 마찰이 실제로 생긴 것만 추가 (현재 세트도 이 원칙으로 자란 결과 — /card 는 "카드로 등록해줘"가 가장 잦은 자유 지시라, /start 는 "뭘 해야 할지 모르는 진입"이 절차 밖이라 승격) |
-| 스킬 하나가 500줄 초과 | 참조 파일로 분리 — 비대한 스킬은 오히려 준수율을 떨어뜨림 |
+| 스킬 하나가 비대해짐 | 참조 파일로 분리 — 비대한 스킬은 오히려 준수율을 떨어뜨림. ※기계로 강제되는 건 **줄당 500자**(줄 수 상한은 없다 — `scripts/check-density.sh`, CI `density-check`)이니 "500줄"을 기준으로 착각하지 마라 |
 | 스킬로 강제하려 함 | 스킬은 권고 층 — 반드시 지켜야 하는 건 훅·CI로 (예: 스펙 참조 없이 소스 수정 시 차단하는 PreToolUse 게이트 사례 있음) |
 | 전면 스펙주의 | 모든 작업에 스펙·계획을 요구하면 팀이 절차를 우회하기 시작 — `/fix` 탈출구 유지 |
 | 사람 게이트 제거 | 성공 사례 전부가 스펙 승인·go 게이트는 남김 — "AI가 스스로 착수 결정"은 우리 원칙과도 어긋남 |
@@ -175,7 +177,7 @@ flowchart LR
 | 구조 | 각 모듈 폴더가 본보기의 필수 파일 세트를 갖췄는지 검사하는 작은 스크립트 → CI (구조 이탈은 import 린트로 못 잡음) |
 | 사람 | 새 팀원 합류 시 **첫 과제 = 본보기 튜토리얼을 그대로 따라 하기** — 썩은 곳을 가장 잘 찾는 검증자 (Spotify 방식) |
 | 갱신 | 패턴을 바꾸기로 했으면 **본보기를 먼저 고치고 공지** — 본보기·템플릿·스킬이 함께 움직여야 "늙은 예제" 문제가 안 생긴다 |
-| 스킬 | 스킬이 10종 이상으로 자라면 **설명·트리거 충돌을 기계로 검사** (서로 트리거를 잠식하기 시작함) — agent-skills의 evals Tier 2 스크립트(MIT)를 가져다 쓰면 됨 (`evidence/agent-skills-analysis.md` §6(배포 `_reference/` 기준)). **현재 18종** — 단 충돌이 문제 되는 건 *AI가 자동 실행할 수 있는* 스킬 사이인데 그건 **6종**(/start /todo /log /card /inspect + /ui — 단 /ui는 사실상 `/dev`가 명시 호출이라 자연어 트리거 충돌면은 좁다)이고, 인접쌍은 /start↔/todo("다음 작업?" — /start가 /todo로 이어줘 무해)뿐이다. **다음 자동 실행 스킬이 추가되는 시점에 evals 도입** |
+| 스킬 | 스킬이 10종 이상으로 자라면 **설명·트리거 충돌을 기계로 검사** (서로 트리거를 잠식하기 시작함) — agent-skills의 evals Tier 2 스크립트(MIT)를 가져다 쓰면 됨 (`4-reference/agent-skills-analysis.md` §6(프레임워크 홈 — 킷에 동봉되지 않는다)). **현재 18종** — 단 충돌이 문제 되는 건 *AI가 자동 실행할 수 있는* 스킬 사이인데 그건 **6종**(/start /todo /log /card /inspect + /ui — 단 /ui는 사실상 `/dev`가 명시 호출이라 자연어 트리거 충돌면은 좁다)이고, 인접쌍은 /start↔/todo("다음 작업?" — /start가 /todo로 이어줘 무해)뿐이다. **다음 자동 실행 스킬이 추가되는 시점에 evals 도입** |
 
 ## 6. 과축조 경계 (공통 개발자가 반드시 읽을 것)
 

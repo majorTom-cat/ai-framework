@@ -6,8 +6,9 @@
 
 ## 사용법 (공통 개발자, 5분)
 
-1. 이 폴더의 `CLAUDE.md`, `.claude/`, `docs/`, `.gitlab/`, `.gitlab-ci.yml` 을 **새 repo 루트에 복사**
-   - `docs/` 안에 **`_STEP_INDEX.md`(진행 지도)와 `00_Guide/`(사람이 읽는 가이드 3종: GitLab 실전·공통 개발자·ClaudeCode + 시안 허브 문서 2종: sian-hub-setup·sian-scenarios)가 이미 들어 있다** — 별도로 챙길 것 없이 통째로 복사되면 된다. (가이드 정본은 `../2-team-dev/` — 킷 동봉본과 어긋나면 정본을 다시 복사)
+1. 이 폴더의 `CLAUDE.md`, `.claude/`, `docs/`, `_reference/`, `scripts/`, `.gitlab/`, `.gitlab-ci.yml` 을 **새 repo 루트에 복사**
+   - ⛔**`_reference/`·`scripts/`를 빠뜨리지 마라** — `CLAUDE.md`가 `_reference/`의 5개 문서(worktree·push-guard·schema-conflicts·density·ci-needs)를 본문에서 가리키므로 빠지면 새 repo에서 전부 깨진 링크가 되고, `.gitlab-ci.yml`의 `density-check` 잡이 `bash scripts/check-density.sh`를 실행하므로 빠지면 **매 MR마다 그 잡이 실패**한다(`allow_failure`라 빨간불 없이 조용히 죽어 아무도 모른다).
+   - `docs/` 안에 **`_STEP_INDEX.md`(진행 지도)와 `00_Guide/`(사람이 읽는 가이드 3종: GitLab 실전·공통 개발자·ClaudeCode + 시안 허브 문서 2종: sian-hub-setup·sian-scenarios + 검수 서버 세팅 1종: review-server-setup)가 이미 들어 있다** — 별도로 챙길 것 없이 통째로 복사되면 된다. (가이드 3종의 정본은 `../2-team-dev/`, `review-server-setup.md`의 정본은 `../4-reference/`판 — 킷 동봉본과 어긋나면 정본이 맞으니 로직만 다시 가져오고 **사내 상수는 플레이스홀더로 유지**한다)
    + `ONBOARDING.md`(개발자·공통 개발자 첫날/매일)는 **`docs/00_Guide/`에 들어 있다**(단일본 — README 링크가 거길 가리킨다. ※과거 루트 사본은 드리프트해서 7-23 제거 — 사본을 늘리지 말 것)
    + `repo-README.md` 를 repo 루트에 **`README.md`** 로 복사 — 팀이 clone 후 처음 여는 **역할별 지도**(어느 문서를 볼지 안내). 프로젝트 이름만 채운다
 2. 전체 파일에서 플레이스홀더 치환 — **표기 규약: `<꺾쇠>`=지금 치환하는 설치 값 / `{중괄호}`=실행 시점 값(치환 금지, AI가 그때 채움)**:
@@ -18,7 +19,7 @@
    - `<시안허브URL>` → 화면 시안 열람 주소 (CLAUDE.md ★실행 절·`/ui 시안`이 사용. 세팅은 인스턴스에 1회 — `docs/00_Guide/sian-hub-setup.md`. 아직 없으면 리터럴로 두면 `/ui 시안`이 세팅부터 안내한다)
    - `<사내GitLab주소>` (ONBOARDING의 glab 로그인) / `<팀채팅주소>` → 실제 채팅 채널
    - **CLAUDE.md 모듈 소유 표** → 팀 태울 때 소유자 기입 (본보기 모듈 이관 포함 — 비워두면 /card 배정·/start 진단 불능)
-   - `.claude/hooks/check-push.sh` 안의 공용 테이블 패턴(`user|account`) → 실제 공용 테이블명
+   - `.claude/hooks/check-push.sh`의 **공통 영역 감지는 파일 경로 기준**이다(테이블 이름이 아니다 — `src/shared/`·`.claude/`·`db/migrations/`·`CLAUDE.md`·CI/컨테이너 설정·lockfile·middleware). repo 폴더 구조가 킷과 다르면 그 `grep -iE` 패턴의 **경로**를 실제 구조에 맞게 고쳐라. ※테이블명 치환은 필요 없다 — 스크립트에 테이블 이름은 없다
    - **`.claude/rules/*.md`의 `paths:` 글롭** → 실제 repo 폴더 구조에 맞게 (구조가 다르면 규칙이 조용히 죽는다)
    - `.claude/rules/migrations.md`의 `<확장자>` → 마이그레이션 도구 표준(.sql/.ts 등).
      **DB·마이그레이션 없는 스택이면**: rules/migrations.md 삭제 + CLAUDE.md '스키마·데이터' 절 제거 + /done 2단계 제거
@@ -36,7 +37,9 @@
 | `.claude/settings.json` | 권한 허용목록(승인 클릭 제거) + 훅 등록 + 보안 플러그인 |
 | `.claude/rules/*.md` | 경로별 규칙 — 그 경로 파일을 만질 때 AI에 자동 로드 |
 | `.claude/skills/` | 스킬 **18종**(개발 13: start·todo·card·dev·fix·ui·inspect·done·module·docs·change·log·adr + 공통 개발자 5: design·scaffold·setup-gitlab·assign-module·metrics) — 팀 표준 절차. **예시·결과 표의 정본 = repo-README 스킬 표** |
-| `.claude/hooks/check-push.sh` | push 전 공통 영역 변경 감지 → 확인 요구 (기계 강제) |
+| `.claude/hooks/check-push.sh` | push 전 공통 영역 변경 감지 → 확인 요구 (Claude Code `PreToolUse` 훅 전용 — git/husky 훅이 아니다) |
+| `_reference/*.md` | 실전 노트 5종(worktree·push-guard·schema-conflicts·density·ci-needs) — **CLAUDE.md·CI가 본문에서 가리킨다**(자동 로드 ❌) |
+| `scripts/check-density.sh` | 규칙 문서 밀도 검사 — **CI `density-check` 잡이 실행**(로컬: `bash scripts/check-density.sh`) |
 | `docs/adr/0000-템플릿.md` | 결정 기록(ADR) 템플릿 — 되돌리기 어려운 결정을 반 장으로 남김 |
 | `.gitlab/issue_templates/카드.md` | 카드(이슈) 양식 — 정본 참조·수용 기준(검수/CI 태그)·**검수(지정자)**·의존·검수 방법 필드 고정 |
 
