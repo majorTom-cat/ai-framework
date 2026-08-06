@@ -77,8 +77,11 @@ tamper-check:
 density-check:
   stage: test
   image: alpine:3
+  variables:
+    # ★얕은 클론이면 비교 기준 커밋이 없어 전수 검사로 떨어진다(=옛 줄까지 다 걸린다).
+    GIT_DEPTH: 0
   script:
-    - apk add --no-cache bash >/dev/null
+    - apk add --no-cache bash git >/dev/null
     - bash scripts/check-density.sh
   allow_failure: true
   rules:
