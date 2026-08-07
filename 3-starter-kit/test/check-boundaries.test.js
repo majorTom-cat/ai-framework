@@ -68,6 +68,15 @@ test('정상 케이스 — 자기 하위·형제, 남의 루트 index, shared, �
     // 진입점·테스트는 index 경유면 통과 (디렉터리 import = 루트 index)
     'server.js': 'const b = ' + REQ('./src/modules/board/index.js') + ';\nconst a = ' + REQ('./src/modules/approval') + ';\n',
     'test/board.test.js': 'const b = ' + REQ('../src/modules/board/index.js') + ';\n',
+    // 오탐 대조군 — 모델명과 겹치는 평범한 프로퍼티(수신자 ui·ctx는 클라이언트풍이 아니다.
+    // ctx는 tx$ 접미 매칭의 실측 오탐 지점 — Next 이식 픽스처에서 발견, 낙타등 경계로 수정)
+    'src/modules/approval/benign.js': [
+      'const ui = { staff: { update: () => 0 } };',
+      'module.exports.a = ui.staff.update({});',
+      'const ctx = { x: { update: () => 0 } };',
+      'const key = "x";',
+      'module.exports.b = () => ctx[key].update(1);',
+    ].join('\n') + '\n',
   }, (r) => {
     assert.strictEqual(r.status, 0, '정상 구조가 빨간불이면 오탐이다:\n' + r.stderr);
     assert.match(r.stdout, /모듈 경계 OK/);
@@ -122,8 +131,9 @@ test('DB 경계 4패턴 — 남의 모델·생 SQL 테이블·동적 접근·Pri
     // d2 생 SQL이 남의 테이블(posts)에 접근 / d5 판별 불가 생 SQL은 경고
     'src/modules/approval/db2.js': 'module.exports = (db) => db.$queryRaw' + '`SELECT * FROM posts`' + ';\n',
     'src/modules/approval/db5.js': 'module.exports = (db, sql) => db.$queryRawUnsafe(sql);\n',
-    // d3 동적 모델 접근 / d4 모듈 안 new PrismaClient
+    // d3 동적 모델 접근 / d3c 캐스트 꼴(TS — 수신자가 괄호에 가려짐) / d4 모듈 안 new PrismaClient
     'src/modules/approval/db3.js': 'module.exports = (db, model) => db[model].findMany();\n',
+    'src/modules/approval/db3c.js': 'module.exports = (db, model) => (db)[model].findMany();\n',
     'src/modules/approval/db4.js': 'const { PrismaClient } = ' + REQ('@prisma/client') + ';\nconst c = new PrismaClient();\n',
   }, (r) => {
     assert.strictEqual(r.status, 1, 'DB 위반 4패턴이 있는데 초록불이다:\n' + r.stdout);
@@ -131,6 +141,7 @@ test('DB 경계 4패턴 — 남의 모델·생 SQL 테이블·동적 접근·Pri
     assert.ok(out.includes('db1.js') && out.includes('직접 쿼리'), 'd1 남의 모델 접근 누락:\n' + out);
     assert.ok(out.includes('db2.js') && out.includes("'posts'"), 'd2 생 SQL 테이블 누락:\n' + out);
     assert.ok(out.includes('db3.js') && out.includes('동적 모델 접근'), 'd3 동적 접근 누락:\n' + out);
+    assert.ok(out.includes('db3c.js') && out.includes('캐스트 꼴'), 'd3c 캐스트 동적 접근 누락:\n' + out);
     assert.ok(out.includes('db4.js') && out.includes('new PrismaClient()'), 'd4 클라이언트 산개 누락:\n' + out);
     assert.ok(out.includes('db5.js') && out.includes('경고'), 'd5 판별 불가 생 SQL은 경고여야 한다:\n' + out);
     // 오탐 0: 자기 소유 모델 접근(board)·허용목록(shared/db.js)이 위반으로 찍히면 안 된다

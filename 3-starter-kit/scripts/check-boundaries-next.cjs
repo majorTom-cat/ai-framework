@@ -1,4 +1,4 @@
-// 모듈 경계 검사 v2 — import 경계 + DB 경계 + 순환 의존 (2026-08-07 전면 재작성, 카드는 갈래3·DB갈래 실측 근거)
+// 모듈 경계 검사 v2 — Next.js(App Router)판 (bnsone 값. 킷 v2 2026-08-07 기반 + PUBLIC_OWNERS 공용 테이블 규칙)
 // 왜 재작성: 구판은 require() 정규식 문자열 매칭이라 ①자기 모듈 형제 폴더를 남의 모듈로 오독(오탐)
 //   ②'../../' 깊이·ESM import·동적 import·.ts/.mjs 전부 통과(위반 7건 중 5건 놓침 — 2026-08-06 매트릭스 실측)
 //   ③검사 범위가 src/modules뿐이라 test/·server.js·src/shared 경유 위반이 전부 무음 통과.
@@ -14,9 +14,9 @@ const fs = require('fs');
 const path = require('path');
 
 const MODULE_ROOT = 'src/modules';
-// 검사 범위: 모듈 + 공용(shared) + 라우트 계층(app/ — Next 이식 대비) + 진입점 + 테스트 (구판은 modules만 봤다)
-const SCAN_ROOTS = [MODULE_ROOT, 'src/shared', 'app', 'test'];
-const SCAN_FILES = ['server.js'];
+// 검사 범위(bnsone 값): 모듈 + 공용(shared) + App Router 전체(route.ts·layout·page — 라우트 계층은 모듈 index만 import 가능) + 테스트
+const SCAN_ROOTS = [MODULE_ROOT, 'src/shared', 'src/app', 'test'];
+const SCAN_FILES = ['middleware.ts'];
 const EXTS = new Set(['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs']);
 const ALIAS = { '@/': 'src/' }; // tsconfig "paths": {"@/*": ["./src/*"]} 기준 — 스택이 다르면 여기만 갱신
 const SKIP_DIRS = new Set(['node_modules', '.next', '.git']);
@@ -156,7 +156,10 @@ const SCHEMA_OWNER_OVERRIDES = {
   // 'people.prisma': 'todos',   // ← 예시: people 스키마를 todos 모듈이 소유하게 됐을 때
 };
 const SCHEMA_DIR = 'prisma/schema';
-const SHARED_DB_ALLOWLIST = ['src/shared/db.js']; // 공용 클라이언트 래퍼 자리 — 여기서만 new PrismaClient 허용
+const SHARED_DB_ALLOWLIST = ['src/shared/db.ts']; // 공용 클라이언트 래퍼 자리 — 여기서만 new PrismaClient 허용
+// ★공용 소유 — 이 파일들의 모델은 "공용 테이블"이라 모든 모듈이 접근 가능하다(소유 검사 제외).
+//   bnsone 실물: shared.prisma(공용 2모델). 스키마 *변경*의 게이트·공지는 별도 규칙(CI high-risk·훅)이 담당.
+const PUBLIC_OWNERS = new Set(['shared']);
 
 const PRISMA_OPS = [
   'findMany', 'findUnique', 'findUniqueOrThrow', 'findFirst', 'findFirstOrThrow',
@@ -213,13 +216,13 @@ if (modelOwner.size) {
       let a;
       while ((a = accRe.exec(line))) {
         const recv = a[1] || '';
-        // ★접미 매칭에 소문자 경계 없이 tx$를 쓰면 `ctx`가 걸린다(Next 이식 픽스처 실측 오탐 — React/Next에서 ctx는 일상 변수).
+        // ★접미 매칭에 소문자 경계 없이 tx$를 쓰면 `ctx`가 걸린다(Next 픽스처 실측 오탐 — React/Next에서 ctx는 일상 변수).
         //   정확 일치 또는 낙타등 접미(myDb·prismaTx)만 클라이언트풍으로 본다.
         const clientish = /^(prisma|client|db|tx|conn|orm)$/i.test(recv) || /(Prisma|Client|Db|DB|Tx|Conn|Orm)$/.test(recv);
         const distinct = new RegExp(`^(${DISTINCT_OPS_ALT})$`).test(a[3]);
         if (!clientish && !distinct) continue; // 평범한 객체 — 오탐 억제
         const info = modelOwner.get(a[2]);
-        if (info.owner !== me) {
+        if (info.owner !== me && !PUBLIC_OWNERS.has(info.owner)) {
           violations.push(`${at}: prisma 모델 '${info.model}'(${info.file}, 소유: ${info.owner}) 직접 쿼리 — 소유 모듈의 index 공개 함수로 요청하라`);
         }
       }
@@ -231,7 +234,7 @@ if (modelOwner.size) {
         const sql = sqlM ? sqlM[0] : '';
         let hit = false;
         for (const { model, owner, table } of modelOwner.values()) {
-          if (owner === me) continue;
+          if (owner === me || PUBLIC_OWNERS.has(owner)) continue;
           const t = new RegExp(`"(?:${model}|${table})"|\\b${table}\\b`, 'i');
           if (sql && t.test(sql)) {
             violations.push(`${at}: 생 SQL($queryRaw 류)이 남의 테이블 '${table}'(소유: ${owner})에 접근 — 소유 모듈의 공개 함수로`);
