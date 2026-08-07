@@ -18,7 +18,8 @@ allowed-tools: Bash(glab *) Read Edit
   - **모듈 이름은 `docs/06_TechnicalDesign`(설계 산출물)에서** 읽어 제안한다 — Day 2엔 CLAUDE.md 소유표가 아직 빈칸(`<모듈b>` 등)이라 거기선 못 읽는다.
   - ★**읽은 이름은 반드시 사람에게 확인받는다**(설계 문서와 실제 코드가 어긋날 수 있다 — 확인 없이 확정하면 엉뚱한 `모듈:*` 라벨이 생긴다, 2026-07-28 실측). 이미 코드가 있으면 `src/modules/`와 대조해 차이까지 함께 보여준다.
 2. **⏸ 게이트**: 아래 "이렇게 설정한다" 요약을 보여주고 **승인받은 뒤 실행** (멤버 권한·브랜치 보호는 되돌리기 번거롭다).
-3. **라벨 생성** (`glab label create`): 상태(`진행중`·`검수요청`·`무효`·`대기(불명확)`) + 위험(`고위험`) + 모듈(`모듈:<각각>`·`shared`·`docs`) + **`킷개선`**(스킬·규칙 우회 수집 — CLAUDE.md 규칙 참조). **이미 있으면 건너뜀**(중복 에러 무시). ★스킬들이 이 라벨을 적용하므로 하나도 빠지면 안 된다.
+3. **라벨 생성** (`glab label create`): 상태(`진행중`·`검수요청`·`무효`·`대기(불명확)`·**`셀프완료`**) + 위험(**`고위험`·`셀프승인`**) + 모듈(`모듈:<각각>`·`shared`·`docs`) + **`킷개선`**(스킬·규칙 우회 수집 — CLAUDE.md 규칙 참조). **이미 있으면 건너뜀**(중복 에러 무시).
+   ★스킬들이 이 라벨을 적용하므로 하나도 빠지면 안 된다 — `셀프승인`이 없으면 1인 상황의 고위험 MR이 게이트에서 탈출구 없이 막히고(`.peer-approval-gate`), `셀프완료`가 없으면 /done 라벨 전환이 조용히 실패해 /metrics 커버리지가 무너진다.
 4. **보드 열**: `진행중`·`검수요청` 리스트 생성(`Open`·`Closed`는 기본 제공). glab에 보드 API가 제한적이면 공통 개발자에게 "Plan → Issue boards에서 이 두 열만 수동 추가"로 안내.
 5. **멤버 권한** (`glab api projects/:id/members`): 기획/디자이너 = **Maintainer(40)**, 개발자 = **Developer(30)**. 현재값 조회 후 다른 것만 변경.
 6. **main 보호 + CI 필수** (셀프머지의 핵심 안전망):
@@ -27,6 +28,12 @@ allowed-tools: Bash(glab *) Read Edit
    - (정확한 파라미터는 실행 시 `glab api` 응답으로 확인·보정.)
    - **glab이 실패하면 웹으로 대체**: Settings → Repository → **Protected branches** → `main`(Allowed to merge = Developers+, Allowed to push = No one/팀 정책) · Settings → Merge requests → **Pipelines must succeed ✔**.
    - ★**main 보호가 실제로 켜졌는지 조회로 확인**(`glab api projects/:id/protected_branches`)한 뒤 넘어간다 — 이게 안 켜지면 **개발자 착수 전 안전망이 통째로 빈다**(ADR-0001).
+6-1. **게이트 토큰 등록** (고위험 게이트의 작성자 판정용 — **없으면 게이트가 fail-open**: 커밋 author 메일≠GitLab 메일이면 셀프 승인이 무음 통과한다):
+   - read_api 전용 **프로젝트 액세스 토큰**을 발급해 CI 변수로 등록한다(웹 불필요, Maintainer 권한이면 API로 됨):
+     `echo '{"name":"gate-reader","scopes":["read_api"],"access_level":20,"expires_at":"<1년 내>"}' | glab api --method POST "projects/:id/access_tokens" --input - -H "Content-Type: application/json"`
+     → 응답의 `token` 값을 `glab variable set GATE_API_TOKEN <값> --masked`. (★glab의 `-f "scopes[]=…"` 표기는 HTTP 400, `--input`만 쓰면 415 — JSON 본문+명시적 헤더가 필수. 2026-08-07 실측)
+   - **만료일을 팀 캘린더·카드로 남긴다** — 만료되면 fail-open이 소리 없이 되살아난다. 인스턴스가 프로젝트 토큰을 막아 뒀으면 웹에서 개인 read_api 토큰으로 대체.
+   - (기획/디자이너 push 감시를 쓰려면 `PLANNER_EMAILS`도 여기서: `glab variable set PLANNER_EMAILS a@x,b@x` — 미등록이어도 무해, planner-guard가 비활성일 뿐.)
 7. **플레이스홀더 반영** (Edit) — 지금 아는 값을 채운다:
   - `<사내GitLab주소>`·`<팀채팅주소>`·`<기획자아이디>`(기획 계정. **2인 이상이면 멘션이 전원에게 가도록 `@a @b` 형태로 넣는다**)
   - **`## 소유 경계` 표에 `docs/06`의 모듈 이름으로 행을 만든다**(소유자 칸은 팀 합류 때 `/assign-module <모듈> <사람>`로 — 지금은 행만, 소유자는 비워둠).

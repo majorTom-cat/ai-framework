@@ -13,15 +13,16 @@
 
 **결론(정착)**: 훅은 **ask 하나만** 낸다. allow도 deny도 내지 않는다.
 - 일반 push 마찰 0 = `settings.json` allow (명령 **접두** 기준 — 문자열만 포함한 명령엔 오탐 없음)
-- force push 차단 = `settings.json` deny (`-f`·`--force`·`--force-with-lease` 전 형태 — 8줄. 단 **접두 규칙이라 체이닝 `git status && git push -f`는 못 막음** → CLAUDE.md '금지' 절 규칙+리뷰로 커버)
+- force push 차단 = `settings.json` deny (`-f`·`--force`·`--force-with-lease`·`git -C` 변형 — 26줄. 단 **접두 규칙이라 체이닝 `git status && git push -f`는 못 막음** → 아래 훅 ask가 덮는다)
 - 공통 영역 감지 = 훅의 ask
+- **2026-08-07 훅 확장(검증 7건 후속)**: force 플래그 체이닝(`&&`·묶음 `-fu`·여러 줄)·`git -c`/`--git-dir`/`--work-tree` 전역옵션 변형 → **ask** / `glab issue close`로 검수요청 카드를 닫으려 하면 라벨 조회 후 **ask**(검수요청→완료는 사람만). 시뮬 34케이스 검증 — 한계: ask는 승인하면 실행되고, 한 명령에 위험 둘이면 먼저 걸린 하나만 알린다.
 
 ## 훅 매칭 세부 (재발 방지)
 
 - **명령 경계** 기준: 문자열 시작·`;`·`&`·`|`·`(`·**줄바꿈(`\n`·`\r`·`\t`)** 뒤의 실제 `git … push`만. 줄바꿈을 빼면 heredoc 뒤 `…\ngit push`가 침묵(실측).
 - `git -c core.quotepath=false`(한글 경로가 8진 이스케이프로 나와 앵커 빗나감) + `diff.renames=false`(rename이 도착 경로만 남아 shared에서 빼내는 이동이 침묵).
 - 판단 불가(origin/main ref 없음·repo 밖)는 **무출력 위임** — allow를 내면 fail-open.
-- 공통 패턴에 `.claude/`(가드 자신)·`package-lock.json`·`db/migrations/` 전체·CI/컨테이너 설정·`middleware.*` 포함, 대소문자 무시.
+- 공통 패턴에 `.claude/`(가드 자신)·`.gitlab/`·`package-lock.json`·`db/migrations/`(**스택 마이그레이션 경로로 치환** — Prisma면 `prisma/`)·CI/컨테이너 설정·게이트 스크립트·`middleware.*` 포함, 대소문자 무시. **CI `high-risk-gate`의 `changes:` 목록과 1:1로 유지하라**(CI가 고위험이라 부르는 경로에 로컬 훅이 침묵하면 이중화의 앞단이 빈다).
 
 ## allow/ask 우선순위
 

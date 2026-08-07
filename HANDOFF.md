@@ -3,11 +3,23 @@
 > 🟢 **프레임워크 구축은 완료돼 bnsone에 push됐다. 이제 프로젝트 실행은 `E:\bnsone` 에서 `claude` 켜고 `/start`.**
 > (bnsone = CLAUDE.md·스킬 자동 로드 → 실행 단계엔 이게 맞다. second-brain = 메모리·archive 전용)
 > **이 `E:\ai-framework` 파일은 프레임워크(가이드·킷) 자체를 고칠 때만** 다시 본다 — 그 맥락은 아래에 다 있다.
-> 최종 업데이트: 2026-08-06
+> 최종 업데이트: 2026-08-07
 
 ---
 
-## 🎯 2026-08-06 — 프레임워크 전면 감사·수리 (이게 최신)
+## 🎯 2026-08-07 — 7갈래 검증 후속: 게이트 정합 수리 + 킷 반영 (이게 최신)
+
+**한 줄**: 8-06 밤 7갈래 적대 검증(정정본 5건 포함)의 후속 — 파일럿에서 게이트·문서 정합을 수리·커밋하고, 그 실증본을 **값 스택별로 분리해 킷 정본에 반영**했다. 킷 워킹트리에 커밋(푸시는 사용자 지시 대기), 파일럿은 `wip/2026-08-07-7갈래수리` 브랜치(로컬 전용, d894467→f83146f→5b8f8d6).
+
+**정정본(파일럿 세션 artifacts `정정-2026-08-07-…md`) 5건 처리**: ①워크트리 628879b 통일 확인 ②경계검사 오탐 3계열 수정(d894467) ③high-risk-label-gate 불발 해소 — /done 7단계에 `--label 고위험` 필수화 + "작성자 직접 play" 거짓 지시 폐기(새 CI는 실행자=작성자면 exit 1) ④스킬 4파일(card·dev·fix·metrics) fresh 리뷰 — 블로커 0, 경미 3건 반영 ⑤인수인계 분류표 "범용" 과대 3건을 "값 스택별"로 보정.
+
+**GitLab 설정(파일럿) — 사람 몫이 소진됐다**: `셀프승인` 라벨 생성(glab로 됨 — 웹 불필요) · CI 변수 `GATE_API_TOKEN` = 프로젝트 토큰 `gate-reader`(read_api·Reporter, **만료 2027-08-01 — 갱신 안 하면 게이트 fail-open 회귀**. 발급은 JSON 본문+`-H "Content-Type: application/json"` 필수 — glab `-f scopes[]=`는 400, `--input`만은 415). 남은 결정 1건: main 직접 push가 Maintainers에 열려 있음(권고 "No one"·현 워크플로 영향 검토는 사람).
+
+**킷 반영 내역(이 커밋)**: CI 게이트 3종(.peer-approval-gate 판정 잡·high-risk-label-gate·migration-immutable — 경로는 `db/migrations` 플레이스홀더) · `scripts/check-boundaries.cjs` v2+회귀 테스트(DB부는 Prisma 전용 — 비활성 시 경고로 가시화) · `gen-module.cjs` · `_reference/revert.md`(B는 Prisma 예시 명기) · check-push 훅 확장(force 변형·카드닫기 ask, HITS는 킷 값) · settings deny 14→26 · 스킬 8종 동기(done·dev·fix·card·metrics·todo·scaffold·setup-gitlab — setup-gitlab에 라벨 `셀프승인`·`셀프완료`+토큰 등록 단계 신설) · CLAUDE.md·가이드 로직 동기(값 보존).
+
+**다음 세션이 할 것**: ①파일럿 머지 — 묶음 단위(경계/게이트/훅). ★게이트 묶음 MR은 `.gitlab-ci.yml` 변경이라 자기 게이트를 탄다 — 1인이면 `셀프승인` 라벨+증적 3종 경로로. ②첫 고위험 MR에서 실측 3건 확인: 한글 라벨 RE2 매칭·migration-immutable 첫 발동·러너 apk. 확인 전 "봉쇄" 서술 금지. ③bnsone 동기 — 웹 설정 먼저(라벨 `셀프승인`·`셀프완료` 확인+`GATE_API_TOKEN`), done+CI는 같은 묶음으로. ④킷 push는 사용자 지시 후.
+
+## 🎯 2026-08-06 — 프레임워크 전면 감사·수리
 
 **한 줄**: 승인 마찰 해소로 시작해 **AI 8명(수리 5·검증 3) 병렬 감사**로 확대 — 방어선 구멍 4건·거짓 서술 6건·개발자 피드백 5건 수리, 3배포처 동기 완료. 킷 `72a5996`·파일럿 `e8a93b8`·bnsone `bdc3d05`, 셋 다 트리 깨끗·열린 MR 0.
 

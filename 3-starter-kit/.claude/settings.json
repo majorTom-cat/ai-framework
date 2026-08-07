@@ -60,7 +60,19 @@
       "PowerShell(git push +*)",
       "PowerShell(git push * +*)",
       "Bash(git push +*)",
-      "Bash(git push * +*)"
+      "Bash(git push * +*)",
+      "PowerShell(git -C * push -f*)",
+      "PowerShell(git -C * push --force*)",
+      "PowerShell(git -C * push * -f*)",
+      "PowerShell(git -C * push * --force*)",
+      "PowerShell(git -C * push +*)",
+      "PowerShell(git -C * push * +*)",
+      "Bash(git -C * push -f*)",
+      "Bash(git -C * push --force*)",
+      "Bash(git -C * push * -f*)",
+      "Bash(git -C * push * --force*)",
+      "Bash(git -C * push +*)",
+      "Bash(git -C * push * +*)"
     ]
   },
   "enabledPlugins": {
