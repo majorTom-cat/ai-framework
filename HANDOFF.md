@@ -17,7 +17,7 @@
 
 **킷 반영 내역(이 커밋)**: CI 게이트 3종(.peer-approval-gate 판정 잡·high-risk-label-gate·migration-immutable — 경로는 `db/migrations` 플레이스홀더) · `scripts/check-boundaries.cjs` v2+회귀 테스트(DB부는 Prisma 전용 — 비활성 시 경고로 가시화) · `gen-module.cjs` · `_reference/revert.md`(B는 Prisma 예시 명기) · check-push 훅 확장(force 변형·카드닫기 ask, HITS는 킷 값) · settings deny 14→26 · 스킬 8종 동기(done·dev·fix·card·metrics·todo·scaffold·setup-gitlab — setup-gitlab에 라벨 `셀프승인`·`셀프완료`+토큰 등록 단계 신설) · CLAUDE.md·가이드 로직 동기(값 보존).
 
-**다음 세션이 할 것**: ①파일럿 머지 — 묶음 단위(경계/게이트/훅). ★게이트 묶음 MR은 `.gitlab-ci.yml` 변경이라 자기 게이트를 탄다 — 1인이면 `셀프승인` 라벨+증적 3종 경로로. ②첫 고위험 MR에서 실측 3건 확인: 한글 라벨 RE2 매칭·migration-immutable 첫 발동·러너 apk. 확인 전 "봉쇄" 서술 금지. ③bnsone 동기 — 웹 설정 먼저(라벨 `셀프승인`·`셀프완료` 확인+`GATE_API_TOKEN`), done+CI는 같은 묶음으로. ④킷 push는 사용자 지시 후.
+**같은 날 저녁 — 전부 완료됐다** (사용자 "다 해보자" 승인): ①파일럿 4묶음 머지(카드 #98, !133 훅/!134 경계/!135 전용/!136 게이트 — 전부 merged, main 2914 success). ②실측 3건 전부 확인(파이프라인 2910): 한글 라벨 RE2 매칭 ✔(잡 생성) · `GATE_API_TOKEN` API 정본 판정 ✔(`비교대상=yskim [MR 작성자(API)]`) · 러너 apk ✔ · migration-immutable 첫 발동 ✔ · 셀프승인 라벨 폴백 ✔. ▶는 전부 **사용자가 직접** 눌렀다(AI play는 Claude 분류기도 차단 — 프레임워크와 같은 판단). ③bnsone 동기 완료(카드 #43·!74 merged): 라벨 2종+`GATE_API_TOKEN`(gate-reader, **만료 2027-08-01**) 등록, CI 게이트 3종+스킬 7+훅+CLAUDE.md 로직. ④킷 push 완료(85af876). tamper-check 경고 1건(!134 — 소스+테스트 동시 수정 휴리스틱, 예상 발동·변조 아님). **남은 것**: bnsone 검수 서버 실물·비개발자 실적(별도 트랙) · Next.js 킷 이식 · 파일럿 main push 보호 결정(Maintainers→No one) · 토큰 2개 2027-08 갱신.
 
 ## 🎯 2026-08-06 — 프레임워크 전면 감사·수리
 
