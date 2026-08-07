@@ -1,5 +1,6 @@
 ---
 name: assign-module
+effort: low # 표 갱신형 (배정 기준: _reference/skill-tiers.md)
 description: 모듈 소유자를 지정·이관한다 — CLAUDE.md 소유표 + rules/module-*.md 소유자 + GitLab 라벨을 한 번에 맞춘다. 공통 개발자가 팀 합류·이관 때.
 disable-model-invocation: true
 argument-hint: "[모듈이름] [소유자]"

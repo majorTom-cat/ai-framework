@@ -1,5 +1,6 @@
 ---
 name: adr
+effort: high # 비가역 결정 기록 (배정 기준: _reference/skill-tiers.md)
 description: 되돌리기 어려운 설계 결정을 ADR로 기록한다 — 새 결정 또는 기존 결정 대체. 개발자·공통 개발자가 스택·모듈 경계·모듈 간 계약을 정할 때, 또는 /dev·/change 절차 중 계약·결정 기록이 필요할 때.
 argument-hint: "[결정 요약]"
 allowed-tools: Read Edit Write Glob Grep Bash(git *) Bash(glab *)

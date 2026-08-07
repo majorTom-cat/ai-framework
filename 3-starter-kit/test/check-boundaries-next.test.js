@@ -73,16 +73,17 @@ test('정상·오탐 계열 — App Router·별칭·type import·공용 테이�
 test('위반 매트릭스 — Next 형태 11종 전부 검출', () => {
   withFixture({
     ...BASE,
-    // V1 route.ts → 모듈 내부 파일
-    'src/app/api/x/route.ts': "import { rows } from '@/modules/boards/store/board-store';\nexport async function GET(){ return Response.json(rows); }\n",
+    // V1 route.ts → 모듈 내부 파일 (★지정자를 문자열 분리로 조립 — 이 테스트 파일 자체가 검사 대상(test/)이라
+    //   한 줄 리터럴로 두면 자기 자신이 위반으로 걸린다. 파일럿 테스트의 REQ 헬퍼와 같은 이유)
+    'src/app/api/x/route.ts': "import { rows } from " + "'@/modules/boards/store/board-store'" + ";\nexport async function GET(){ return Response.json(rows); }\n",
     // V2 남의 모듈 내부를 상대경로로 (.tsx)
     'src/modules/people/ui/List.tsx': "import { rows } from '../../boards/store/board-store';\nexport default function L(){ return rows.length; }\n",
     // V3 type-only import라도 내부 파일이면 위반
     'src/modules/people/services/t.ts': "import type { rows } from '../../boards/store/board-store';\nexport type R = typeof rows;\n",
     // V4 동적 import
-    'src/app/dyn/page.tsx': "export default async function D(){ const m = await import('@/modules/people/services/hr'); return m.hr; }\n",
+    'src/app/dyn/page.tsx': "export default async function D(){ const m = await import(" + "'@/modules/people/services/hr'" + "); return m.hr; }\n",
     // V5 재수출
-    'src/shared/rex.ts': "export { rows } from '@/modules/boards/store/board-store';\n",
+    'src/shared/rex.ts': "export { rows } from " + "'@/modules/boards/store/board-store'" + ";\n",
     // V6 shared → 모듈 (루트 index라도 역참조 금지)
     'src/shared/uses-module.ts': "import { listBoards } from '@/modules/boards';\nexport const u = listBoards;\n",
     // V7 남의 모델 직접 쿼리 (boards가 people의 Employee)
@@ -94,7 +95,7 @@ test('위반 매트릭스 — Next 형태 11종 전부 검출', () => {
     // V10 모듈 안 new PrismaClient
     'src/modules/people/services/own-client.ts': "import { PrismaClient } from '@prisma/client';\nexport const p = new PrismaClient();\n",
     // V11 middleware(진입점)에서 모듈 내부 파일
-    'middleware.ts': "import { rows } from '@/modules/boards/store/board-store';\nexport const config = { matcher: [] };\nexport const m = rows;\n",
+    'middleware.ts': "import { rows } from " + "'@/modules/boards/store/board-store'" + ";\nexport const config = { matcher: [] };\nexport const m = rows;\n",
   }, (r) => {
     assert.strictEqual(r.status, 1, `위반인데 초록:\n${r.stdout}`);
     const out = r.stderr + r.stdout;

@@ -1,5 +1,6 @@
 ---
 name: done
+effort: high # 머지·게이트·수용기준 대조 — 실수 비용 큼 (배정 기준: _reference/skill-tiers.md)
 description: 이슈 마무리 루틴 — 머지 전 검사부터 MR 생성·카드 처리까지. 개발 완료 후 사용자가 호출.
 disable-model-invocation: true
 argument-hint: "[이슈번호]"
@@ -13,6 +14,8 @@ allowed-tools: Read Edit Write Glob Grep Bash(git *) Bash(glab *) Bash(npm *) Ba
 > **계약** · 입력: 이슈번호 · 산출물: 테스트→리뷰→머지(=배포)→라벨 검수요청+검수자 멘션 · 검증: 파이프라인 success+배포 화면 (카드 Close는 사람)
 
 > **예시**: `/done 12`
+
+> ★**모델 확인(소프트 플로어)**: 이 스킬은 머지까지 간다 — 현재 세션이 경량 모델(haiku급)이면 **시작 전에 멈추고** "/model로 올린 뒤 다시 `/done`"을 안내하라. (frontmatter `effort`는 모델을 못 바꾼다 — 경량 모델+high effort는 여전히 경량이다.)
 
 순서대로 실행하고, **실패하면 그 단계에서 멈추고 보고**하라.
 (명령이 이 문서와 repo CLAUDE.md '실행·테스트' 절이 다르면 **CLAUDE.md가 정본**이다.)

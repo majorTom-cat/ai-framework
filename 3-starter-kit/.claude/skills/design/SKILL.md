@@ -1,5 +1,6 @@
 ---
 name: design
+model: opus # 조직 allowlist에 없으면 무시되고 세션 모델 유지(공식 fail-soft) — 본문 소프트 플로어가 백스톱
 effort: xhigh
 description: 요구사항 문서를 읽어 기술 설계를 제안한다 — 스택·DB(ERD)·모듈 분할 + 공통(shared) 함수·컴포넌트·UI 추출. 공통 개발자가 골격 Day 0에, 요구사항 첫 슬라이스가 올라온 뒤 실행(요구가 더 오면 재실행).
 disable-model-invocation: true

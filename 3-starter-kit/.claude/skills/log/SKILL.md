@@ -1,5 +1,6 @@
 ---
 name: log
+effort: low # 조회·요약형 (배정 기준: _reference/skill-tiers.md)
 description: 변경 이력 조회 — 모듈·공통·파일을 누가 언제 무엇을 왜 바꿨는지 요약. "이거 언제 바뀌었지?" 할 때 사용.
 argument-hint: "[모듈명|shared|파일경로] [기간(선택, 예: 2주)]"
 allowed-tools: Bash(git log *) Bash(git blame *) Bash(git shortlog *) Bash(glab *)
