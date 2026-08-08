@@ -16,7 +16,8 @@ CMD=$(printf '%s' "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\(.*
 
 # ── ① 검수요청 카드 자기닫기 게이트 (push와 무관하므로 push 판정보다 먼저) ──
 # 근거(2026-08-06 실측): 검수요청 경로 카드 9/9를 구현자와 같은 계정이 닫았고 5장은 라벨 부여 2초 뒤에 닫혔다.
-# CLAUDE.md 전이표 = "검수요청 → 완료는 사람만". 셀프완료 경로(검수요청 라벨 없음)는 그대로 통과시킨다.
+# CLAUDE.md 전이표(2026-08-09 개정) = close 대행은 검수 담당 본인 세션만(확답+계정 대조+증적 댓글+라벨 해제).
+# 셀프완료 경로(검수요청 라벨 없음)는 그대로 통과시킨다.
 if printf '%s' "$CMD" | grep -Eiq '(^|[;&|(]|\\n|\\r|\\t)[[:space:]]*glab[[:space:]]+issue[[:space:]]+close([[:space:]]|$|"|\\)'; then
   # `close` 뒤의 이슈 번호(들) = 숫자만인 토큰. 플래그·그 값(`-R a/b`)이 끼어도 넘어가고, 명령 구분자
   # (;&|"·역슬래시)에서 멈춘다 — 뒷 명령의 숫자를 이슈 번호로 오인하지 않게. 최대 3건만 조회한다.
@@ -30,7 +31,7 @@ if printf '%s' "$CMD" | grep -Eiq '(^|[;&|(]|\\n|\\r|\\t)[[:space:]]*glab[[:spac
   for IID in $IIDS; do
     if $TO glab api "projects/:id/issues/$IID" </dev/null 2>/dev/null \
        | grep -Eq '"labels"[[:space:]]*:[[:space:]]*\[[^]]*검수요청'; then
-      printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"⚠️ #%s 는 `검수요청` 카드입니다 — 검수요청 → 완료 전이는 **사람만** 합니다(CLAUDE.md 전이표). AI가 닫으면 검수 실적이 사라집니다. 정말 닫나요? (셀프완료 대상이면 검수요청 라벨을 떼고 진행)"}}\n' "$IID"
+      printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"⚠️ #%s 는 `검수요청` 카드입니다 — close 대행은 **검수 담당 본인 세션**만 합니다(CLAUDE.md 전이표: 담당 확답 + `glab api user` 계정 대조 + 증적 댓글 + 검수요청 라벨 해제). 구현자 세션이면 닫지 마세요. 조건을 다 갖췄나요? (셀프완료 대상이면 검수요청 라벨을 떼고 진행)"}}\n' "$IID"
       exit 0
     fi
   done
