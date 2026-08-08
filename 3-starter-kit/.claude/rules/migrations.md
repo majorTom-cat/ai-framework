@@ -1,5 +1,5 @@
 ---
-paths: db/migrations/**
+paths: db/migrations/** # ★스택 실경로로 치환(/scaffold 5단계) — Prisma 폴더형이면 prisma/schema/migrations/**. 안 바꾸면 이 규칙이 조용히 죽는다(bnsone #53 실측)
 ---
 # 마이그레이션 규칙
 

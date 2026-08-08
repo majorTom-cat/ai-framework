@@ -22,7 +22,7 @@
 - **명령 경계** 기준: 문자열 시작·`;`·`&`·`|`·`(`·**줄바꿈(`\n`·`\r`·`\t`)** 뒤의 실제 `git … push`만. 줄바꿈을 빼면 heredoc 뒤 `…\ngit push`가 침묵(실측).
 - `git -c core.quotepath=false`(한글 경로가 8진 이스케이프로 나와 앵커 빗나감) + `diff.renames=false`(rename이 도착 경로만 남아 shared에서 빼내는 이동이 침묵).
 - 판단 불가(origin/main ref 없음·repo 밖)는 **무출력 위임** — allow를 내면 fail-open.
-- 공통 패턴에 `.claude/`(가드 자신)·`.gitlab/`·`package-lock.json`·`db/migrations/`(**스택 마이그레이션 경로로 치환** — Prisma면 `prisma/`)·CI/컨테이너 설정·게이트 스크립트·`middleware.*` 포함, 대소문자 무시. **CI `high-risk-gate`의 `changes:` 목록과 1:1로 유지하라**(CI가 고위험이라 부르는 경로에 로컬 훅이 침묵하면 이중화의 앞단이 빈다).
+- 공통 패턴에 `.claude/`(가드 자신)·`.gitlab/`·`package-lock.json`·`db/migrations/`(**스택 마이그레이션 경로로 치환** — Prisma면 `prisma/`)·CI/컨테이너 설정·게이트 스크립트·`middleware.*`/`proxy.*`(Next 16 개명) 포함, 대소문자 무시. **CI `high-risk-gate`의 `changes:` 목록과 1:1로 유지하라**(CI가 고위험이라 부르는 경로에 로컬 훅이 침묵하면 이중화의 앞단이 빈다).
 
 ## allow/ask 우선순위
 

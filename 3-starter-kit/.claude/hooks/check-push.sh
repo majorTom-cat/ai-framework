@@ -75,7 +75,7 @@ CHANGED=$(printf '%s\n' "$CHANGED" | sed 's/^"//; s/"$//')
 # 스택 치환 지점: 마이그레이션 경로(`db/migrations/` — Prisma면 `prisma/`)·라우팅 핫스팟 파일(스택마다 위치가 다르다).
 # scripts/ 는 **게이트 실물만** 열거한다 — 전체를 걸면 스파이크·작업 코드까지 매번 확인창이 떠 도장찍기가 된다.
 # ★lockfile·package.json은 루트 앵커(^) 밖 — 모노레포 하위(`apps/web/package.json`)를 못 잡았다.
-HITS=$(printf '%s\n' "$CHANGED" | grep -iE '^(src/shared/|\.claude/|\.gitlab/|db/migrations/|CLAUDE\.md$|\.gitattributes$|\.gitlab-ci\.ya?ml$|docker-compose\.ya?ml$|Dockerfile$|scripts/(check-boundaries\.cjs|check-density\.sh|gen-module\.cjs)$)|(^|/)middleware\.[a-z.]+$|(^|/)package(-lock)?\.json$|(^|/)(yarn\.lock|pnpm-lock\.yaml)$' || true)
+HITS=$(printf '%s\n' "$CHANGED" | grep -iE '^(src/shared/|\.claude/|\.gitlab/|db/migrations/|CLAUDE\.md$|\.gitattributes$|\.gitlab-ci\.ya?ml$|docker-compose\.ya?ml$|Dockerfile$|scripts/(check-boundaries\.cjs|check-density\.sh|gen-module\.cjs)$)|(^|/)(middleware|proxy)\.[a-z.]+$|(^|/)package(-lock)?\.json$|(^|/)(yarn\.lock|pnpm-lock\.yaml)$' || true)
 [ -z "$HITS" ] && exit 0
 
 N=$(printf '%s\n' "$HITS" | grep -c .)

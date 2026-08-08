@@ -32,6 +32,8 @@ allowed-tools: Read Glob Grep Edit Write Bash(git *) Bash(npm *) Bash(docker com
    - 각 모듈은 **`index`만 외부에 노출** (공개 인터페이스)
    - **docker-compose**: db(헬스체크) → migrate(마이그레이션+시드) → app 순서. **로그인 없이 빈 화면이 뜨게**, 화면 하단에 커밋 해시·배포 시각 푸터.
    - 기능 플래그(flags 파일 + `?preview=플래그명` 미들웨어) · `npm run reseed` — ★플래그는 **배선까지가 산출물**: 미들웨어가 심은 프리뷰 값(쿠키 등)을 **읽어서 `isEnabled` 판정에 넘기는 코드까지** 만들고, 플래그 하나로 실제 on/off가 왕복되는지 확인하라(미들웨어만 만들면 프리뷰가 동작하지 않는 반쪽 산출물 — bnsone 실측 2026-07-29)
+     - ★Next 스택이면: 파일명은 **`proxy.ts`**(16에서 `middleware` 개명·폐기예고, 함수명도 `proxy`) · **`src/` 구조면 반드시 src/ 안**(=app과 같은 층 — 공식 규약 "project root, or inside src if applicable"). 루트에 두면 **prod는 돌고 dev만 무음으로 안 도는** 비대칭이 난다(bnsone #54 실측 — 전 라우트 Set-Cookie 0건인데 빌드는 정상).
+     - ★프리뷰 판정(쿼리+쿠키 폴백)은 **페이지마다 복사 금지** — shared 헬퍼 1개(`isPreviewEnabled` 류)로 내려 페이지는 한 줄만 부르게 하라(bnsone #51 리뷰 실측 — 4줄이 플래그 페이지마다 복제될 뻔).
    - **시안 열람은 앱이 아니라 시안 허브가 담당** — `docs/05_UIUX/`를 git-sync가 자동 동기해 `<시안허브URL>/{프로젝트}/`로 보여준다(공통 개발자가 인스턴스에 1회 세팅 — `docs/00_Guide/sian-hub-setup.md`).
      - **검수 서버에 별도 `/sian/` 라우트를 만들지 마라** — 허브가 대체하고, 허브는 `docs/`만 보므로 앱 스캐폴드/배포 전에도 시안을 열람할 수 있다. (Pages가 정상인 인스턴스면 CI `pages` 잡이 1순위.)
    - README에 "clone 후 `docker compose up` 한 줄" 온보딩
@@ -61,7 +63,7 @@ allowed-tools: Read Glob Grep Edit Write Bash(git *) Bash(npm *) Bash(docker com
      - CLAUDE.md '머지 등급'의 고위험 유형 **각각**(인증·결제·마이그레이션·shared 승격·라우팅·설정·lockfile)에 대해 **이 스택에서의 실제 경로를 적고**, `high-risk-gate`의 `changes:`와 `tamper-check` 조건에 반영됐는지 **항목별로 대조해 보고**한다.
      - 대응 경로가 없으면 **"없음"이라고 명시**(빈칸 금지).
      - `tamper-check`의 소스 감지(`^src/` 등)에 스택 가정이 박혀 있지 않은지도 함께 — 예시 두 경우:
-       - **라우팅이 `src/app/**`인 스택**(Next.js)이면 `src/app/**/page.*`·`route.*`·`layout.*`·`middleware.*`를 `changes:`에 추가
+       - **라우팅이 `src/app/**`인 스택**(Next.js)이면 `src/app/**/page.*`·`route.*`·`layout.*`·`proxy.*`(구 `middleware.*`)를 `changes:`에 추가
        - **라우팅이 루트 파일인 스택**(단일 `server.js`)이면 그 루트 파일 자체를 추가하고 tamper의 `^src/`도 `^src/|^server\.` 처럼 넓힌다(bnsone은 라우팅 경로 누락·파일럿은 루트 파일 누락으로 고위험 3카드가 게이트 없이 수동 우회 — 2026-07-29 실측).
 5. **CLAUDE.md 빈칸 채우기** — 이 스택으로 결정되는 플레이스홀더 채움(`<기동명령>` 등, '실행·테스트' 절). 
    — **+ check-push의 경로 패턴을 이 스택에 맞춘다**: 마이그레이션 폴더가 `db/migrations/`가 아니면(Prisma는 `prisma/`) 그 경로로 바꾸고, **CI `high-risk-gate`의 `changes:` 목록과 같게 맞춰라**(훅=로컬 앞단, CI=백스톱 — 어긋나면 한쪽만 뜬다).
