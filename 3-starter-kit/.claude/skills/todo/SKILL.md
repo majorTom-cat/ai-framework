@@ -27,7 +27,7 @@ allowed-tools: Bash(glab *) Bash(git *)
 
 **먼저 (선택지 제시 전)**: 재개 마커는 카드 **댓글**에 있다 — 위 이슈 목록의 내 열린 카드 각각을 `glab issue view <번호> --comments` 로 훑어 마커를 스캔하라(자동 조회된 목록엔 댓글이 없다). 마커가 있으면 이어서 처리 —
 - `"MR 준비완료(!번호)"`(auto-merge 대기로 끝낸 경우): 머지 여부를 조회하고, 머지됐으면 /done 의 남은 단계(화면 확인 → 라벨 `검수요청` + 댓글)를 마저 수행. **머지 안 됐고 파이프라인이 실패**면 `/fix`(또는 /dev)로 원인 수정부터.
-  - **status가 `manual`(blocked)이면 실패가 아니라 게이트 승인 대기다** — 잡 목록(`pipelines/{PID}/jobs`)에서 남은 manual 잡이 게이트(`high-risk-gate`·`high-risk-label-gate`)면 승인 절차로(/done 함정.md §2), 게이트 아닌 manual 잡만 남고 나머지 전부 성공이면 종결로 취급(status 한 값 판정 금지 — bnsone #34 실측).
+  - **status가 `manual`(blocked)이면 실패가 아니라 게이트 승인 대기다** — 판정은 `node scripts/pipeline-verdict.cjs <PID>`(1행 토큰: 실패|진행중|게이트대기|종결초록·잡 단위 판정)로. `게이트대기`면 승인 절차로(/done 함정.md §2), `종결초록`이면 종결로 취급(status 한 값 판정 금지 — bnsone #34 실측).
 - `"승인대기(!번호)"`(고위험 카드가 동료 승인을 못 받아 끝낸 경우): MR에 승인이 붙었는지 조회하고, 붙었으면 머지 → /done 남은 단계로. 아직이면 승인자에게 리마인드.
 
 위 데이터를 요약해 **번호 선택지**로 제시하라:

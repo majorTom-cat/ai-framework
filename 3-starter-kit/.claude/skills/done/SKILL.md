@@ -45,7 +45,7 @@ allowed-tools: Read Edit Write Glob Grep Bash(git *) Bash(glab *) Bash(npm *) Ba
    — ★**auto-merge를 걸기 전에 head 파이프라인 상태를 먼저 본다** — **이미 종결(success)됐으면 auto-merge를 걸지 말고 즉시 일반 머지**(`glab mr merge`)한다.
    — auto-merge는 "**진행 중인** 파이프라인이 통과하는 순간"에만 발동하므로, 이미 끝난 파이프라인 위에 걸면 발동할 이벤트가 없어 **영구 대기**한다(파일럿 #14 실측 — 커밋 push 후 재파이프라인이 안 붙어 auto-merge가 안 닫힘).
    — 파이프라인이 **running/pending일 때만 auto-merge**를 건다.
-   — **status `manual`(blocked)은 실패도 진행도 아니다 — 게이트 승인 대기**: auto-merge를 걸지 말고 아래 고위험 승인 절차부터(게이트 잡이 남아 있는 한 발동할 이벤트가 없다). 잡 목록으로 남은 manual 잡이 게이트 잡인지 확인해 판정한다 — status 한 값으로 실패/종결 판정 금지.
+   — **status `manual`(blocked)은 실패도 진행도 아니다 — 게이트 승인 대기**: auto-merge를 걸지 말고 아래 고위험 승인 절차부터(게이트 잡이 남아 있는 한 발동할 이벤트가 없다). 판정은 `node scripts/pipeline-verdict.cjs <PID>`로(1행 토큰 — status 한 값으로 실패/종결 판정 금지).
    — ★**auto-merge 설정이 실패하거나("requires a passing pipeline"·"Not Allowed" 등) 안 걸리면 이 스킬 폴더의 `함정.md` §1을 읽고 처리하라** — 전부 실측된 우회가 있다. 포기 전에 반드시 읽는다
    — ★**고위험 카드면**(인증·인가·세션·비밀값·결제성·DB 마이그레이션·shared 승격·핫스팟 파일, 또는 `고위험` 라벨): **"머지할까요?"로 뭉뚱그리지 마라 — 아래 선택지를 그대로 제시하고 답을 받은 뒤 진행한다**
      (뭉뚱그리면 셀프가 기본값이 되고 동료 승인은 대화에 등장조차 못 해 증발한다 — 2026-07-30 실측. 이 게이트의 본질은 "사람이 봤나"가 아니라 **"작성자 아닌 눈이 봤나"**다):
