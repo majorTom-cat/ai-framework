@@ -13,7 +13,13 @@ INPUT=$(cat)
 # 명령 문자열 추출 후 "명령 경계" 기준 매칭 — 문자열 시작·;·&·|·(·줄바꿈(\n)·\r·\t 뒤의 실제 명령만.
 # ★경계에 \\n 필수 — 여러 줄 명령(heredoc 뒤 git push)은 JSON에서 `…\ngit push`가 되어, 없으면 침묵한다(실측).
 # 대소문자 무시(-i) — PowerShell은 `Git Push`도 실행한다.
-CMD=$(printf '%s' "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\(.*\)/\1/p')
+# ★값의 닫는 따옴표에서 끊는다(`\"`·`\\`는 넘어감) — 안 끊으면 뒤 필드(`description` 등)의 글자가 판정에 섞여
+#   무해한 조회 명령이 오탐 ask를 낸다(2026-08-11 fresh 리뷰 M-2 실측). 형식이 안 맞으면 옛 방식으로 폴백(무음화 방지).
+CMD=$(printf '%s' "$INPUT" | sed -nE 's/.*"command"[[:space:]]*:[[:space:]]*"((\\.|[^"\\])*)".*/\1/p')
+[ -z "$CMD" ] && CMD=$(printf '%s' "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\(.*\)/\1/p')
+
+# ask 출력기 — 사유문에 `"`·`\`를 쓰지 마라(JSON이 깨진다).
+emit_ask() { printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"%s"}}\n' "$1"; }
 
 # ── ① 검수요청 카드 자기닫기 게이트 (push와 무관하므로 push 판정보다 먼저) ──
 # 근거(2026-08-06 실측): 검수요청 경로 카드 9/9를 구현자와 같은 계정이 닫았고 5장은 라벨 부여 2초 뒤에 닫혔다.
@@ -38,23 +44,27 @@ if printf '%s' "$CMD" | grep -Eiq '(^|[;&|(]|\\n|\\r|\\t)[[:space:]]*glab[[:spac
   done
 fi
 
-# ── ② git 훅 우회 게이트 (--no-verify · commit -n · core.hooksPath) — commit도 보므로 push 판정보다 앞 ──
+# ── ② git 훅 우회 **판정** (--no-verify · commit -n · core.hooksPath · HUSKY=0) ──
 # 팀 git 훅(husky pre-push·commit 검사 — Leader Day 4 설치)은 -n 한 번이면 조용히 꺼진다. 셀프 머지의 전제 = 검사 우회 불가.
-# ECC(Everything Claude Code) block-no-verify.js에서 차용(경위 _reference/push-guard.md) — 단 원본의 exit 2 차단이 아니라 이 훅의 철칙대로 ask만.
-# ★안쪽 매칭(GBODY)은 이스케이프 따옴표(\")는 넘고 \n(줄바꿈)·명령 구분자에서 멈춘다 — `git commit -m "msg" --no-verify`처럼
-#   인용 인자 "뒤"에 오는 플래그가 흔해서, 토큰 걷기(ARGS)로는 못 본다(2026-07-30 실패 ①과 같은 유형의 침묵).
-GITSEG='(^|[;&|(]|\\n|\\r|\\t)[[:space:]]*git[[:space:]]'
-GBODY='([^;&|\\]|\\["\\])*'
-GEND='([[:space:]]|$|"|\\)'
-if printf '%s' "$CMD" | grep -Eiq "${GITSEG}${GBODY}--no-verify${GEND}" \
-   || printf '%s' "$CMD" | grep -Eiq "${GITSEG}${GBODY}core\.hooksPath"; then
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"⚠️ git 훅 우회 감지(--no-verify / core.hooksPath) — 팀 git 훅(pre-push·commit 검사)을 건너뜁니다. CLAUDE.md 금지 항목: 훅이 잘못 막으면 우회하지 말고 훅을 고치세요. 정말 진행하나요?"}}\n'
-  exit 0
-fi
-# commit의 -n(단문자·번들 -an 등)도 --no-verify다. ★push의 -n은 --dry-run(무해)이라 commit 뒤에서만 본다.
-if printf '%s' "$CMD" | grep -Eiq "${GITSEG}${GBODY}commit${GBODY}[[:space:]]-[a-z]*n[a-z]*${GEND}"; then
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"⚠️ git commit -n 감지 — -n은 --no-verify(팀 git 훅 건너뜀)입니다. CLAUDE.md 금지 항목: 검사는 우회가 아니라 통과가 답입니다. 정말 진행하나요?"}}\n'
-  exit 0
+# ECC(Everything Claude Code) block-no-verify.js에서 차용(경위 _reference/push-guard.md) — 원본의 exit 2 차단이 아니라 이 훅의 철칙대로 ask만.
+# ★여기서는 **판정만** 하고 출력은 ③ 뒤로 미룬다 — 한 명령에 force push가 섞이면 그 문구가 우선이다.
+#   (사용자가 읽는 사유문이 승인 근거인데 "원격 이력을 덮어씁니다"가 약한 문구로 덮였다 — 2026-08-11 fresh 리뷰 I-4 실측.)
+# ★GBODY는 `\\.`로 **모든 이스케이프(\" \\ \n \t \u)를 넘는다** — heredoc 커밋(`-m "$(cat <<EOF\n…`)이 Claude Code의 표준
+#   커밋 형태인데 \n에서 멈춰 통째로 침묵했다(리뷰 I-1). --no-verify는 아예 분리 판정한다(인용문 안 `;`·`|`이 가리던 문제 — I-3).
+BYPASS_MSG=""
+GBODY='([^;&|\\]|\\.)*'
+GEND='([[:space:];&|()<>]|$|"|\\)'                       # ★`;`·`)` 필수 — `git commit --no-verify;` 한 글자로 뚫렸다(I-1)
+GPRE='(^|[;&|("]|\\n|\\r|\\t)[[:space:]]*((then|do|else)[[:space:]]+)?(env[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*=[^[:space:];&|\\]*[[:space:]]+)*'
+GITSEG="${GPRE}"'git[[:space:]]'                          # 환경변수 접두(`HUSKY=0 git …`)·제어문(`then git …`)까지 넘는다(I-2)
+GOPT='((-[Cc][[:space:]]+[^[:space:]]+|--git-dir=[^[:space:]]+|--work-tree=[^[:space:]]+|--no-pager)[[:space:]]+)*'
+if printf '%s' "$CMD" | grep -Eiq "${GITSEG}" && printf '%s' "$CMD" | grep -Eiq "(^|[[:space:]\"])--no-verify${GEND}"; then
+  BYPASS_MSG="⚠️ git 훅 우회 감지(--no-verify) — 팀 git 훅(pre-push·commit 검사)을 건너뜁니다. CLAUDE.md 금지 항목: 훅이 잘못 막으면 우회하지 말고 훅을 고치세요. 정말 진행하나요?"
+elif printf '%s' "$CMD" | grep -Eiq 'core\.hooksPath|(^|[[:space:];&|("])HUSKY=0([[:space:]]|$)'; then
+  BYPASS_MSG="⚠️ git 훅 무력화 감지(core.hooksPath / HUSKY=0) — 팀 git 훅이 통째로 꺼집니다. 조회·복원 목적이면 승인하세요."
+# commit의 -n(번들 -an·-nm 포함)도 --no-verify다. ★push의 -n은 --dry-run(무해)이라 commit 뒤에서만 본다.
+#   `git`+전역옵션 다음이 곧 `commit`일 때만 본다 — 안 그러면 `push origin feature/commit-fix -n`이 오탐이었다(M-3).
+elif printf '%s' "$CMD" | grep -Eiq "${GITSEG}${GOPT}commit${GBODY}[[:space:]]-[a-z]{0,2}n[a-z]{0,2}${GEND}"; then
+  BYPASS_MSG="⚠️ git commit -n 감지 — -n은 --no-verify(팀 git 훅 건너뜀)입니다. CLAUDE.md 금지 항목: 검사는 우회가 아니라 통과가 답입니다. 정말 진행하나요?"
 fi
 
 # ── ③ 이하 push 게이트 ── 문자열 시작·;·&·|·( 뒤의 실제 `git … push`만.
@@ -66,7 +76,8 @@ GITP='(^|[;&|(]|\\n|\\r|\\t)[[:space:]]*git([[:space:]]+(-[Cc][[:space:]]+[^[:sp
 ARGS='([[:space:]]+[^[:space:];&|\\]+)*[[:space:]]+'   # push 뒤 인자들(명령 구분자에서 멈춤)
 ENDW='([[:space:]]|$|"|\\)'                            # 토큰 끝
 ENDF='([[:space:]=]|$|"|\\)'                           # 토큰 끝(`--force-with-lease=ref` 포함)
-printf '%s' "$CMD" | grep -Eiq "${GITP}${ENDW}" || exit 0
+# push 명령이 아니면 여기서 끝 — 단 ②의 훅 우회 판정(commit·config 등)은 이때 낸다.
+printf '%s' "$CMD" | grep -Eiq "${GITP}${ENDW}" || { [ -n "$BYPASS_MSG" ] && emit_ask "$BYPASS_MSG"; exit 0; }
 
 # ★force push의 우회 경로 2종 — 둘 다 settings.json deny가 못 잡는다(deny는 명령 "접두" 기준이라
 #   체이닝 `git status && git push -f`·`git -C <path> push --force`에 침묵. 2026-08-06 실측).
@@ -84,6 +95,9 @@ if printf '%s' "$CMD" | grep -Eiq "${GITP}${ARGS}${REFSPEC}${ENDW}"; then
   exit 0
 fi
 
+# force가 아닌 push에 훅 우회가 섞였으면 여기서 낸다(공통 영역 안내보다 우선 — 검사를 건너뛰는 쪽이 더 위험하다).
+[ -n "$BYPASS_MSG" ] && { emit_ask "$BYPASS_MSG"; exit 0; }
+
 # 원격 main 대비 변경 파일. 실패(=ref 없음·repo 밖)는 "모름" — 무출력으로 일반 권한 체계에 위임(allow 반환 = fail-open 금지).
 # core.quotepath=false: 한글 경로가 8진 이스케이프로 나오면 앵커가 빗나간다(실측). diff.renames=false: rename이 도착 경로만
 # 남아 공통 영역에서 "빼내는" 이동이 침묵한다(실측) — 원본·도착 둘 다 보이게 끈다.
@@ -96,7 +110,7 @@ CHANGED=$(printf '%s\n' "$CHANGED" | sed 's/^"//; s/"$//')
 # 스택 치환 지점: 마이그레이션 경로(`db/migrations/` — Prisma면 `prisma/`)·라우팅 핫스팟 파일(스택마다 위치가 다르다).
 # scripts/ 는 **게이트 실물만** 열거한다 — 전체를 걸면 스파이크·작업 코드까지 매번 확인창이 떠 도장찍기가 된다.
 # ★lockfile·package.json은 루트 앵커(^) 밖 — 모노레포 하위(`apps/web/package.json`)를 못 잡았다.
-HITS=$(printf '%s\n' "$CHANGED" | grep -iE '^(src/shared/|\.claude/|\.gitlab/|db/migrations/|CLAUDE\.md$|\.gitattributes$|\.gitlab-ci\.ya?ml$|docker-compose\.ya?ml$|Dockerfile$|scripts/(check-boundaries\.cjs|check-density\.sh|gen-module\.cjs)$)|(^|/)(middleware|proxy)\.[a-z.]+$|(^|/)package(-lock)?\.json$|(^|/)(yarn\.lock|pnpm-lock\.yaml)$' || true)
+HITS=$(printf '%s\n' "$CHANGED" | grep -iE '^(src/shared/|\.claude/|\.gitlab/|\.husky/|db/migrations/|CLAUDE\.md$|\.gitattributes$|\.gitlab-ci\.ya?ml$|docker-compose\.ya?ml$|Dockerfile$|scripts/(check-boundaries\.cjs|check-density\.sh|gen-module\.cjs)$)|(^|/)(middleware|proxy)\.[a-z.]+$|(^|/)package(-lock)?\.json$|(^|/)(yarn\.lock|pnpm-lock\.yaml)$' || true)
 [ -z "$HITS" ] && exit 0
 
 N=$(printf '%s\n' "$HITS" | grep -c .)

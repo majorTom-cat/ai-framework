@@ -16,7 +16,17 @@
 - force push 차단 = `settings.json` deny (`-f`·`--force`·`--force-with-lease`·`git -C` 변형 — 26줄. 단 **접두 규칙이라 체이닝 `git status && git push -f`는 못 막음** → 아래 훅 ask가 덮는다)
 - 공통 영역 감지 = 훅의 ask
 - **2026-08-07 훅 확장(검증 7건 후속)**: force 플래그 체이닝(`&&`·묶음 `-fu`·여러 줄)·`git -c`/`--git-dir`/`--work-tree` 전역옵션 변형 → **ask** / `glab issue close`로 검수요청 카드를 닫으려 하면 라벨 조회 후 **ask**(검수요청→완료는 사람만). 시뮬 34케이스 검증 — 한계: ask는 승인하면 실행되고, 한 명령에 위험 둘이면 먼저 걸린 하나만 알린다.
-- **2026-08-11 훅 확장(외부 차용)**: git 훅 우회(`--no-verify`·`commit -n`(=no-verify. push의 `-n`은 dry-run이라 제외)·`core.hooksPath`) → **ask**. husky로 까는 팀 git 훅(Day 4)이 플래그 하나로 조용히 꺼지는 구멍을 막는다. ECC(affaan-m/ECC)의 `block-no-verify.js`에서 차용하되 원본의 exit 2 하드 차단은 이 훅의 철칙(ask만)대로 낮췄다. 인용 인자 "뒤" 플래그를 보려고 안쪽 매칭이 `\"`를 넘는다(위 실패 ①과 같은 침묵 유형 방지) — 대가로 인용문 안 문구(-n·--no-verify 언급)는 오탐 ask 가능(막지는 않음). 시뮬 20케이스(오탐 회귀 포함) 검증 — 자기 설계 케이스라는 한계는 동일, 실세션 발화 1회 확인이 정본. 분석 전문: ai-framework `4-reference/ecc-skills-sh-analysis.md`.
+- **2026-08-11 훅 확장(외부 차용) + 같은 날 fresh 리뷰 2인의 수리**: git 훅 우회(`--no-verify`·`commit -n`(=no-verify. push의 `-n`은 dry-run이라 제외)·`core.hooksPath`·`HUSKY=0`) → **ask**. husky로 까는 팀 git 훅(Day 4)이 플래그 하나로 조용히 꺼지는 구멍을 막는다. ECC(affaan-m/ECC)의 `block-no-verify.js`에서 차용하되 원본의 exit 2 하드 차단은 이 훅의 철칙(ask만)대로 낮췄다.
+  **★1차 구현이 fresh-context 리뷰 2인에게 Blocker 1·Important 8을 맞았다 — 전부 수리 후 채택**(자기 설계 케이스로 20/20 통과했던 것이 실제로는 뚫려 있었다 = 자기 검증의 한계 재확인, G-11 계열):
+  - **B-1 정작 지킬 자산이 무방비였다** — `.husky/`가 훅 공통영역 패턴에도 CI `high-risk-gate` `changes:`에도 없었다. `--no-verify`는 커밋 1회를 우회하고 확인창이 뜨는데, `.husky/pre-push`를 `exit 0`으로 고치면 **전원의 앞으로 모든 커밋**이 확인창 없이 우회된다. 비싼 길에 문 달고 싼 길을 열어둔 꼴 → 양쪽에 `.husky/` 추가.
+  - **I-4 강한 경고가 약한 경고로 덮였다** — 새 게이트를 push 게이트 **앞**에 두어 `git commit --no-verify && git push -f`가 "훅 우회"로만 떴다(A/B 5/5 강등 실측). 사용자가 읽는 사유문이 승인 근거인데 "원격 이력을 덮어씁니다"가 사라졌다 → **판정만 앞에서 하고 출력은 force·refspec 뒤로** 미룬다.
+  - **I-1·I-3 heredoc·인용문 안 구분자로 침묵** — `git commit -m "$(cat <<EOF…)" --no-verify`(Claude Code의 표준 커밋 형태)·`-m "a;b" --no-verify`가 통째로 안 잡혔다 → `--no-verify`는 **분리 판정**(git 명령 존재 + 플래그 존재), 안쪽 매칭은 `\\.`로 모든 이스케이프를 넘는다.
+  - **I-1' 종결자 한 글자로 무력화** — `git commit --no-verify;`·`(…)`·`if …; then …; fi` 침묵 → 토큰 끝에 `;`·`)` 등 추가.
+  - **I-2 환경변수 접두 한 토큰으로 전면 무력화** — `HUSKY=0 git commit`·`GIT_CONFIG_KEY_0=core.hooksPath … git commit` 침묵 → 접두(`env`·`VAR=…`·`then`/`do`)를 넘고, `core.hooksPath`·`HUSKY=0`은 위치 무관 판정.
+  - **M-2 뒤 JSON 필드 누수** — 추출 sed가 줄 끝까지 잡아 `description`의 글자가 판정에 섞였다(무해한 조회가 오탐) → 값의 닫는 따옴표에서 끊고 실패 시 옛 방식 폴백.
+  - **M-3 `commit` 부분문자열 오탐** — `git push origin feature/commit-fix -n`이 "commit -n"으로 떴다(설계가 금지한 push -n 발화) → `git`+전역옵션 다음이 곧 `commit`일 때만.
+  **남은 한계(의도적)**: 인용문 안에 `--no-verify`·` -n `이 글자로 들어가면 오탐 ask(막지는 않음 — 이 훅을 고치는 세션에서 자주 뜬다) · `bash -c '…'`(홑따옴표)·별칭 사용·`~/.gitconfig` 직접 편집·`npm run` 간접 실행은 미탐 · Edit/Write는 훅 matcher(`Bash|PowerShell`) 밖이라 `.husky` 편집 자체는 훅이 못 본다(막는 건 push·머지 게이트).
+  **검증**: `scripts/test-check-push.sh` **47케이스**(우회 20·오탐 회귀 13·기존 게이트 8·이상 입력 2 등) — 리뷰가 실측으로 뚫은 케이스를 전부 포함. 훅을 고치면 이걸 먼저 돌려라. 실세션 발화 1회 확인이 정본(파일럿 실측 완료). 분석 전문: ai-framework `4-reference/ecc-skills-sh-analysis.md`.
 
 ## 훅 매칭 세부 (재발 방지)
 

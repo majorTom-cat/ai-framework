@@ -257,6 +257,7 @@ high-risk-gate:
         - .gitlab-ci.yml                  # CI·게이트 설정 (게이트 자체를 무르게 하는 변경)
         - .gitlab/**/*                    # 이슈·MR 템플릿 등 GitLab 설정
         - .claude/**/*                    # AI 규칙 실물 — 스킬·rules·settings.json(권한·훅)·훅 스크립트 전부
+        - .husky/**/*                     # git 훅 실물 — 한 줄 고치면 전원의 pre-push 검사가 영구히 꺼진다(2026-08-11 리뷰 B-1)
         - .gitattributes                  # 줄바꿈 규칙 — 깨지면 게이트 .sh 가 조용히 안 돈다
         # ★게이트 스크립트만 명시한다 — `scripts/**/*` 전체를 걸면 스파이크·작업 코드까지
         #   매번 수동 승인이 걸려 승인이 도장찍기가 된다(파일럿 실측). `changes:`는 제외를 지원하지 않으니 열거가 유일한 방법.
