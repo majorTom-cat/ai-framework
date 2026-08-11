@@ -1,5 +1,5 @@
 <!-- 시안 갤러리 정본 템플릿 — /ui 시안(갈래1)이 docs/05_UIUX/index.html 이 없을 때 이 파일을 그 자리로 복사한 뒤 아래 <section>을 화면 수만큼 채운다. -->
-<!-- 갈래2(채택)는 이 구조의 클래스를 그대로 편집한다: picked-tag의 hidden 제거·텍스트 채움 / 채택안 링크에 class="picked" / 탈락안 링크에 class="dropped" + href를 _drafts/ 로. -->
+<!-- 갈래2(채택)는 이 구조의 클래스를 그대로 편집한다: picked-tag의 hidden 제거·텍스트 채움 / 채택안 링크에 class="picked" / 탈락안 링크에 class="dropped" + href를 _drafts/ 로 / 카드 링크 텍스트 "고르러 가기 →"를 "결정 기록 →"으로(링크 유지). -->
 <!doctype html>
 <html lang="ko">
 <head>
@@ -42,7 +42,7 @@
       <a href="screens/{화면이름}/시안B.html">B안 · {B 컨셉 한 줄}</a>
       <!-- 안 수만큼 (2~3) -->
     </div>
-    <p class="notes"><a href="screens/{화면이름}/notes.md">비교 노트(notes.md)</a> · 아직 미선택</p>
+    <p class="notes"><a href="screens/{화면이름}/notes.md">비교 노트(notes.md)</a> · 아직 미선택 · <a href="{선택카드 web_url}"><b>고르러 가기 → 카드 #{번호}</b></a></p>
   </section>
   <!-- ▲ 새 화면 시안이 오면 /ui 시안(갈래1)이 이 위에 <section>을 추가한다 -->
 
