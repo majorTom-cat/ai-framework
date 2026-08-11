@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # 위험 명령 앞단 훅 (PreToolUse:Bash|PowerShell) — **ask만 낸다. allow도 deny도 내지 않는다.**
-# 보는 것 3가지: ①검수요청 카드 자기닫기(glab issue close) ②force push(-f/--force*/+refspec) ③공통 영역 push.
+# 보는 것 4가지: ①검수요청 카드 자기닫기(glab issue close) ②git 훅 우회(--no-verify·commit -n·core.hooksPath)
+#   ③force push(-f/--force*/+refspec) ④공통 영역 push.
 # 경위(2026-07-30 하루 4구멍 실측): ①좁은 매칭 = 따옴표 체이닝에서 침묵(무확인 push) ②넓은 매칭+allow =
 #   "git…push 글자가 든 아무 명령"(rm -rf·curl|bash 체이닝 포함)까지 권한창 없이 자동 승인 ③넓은 매칭+deny = 오탐 차단
 #   ④ask 전용+넓은 매칭 = 확인창 폭주(1 push에 8회). → 역할 분리가 답:
@@ -37,7 +38,26 @@ if printf '%s' "$CMD" | grep -Eiq '(^|[;&|(]|\\n|\\r|\\t)[[:space:]]*glab[[:spac
   done
 fi
 
-# ── ② 이하 push 게이트 ── 문자열 시작·;·&·|·( 뒤의 실제 `git … push`만.
+# ── ② git 훅 우회 게이트 (--no-verify · commit -n · core.hooksPath) — commit도 보므로 push 판정보다 앞 ──
+# 팀 git 훅(husky pre-push·commit 검사 — Leader Day 4 설치)은 -n 한 번이면 조용히 꺼진다. 셀프 머지의 전제 = 검사 우회 불가.
+# ECC(Everything Claude Code) block-no-verify.js에서 차용(경위 _reference/push-guard.md) — 단 원본의 exit 2 차단이 아니라 이 훅의 철칙대로 ask만.
+# ★안쪽 매칭(GBODY)은 이스케이프 따옴표(\")는 넘고 \n(줄바꿈)·명령 구분자에서 멈춘다 — `git commit -m "msg" --no-verify`처럼
+#   인용 인자 "뒤"에 오는 플래그가 흔해서, 토큰 걷기(ARGS)로는 못 본다(2026-07-30 실패 ①과 같은 유형의 침묵).
+GITSEG='(^|[;&|(]|\\n|\\r|\\t)[[:space:]]*git[[:space:]]'
+GBODY='([^;&|\\]|\\["\\])*'
+GEND='([[:space:]]|$|"|\\)'
+if printf '%s' "$CMD" | grep -Eiq "${GITSEG}${GBODY}--no-verify${GEND}" \
+   || printf '%s' "$CMD" | grep -Eiq "${GITSEG}${GBODY}core\.hooksPath"; then
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"⚠️ git 훅 우회 감지(--no-verify / core.hooksPath) — 팀 git 훅(pre-push·commit 검사)을 건너뜁니다. CLAUDE.md 금지 항목: 훅이 잘못 막으면 우회하지 말고 훅을 고치세요. 정말 진행하나요?"}}\n'
+  exit 0
+fi
+# commit의 -n(단문자·번들 -an 등)도 --no-verify다. ★push의 -n은 --dry-run(무해)이라 commit 뒤에서만 본다.
+if printf '%s' "$CMD" | grep -Eiq "${GITSEG}${GBODY}commit${GBODY}[[:space:]]-[a-z]*n[a-z]*${GEND}"; then
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"⚠️ git commit -n 감지 — -n은 --no-verify(팀 git 훅 건너뜀)입니다. CLAUDE.md 금지 항목: 검사는 우회가 아니라 통과가 답입니다. 정말 진행하나요?"}}\n'
+  exit 0
+fi
+
+# ── ③ 이하 push 게이트 ── 문자열 시작·;·&·|·( 뒤의 실제 `git … push`만.
 # ★조각은 반드시 **단일 인용**으로 만들어 변수로 넘긴다 — 이중 인용 안에 `\\n`을 쓰면 bash가 `\n`으로 줄여
 #   ERE가 "글자 n"을 찾게 되고 여러 줄 명령 감지가 통째로 죽는다(경계의 `\\n`이 이 훅의 급소).
 # git 과 push 사이의 전역 옵션(-C <경로>·-c k=v·--git-dir=·--work-tree=·--no-pager)까지 넘어간다
@@ -87,6 +107,7 @@ FILES=$(printf '%s\n' "$HITS" | head -5 | tr '\n' ' ' | sed 's/\\/\\\\/g; s/"/\\
 printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"⚠️ 공통 영역 변경이 포함된 push: %s— 팀 채팅에 공지했으면 승인하세요. (Show 등급: 공지는 알림이지 허락이 아님)"}}\n' "$FILES"
 exit 0
 # 알려진 한계(의도적 미해결): HEAD 아닌 refspec(git push origin other:main)은 HEAD 기준으로 오판할 수 있다.
+#   커밋 메시지 등 인용문 "안"의 --no-verify·-n 문구는 오탐 ask가 뜰 수 있다(ask라 작업을 막지는 않는다 — 승인하면 진행).
 #   `glab issue close 96 97`처럼 여러 번호는 앞 3건만 조회한다. `glab issue update N --state close`·웹 UI 닫기는 미탐(close 명령만 본다).
 #   훅 출력은 1건뿐 — 한 명령에 위험이 둘 섞이면(`glab issue close 97 && git push -f`) 먼저 걸린 하나만 알린다(위 순서대로).
 #   timeout 이 없는 환경(macOS 기본)에서는 라벨 조회에 시간 상한이 없다 — glab이 행에 걸리면 훅도 같이 기다린다.

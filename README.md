@@ -29,6 +29,7 @@
 | `4-reference/claude-code-docs-analysis.md` | Claude Code 공식 문서 34페이지 전수 분석(2026-07-10 기준) — **새 방법론·설계 검토 시 재분석 대신 이걸 먼저 참조**, 중요 결정만 해당 페이지 재확인 |
 | `4-reference/agent-skills-analysis.md` | addyosmani/agent-skills(24종 SDLC 스킬 팩) 전수 분석(2026-07-10 기준) — 스킬 체계를 다듬거나 확장할 때 참조. 차용 후보(anti-rationalization 표·가정 표면화·evals·/ship fan-out)와 도입 금지 항목(메타 라우터 통째 도입) 정리 |
 | `4-reference/ecosystem-analysis.md` | **내장 명령·공식 마켓·커뮤니티 플러그인·MCP 전수 대조**(2026-07-10 기준) — "이미 있는 걸 중복 제작 안 했나, 안 쓰는 좋은 게 없나". 결론: 중복 없음, 실질 갭 3개(gitlab MCP·보안 스캔 층·CLAUDE.md 관리)는 P1~P2, Windows bash 훅 함정은 킷에 즉시 반영됨 |
+| `4-reference/ecc-skills-sh-analysis.md` | **skills.sh(Vercel 스킬 디렉토리)·ECC(Everything Claude Code ★239k) 전수 분석**(2026-08-11 기준) — ECC clone 전수 열람 + 평판·보안 감사 증거. 판정: 둘 다 통짜 신뢰 불가(랭킹 조작·스캐너 우회·스킬 예산 4배 초과 전부 실증), 차용 후보 12개(Node 훅 채굴·skills CLI 사내 배포·plan-canvas 등)와 배제 목록 정리. **재조사 대신 이걸 참조** |
 | `4-reference/team-ai-collab-evidence.md` | **외부 증거 대조**(2026-07-11) — 설계 선택 8개를 실팀 사례·연구(METR·DORA·GitClear·Faros)·프레임워크 실패담과 대조 + 출처 역검증. 판정: 구조 6개 지지·**셀프 머지는 반박우세**(고위험 Ask 레인 권고)·시뮬 검증은 증거부족. 미도입 검증 실천 14개 목록 |
 | `4-reference/framework-design-decisions.md` | **프레임워크 설계 결정 로그**(프로젝트 ADR과 별개) — "이거 왜 이렇게 했지 / 추가할까?"를 재논쟁 없이 참조. 현재: DD-01 세팅은 새 스킬 안 만듦(scaffold/start 담당)·DD-02 권한은 커밋으로 배포(AI는 settings.json 못 고침)·DD-03 검증은 파일럿 실역할계정으로(bnsone 전)·함정(PowerShell 5.1 UTF-8 등). 프레임워크 결정 시 여기 추가·대체 |
 | `4-reference/sian-hub-setup.md` | **화면 시안 허브** 세팅(공통 개발자 1회) — git-sync 정적 서버로 비개발자가 화면 시안(HTML 후보)을 브라우저에서 보고 고르게. 매니페스트·배포토큰·인증서·트러블슈팅 |
