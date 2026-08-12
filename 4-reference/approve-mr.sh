@@ -3,9 +3,17 @@
 # 사용: bash approve.sh <repo경로> <MR번호>
 # ★수정(2026-08-12): 게이트 잡은 앞 단계가 끝나야 manual 이 된다 — 시작 시 한 번만 찾으면 놓친다.
 #   대기 루프가 '게이트대기'를 만나면 그 자리에서 눌러야 진행된다(옛 스크립트는 이 분기가 없어 15분을 헛기다렸다).
+# ★수정2(2026-08-12 저녁): MR 파이프라인 ID 를 시작 시 한 번만 잡으면, 그 사이 새 커밋이 push 되면
+#   (셀프승인 라벨 반영용 빈 커밋이 대표적) 옛 파이프라인의 종결초록을 보고 머지를 시도해 405 가 난다.
+#   → 대기 루프가 매 회 MR head 파이프라인을 재조회하고, 바뀌었으면 그쪽으로 갈아탄다(파일럿 !156 실측).
 set -u
 REPO="${1:?repo 경로}"; MR="${2:?MR 번호}"
 cd "$REPO" || exit 1
+
+head_pipe() { # MR 의 현재 head 파이프라인 ID (없으면 빈 문자열)
+  glab api "projects/:id/merge_requests/$1" </dev/null 2>/dev/null \
+    | python3 -c "import json,sys;p=(json.load(sys.stdin).get('head_pipeline') or {});print(p.get('id') or '')" 2>/dev/null
+}
 
 play_gates() { # 현재 manual 잡 전부 ▶ (없으면 조용)
   local pid="$1" n=0
@@ -22,9 +30,16 @@ for j in json.load(sys.stdin):
   return 0
 }
 
-wait_verdict() { # $1=파이프라인ID $2=라벨 → 종결초록이면 0
-  local pid="$1" label="$2" v="" retried="" played=0
+wait_verdict() { # $1=파이프라인ID $2=라벨 [$3=MR번호 → 매 회 head 재조회] → 종결초록이면 0
+  local pid="$1" label="$2" mr="${3:-}" v="" retried="" played=0 np=""
   for i in $(seq 1 45); do
+    if [ -n "$mr" ]; then
+      np=$(head_pipe "$mr")
+      if [ -n "$np" ] && [ "$np" != "$pid" ]; then
+        echo "  ↻ 새 파이프라인 감지($pid → $np) — 그쪽을 기다린다"
+        pid="$np"; retried=""; played=0
+      fi
+    fi
     v=$(node scripts/pipeline-verdict.cjs "$pid" </dev/null 2>/dev/null | head -1)
     echo "  [$label $i] ${v:-조회실패}"
     case "$v" in
@@ -47,12 +62,12 @@ for j in json.load(sys.stdin):
   echo "  ⛔ 15분 내 미완료(마지막: ${v:-없음}) — 중단"; return 1
 }
 
-PIPE=$(glab api "projects/:id/merge_requests/$MR" </dev/null | python3 -c "import json,sys;print(json.load(sys.stdin)['head_pipeline']['id'])" 2>/dev/null)
+PIPE=$(head_pipe "$MR")
 [ -z "$PIPE" ] && { echo "⛔ MR 파이프라인 조회 실패"; exit 1; }
 echo "MR !$MR 파이프라인: $PIPE"
 echo "── 게이트 즉시 실행 시도(이미 manual 이면)"; play_gates "$PIPE"
-echo "── MR 파이프라인 완료 대기(게이트 뜨면 그때 실행)"
-wait_verdict "$PIPE" "MR" || exit 1
+echo "── MR 파이프라인 완료 대기(게이트 뜨면 그때 실행 · head 바뀌면 갈아탐)"
+wait_verdict "$PIPE" "MR" "$MR" || exit 1
 
 echo "── 머지"
 MERGED=""
@@ -60,8 +75,14 @@ for i in 1 2; do
   OUT=$(glab api --method PUT "projects/:id/merge_requests/$MR/merge" -f should_remove_source_branch=true </dev/null 2>&1)
   printf '%s' "$OUT" | grep -q '"state":"merged"' && { MERGED=1; echo "  머지됨"; break; }
   echo "  머지 재시도 대기: $(printf '%s' "$OUT" | head -c 120)"; sleep 15
+  NP=$(head_pipe "$MR")
+  if [ -n "$NP" ] && [ "$NP" != "$PIPE" ]; then
+    echo "  ↻ 머지 사이에 새 파이프라인($NP) — 다시 기다린다"
+    PIPE="$NP"; wait_verdict "$PIPE" "MR" "$MR" || exit 1
+  fi
 done
-[ -z "$MERGED" ] && { echo "⛔ 머지 실패 — 웹에서 확인"; exit 1; }
+# 405 Method Not Allowed 의 대표 원인 = head 커밋의 파이프라인이 아직 안 끝났다(위에서 갈아탐).
+[ -z "$MERGED" ] && { echo "⛔ 머지 실패 — head 파이프라인 $(head_pipe "$MR") 상태를 웹에서 확인"; exit 1; }
 
 echo "── main 파이프라인 판정"; sleep 10
 MPIPE=$(glab api "projects/:id/pipelines?ref=main&per_page=1" </dev/null | python3 -c "import json,sys;print(json.load(sys.stdin)[0]['id'])" 2>/dev/null)
