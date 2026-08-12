@@ -79,13 +79,20 @@
     document.getElementById('cmpd').src = a.href;
     document.getElementById('cmpm').src = a.href;
     document.getElementById('cmpov').classList.add('on');
+    history.pushState({cmp:1}, '', '#비교'); // 이력 한 칸 — 뒤로가기 = 비교 닫기(갤러리 복귀). 없으면 뒤로가기가 허브 프로젝트 목록으로 튄다(bnsone !147 실측)
     return false;
   }
-  function cmpClose(){
+  function cmpHide(){
     document.getElementById('cmpov').classList.remove('on');
     document.getElementById('cmpm').src = document.getElementById('cmpd').src = 'about:blank'; // 스크롤·상태 초기화
   }
+  function cmpClose(){
+    if (history.state && history.state.cmp) history.back(); // 이력 칸 소모 → popstate가 닫는다
+    else cmpHide();
+  }
+  window.addEventListener('popstate', cmpHide);             // 브라우저 뒤로가기로도 닫힘
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape') cmpClose(); });
+  if (location.hash === '#비교' || decodeURIComponent(location.hash) === '#비교') history.replaceState(null, '', location.pathname); // 새로고침 잔재 정리
 </script>
 </body>
 </html>
