@@ -1,5 +1,5 @@
 <!-- 시안 갤러리 정본 템플릿 — /ui 시안(갈래1)이 docs/05_UIUX/index.html 이 없을 때 이 파일을 그 자리로 복사한 뒤 아래 <section>을 화면 수만큼 채운다. -->
-<!-- 갈래2(채택)는 이 구조의 클래스를 그대로 편집한다: picked-tag의 hidden 제거·텍스트 채움 / 채택안 링크에 class="picked" / 탈락안 링크에 class="dropped" + href를 _drafts/ 로 / 탈락안 비교(cmp) 버튼의 data-src도 _drafts/ 로 / 카드 링크 텍스트 "고르러 가기 →"를 "결정 기록 →"으로(링크 유지). -->
+<!-- 갈래2(채택)는 이 구조의 클래스를 그대로 편집한다: picked-tag의 hidden 제거·텍스트 채움 / 채택안 링크에 class="picked" / 탈락안 링크에 class="dropped" + href를 _drafts/ 로(비교 보기는 href를 따라가므로 그걸로 끝) / 카드 링크 텍스트 "고르러 가기 →"를 "결정 기록 →"으로(링크 유지). -->
 <!doctype html>
 <html lang="ko">
 <head>
@@ -16,7 +16,7 @@
   main { max-width:860px; margin:0 auto; padding:20px; }
   .screen { background:#fff; border:1px solid var(--bd); border-radius:12px; padding:18px 20px; margin:16px 0; }
   .screen h2 { margin:0 0 12px; font-size:17px; }
-  .variants { display:flex; flex-wrap:wrap; gap:10px; align-items:stretch; }
+  .variants { display:flex; flex-wrap:wrap; gap:10px; }
   .variants a { display:block; padding:10px 16px; border:1px solid var(--bd); border-radius:8px; text-decoration:none; color:var(--ac); font-weight:600; }
   .variants a:hover { background:#eff6ff; }
   .variants a.picked { border-color:var(--ac); background:#eff6ff; }          /* 채택안 강조 */
@@ -25,9 +25,7 @@
   .notes { margin-top:10px; font-size:13px; }
   .notes a { color:var(--mut); }
   footer { text-align:center; color:var(--mut); font-size:12px; padding:24px; }
-  /* ── 비교 보기(모바일+데스크톱 병렬) — 안마다 붙는 보조 버튼과 전체 화면 오버레이 ── */
-  .variants .cmp { padding:10px 12px; border:1px solid var(--bd); border-radius:8px; background:#fff; color:var(--mut); font:inherit; font-size:13px; cursor:pointer; margin-left:-4px; }
-  .variants .cmp:hover { border-color:var(--ac); color:var(--ac); }
+  /* ── 비교 보기 — 안 링크 클릭 = PC+모바일(오른쪽 375px) 병렬 오버레이가 기본 동작 (bnsone !145 이식) ── */
   #cmpov { position:fixed; inset:0; background:#fff; z-index:10; display:none; flex-direction:column; }
   #cmpov.on { display:flex; }
   #cmpbar { display:flex; align-items:center; gap:12px; padding:10px 16px; border-bottom:1px solid var(--bd); background:#fff; }
@@ -38,24 +36,23 @@
   #cmppanes .pane { display:flex; flex-direction:column; min-width:0; }
   #cmppanes .cap { text-align:center; font-size:12px; color:var(--mut); padding:5px; border-bottom:1px solid var(--bd); background:#fafafa; }
   #cmppanes iframe { border:0; flex:1; width:100%; }
-  #cmppanes .pane.m { flex:none; width:375px; border-right:1px solid var(--bd); }
-  #cmppanes .pane.d { flex:1; }
-  @media (max-width:820px) { .variants .cmp { display:none; } } /* 좁은 화면(폰)에선 병렬이 무의미 — 직접 열람 */
+  #cmppanes .pane.d { flex:1; }                                              /* 데스크톱 = 왼쪽(넓게) */
+  #cmppanes .pane.m { flex:none; width:375px; border-left:1px solid var(--bd); } /* ★모바일 = 오른쪽 375px (오너 요구) */
 </style>
 </head>
 <body>
 <header>
   <h1><프로젝트> · 화면 시안 모음</h1>
-  <p>후보를 클릭해 브라우저에서 보고, 그 화면의 <b>시안 선택 카드</b>에서 <b>체크박스로 하나</b>를 골라주세요. <b>📱🖥</b> 버튼은 모바일·데스크톱을 한 화면에 나란히 보여줍니다. 새 시안은 여기에 자동으로 추가됩니다.</p>
+  <p>후보를 클릭해 브라우저에서 보고, 그 화면의 <b>시안 선택 카드</b>에서 <b>체크박스로 하나</b>를 골라주세요(댓글 아님). 안을 클릭하면 <b>PC와 모바일(오른쪽 375px)이 나란히</b> 열립니다 — 폰에서는 바로 시안으로 이동합니다. 새 시안은 여기에 자동으로 추가됩니다.</p>
 </header>
 <main>
 
-  <!-- ▼ 화면 하나당 이 <section> 한 벌. 갈래1이 생성 시 미선택 상태로 넣고, 갈래2 채택 때 위 주석대로 표시를 바꾼다. 안마다 a(열기)+button(비교) 짝 유지. -->
+  <!-- ▼ 화면 하나당 이 <section> 한 벌. 갈래1이 생성 시 미선택 상태로 넣고, 갈래2 채택 때 위 주석대로 표시를 바꾼다. 안 링크에 data-label + onclick(cmpNav) 유지 — 링크 클릭이 곧 비교 보기다. -->
   <section class="screen">
     <h2>{화면이름} <span class="picked-tag" hidden>· 선택: —</span></h2>
     <div class="variants">
-      <a href="screens/{화면이름}/시안A.html">A안 · {A 컨셉 한 줄}</a><button class="cmp" data-src="screens/{화면이름}/시안A.html" data-label="{화면이름} · A안" onclick="cmpOpen(this)" title="모바일·데스크톱 나란히 보기">📱🖥</button>
-      <a href="screens/{화면이름}/시안B.html">B안 · {B 컨셉 한 줄}</a><button class="cmp" data-src="screens/{화면이름}/시안B.html" data-label="{화면이름} · B안" onclick="cmpOpen(this)" title="모바일·데스크톱 나란히 보기">📱🖥</button>
+      <a href="screens/{화면이름}/시안A.html" data-label="{화면이름} · A안" onclick="return cmpNav(this, event)">A안 · {A 컨셉 한 줄}</a>
+      <a href="screens/{화면이름}/시안B.html" data-label="{화면이름} · B안" onclick="return cmpNav(this, event)">B안 · {B 컨셉 한 줄}</a>
       <!-- 안 수만큼 (2~3) -->
     </div>
     <p class="notes"><a href="screens/{화면이름}/notes.md">비교 노트(notes.md)</a> · 아직 미선택 · <a href="{선택카드 web_url}"><b>고르러 가기 → 카드 #{번호}</b></a></p>
@@ -65,20 +62,24 @@
 </main>
 <footer>이 페이지는 저장소의 <code>docs/05_UIUX/</code>를 시안 허브(git-sync)가 실시간 동기화해 보여줍니다.</footer>
 
-<!-- 비교 오버레이 — 같은 시안 HTML을 두 iframe(375px·데스크톱)으로 띄운다. 시안은 반응형 단일 파일이라 폭만 다르면 두 모습이 나온다. -->
+<!-- 비교 오버레이 — 같은 시안 HTML을 두 iframe(데스크톱·375px)으로 띄운다. 시안은 반응형 단일 파일이라 폭만 다르면 두 모습이 나온다. -->
 <div id="cmpov" aria-hidden="true">
-  <div id="cmpbar"><b id="cmptitle"></b><button onclick="cmpClose()">✕ 닫기 (Esc)</button></div>
+  <div id="cmpbar"><b id="cmptitle"></b><a id="cmpraw" href="#" target="_blank" style="font-size:13px;color:var(--mut)">원본 새 탭 ↗</a><button onclick="cmpClose()">✕ 닫기 (Esc)</button></div>
   <div id="cmppanes">
-    <div class="pane m"><div class="cap">📱 모바일 375px</div><iframe id="cmpm" title="모바일 미리보기"></iframe></div>
     <div class="pane d"><div class="cap">🖥 데스크톱</div><iframe id="cmpd" title="데스크톱 미리보기"></iframe></div>
+    <div class="pane m"><div class="cap">📱 모바일 375px</div><iframe id="cmpm" title="모바일 미리보기"></iframe></div>
   </div>
 </div>
 <script>
-  function cmpOpen(btn){
-    document.getElementById('cmptitle').textContent = btn.dataset.label;
-    document.getElementById('cmpm').src = btn.dataset.src;
-    document.getElementById('cmpd').src = btn.dataset.src;
+  function cmpNav(a, e){
+    if (window.innerWidth < 820) return true;                     // 폰: 병렬 무의미 — 그냥 이동
+    if (e && (e.metaKey || e.ctrlKey || e.shiftKey)) return true; // 수식키: 브라우저 기본(원본 새 탭/창)
+    document.getElementById('cmptitle').textContent = a.dataset.label;
+    document.getElementById('cmpraw').href = a.href;
+    document.getElementById('cmpd').src = a.href;
+    document.getElementById('cmpm').src = a.href;
     document.getElementById('cmpov').classList.add('on');
+    return false;
   }
   function cmpClose(){
     document.getElementById('cmpov').classList.remove('on');
