@@ -43,11 +43,13 @@ for (const f of SCAN_FILES) if (fs.existsSync(f)) allFiles.push(f);
 
 // 주석 제거(줄 수 보존) — 주석 속 require('...')·$queryRaw 언급이 오탐되는 것 방지.
 // 블록 주석은 개행만 남기고, 줄 주석은 앞이 ':'가 아닐 때만 지운다(문자열 속 URL의 //는 살아남는다).
+// ★CRLF 안전: `/\r?\n/`로 쪼갠다(#73). `.split('\n')`이면 줄끝에 `\r`가 남는데, JS 정규식에서 `.`은
+//   `\r`을 매치 못 하고 `m` 없는 `$`도 `\r` 앞에서 안 걸려 `\/\/.*$`가 CRLF 줄에서 매치 실패 →
+//   주석이 살아남아 오탐한다(Windows 로컬 체크아웃에서 정상 코드 push가 막혔다). join은 LF로 통일한다.
 function stripComments(code) {
   return code
     .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ''))
-    .split(/\r?\n/) // ★CRLF 체크아웃(Windows) 대응 — '\n'로만 쪼개면 줄 끝 \r 이 남고,
-    //   `.`·`$` 는 \r 를 줄바꿈으로 보므로 줄주석 제거가 통째로 실패한다(주석 속 import 가 위반으로 잡힘).
+    .split(/\r?\n/)
     .map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1'))
     .join('\n');
 }
