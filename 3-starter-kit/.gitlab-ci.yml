@@ -172,7 +172,7 @@ deploy-review:
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
 
-# ── 고위험 게이트 = 무료 티어의 Ask 강제 (manual gate) ─────────────────────────────
+# ── 고위험 게이트 = 무료 티어의 경고 레인 강제 (manual gate) ───────────────────────
 # 입구는 둘이다: 경로 기반(high-risk-gate)과 라벨 기반(high-risk-label-gate).
 # 판정 로직은 아래 .peer-approval-gate 한 곳에만 둔다(두 입구가 같은 판정을 쓴다).
 # ※ needs 를 쓰지 않는다 — needs 가 '안 만들어질 수 있는 잡'을 가리키면 파이프라인이 통째로
@@ -189,7 +189,8 @@ deploy-review:
     #   문자열이 아니라 매핑으로 읽혀 설정 전체가 무효가 되고 잡 0개로 실패한다(파일럿 실측 #72).
     - |
       echo "고위험 변경 게이트 — 발동 사유: ${GATE_REASON:-미지정}"
-      echo "동료 개발자 1명의 승인(이 잡 수동 실행)이 필요합니다. 자기 코드는 자기가 승인하지 않습니다(CLAUDE.md 머지 등급)."
+      echo "경고 레인입니다 — AI 경고 리뷰 + 증적 3종을 남기고 본인이 이 잡을 실행합니다(동료 승인은 선택 · CLAUDE.md 머지 등급)."
+      echo "본인이 실행하려면 MR 에 '셀프승인' 라벨을 붙이고 ★새 파이프라인을 돌린 뒤 이 잡을 실행하세요."
       # ★안내 echo 만 있던 시절 = 게이트가 걸린 머지 24건 중 18건(75%)을 MR 작성자 본인이 눌렀고
       #  실 개발자 간 동료 승인은 0건이었다(2026-08-06 파일럿 전수 실측). GitLab CE 에는 '작성자
       #  승인 금지' 설정이 없다(projects/:id/approvals → 404 = Premium 기능). 그래서 잡이 직접 판정한다.
@@ -221,13 +222,12 @@ deploy-review:
       SELFOK=0
       case ",$(echo "${CI_MERGE_REQUEST_LABELS:-}" | tr -d ' ')," in *,셀프승인,*) SELFOK=1;; esac
       if [ "$SELF" = "1" ] && [ "$SELFOK" = "1" ]; then
-        echo "⚠ 동일인 승인 — MR 라벨 '셀프승인' 이 있어 통과시킵니다. 증적 3종을 카드 댓글에 남겼는지 확인하세요."
+        echo "✅ 본인 통과(경고 레인) — MR 라벨 '셀프승인' 확인. 증적 3종을 카드 댓글에 남겼는지 확인하세요."
         exit 0
       fi
       if [ "$SELF" = "1" ]; then
-        echo "⛔ 자기 승인입니다 — 이 잡을 누른 사람(${PLAYER})이 변경 작성자와 같습니다."
-        echo "   구현에 참여하지 않은 동료 개발자 1명이 이 잡을 실행하세요(공통 개발자는 승인자가 아닙니다)."
-        echo "   동료 승인이 불가한 상황(혼자 골격 작업·전원 부재·긴급)이면 MR 에 '셀프승인' 라벨을 붙이고"
+        echo "⛔ '셀프승인' 라벨이 없습니다 — 이 잡을 누른 사람(${PLAYER})이 변경 작성자와 같습니다."
+        echo "   본인 통과가 표준 경로입니다(경고 레인). MR 에 '셀프승인' 라벨을 붙이고"
         echo "   ★새 파이프라인을 돌린 뒤 이 잡을 실행하세요 — MR 라벨은 파이프라인 생성 시점에 읽히므로"
         echo "   라벨만 붙이고 이 잡을 재실행해도 반영되지 않습니다(빈 커밋 push 또는 Run pipeline)."
         exit 1
@@ -318,7 +318,7 @@ migration-immutable:
         echo "   → 되돌리려면: git revert -m 1 --no-commit <머지커밋> 후"
         echo "     git checkout <머지커밋> -- $DIR/<되돌릴대상> 로 파일을 되살리고,"
         echo "     역DDL(DROP ... IF EXISTS 등 멱등)을 담은 새 마이그레이션을 추가하세요(_reference/revert.md B)."
-        echo "   → 신규 추가(A)만 있으면 이 잡은 통과합니다. 마이그레이션 MR 은 고위험 = 동료 1명 승인."
+        echo "   → 신규 추가(A)만 있으면 이 잡은 통과합니다. 마이그레이션 MR 은 고위험 = 경고 레인(AI 경고 리뷰 + 증적 3종)."
         exit 1
       fi
       ADD=$(git diff --diff-filter=A --name-only "$BASE" HEAD -- "$DIR" || true)
