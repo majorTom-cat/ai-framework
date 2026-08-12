@@ -46,7 +46,8 @@ for (const f of SCAN_FILES) if (fs.existsSync(f)) allFiles.push(f);
 function stripComments(code) {
   return code
     .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ''))
-    .split('\n')
+    .split(/\r?\n/) // ★CRLF 체크아웃(Windows) 대응 — '\n'로만 쪼개면 줄 끝 \r 이 남고,
+    //   `.`·`$` 는 \r 를 줄바꿈으로 보므로 줄주석 제거가 통째로 실패한다(주석 속 import 가 위반으로 잡힘).
     .map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1'))
     .join('\n');
 }
