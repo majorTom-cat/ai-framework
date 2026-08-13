@@ -1,5 +1,5 @@
 ---
-name: reorg
+name: overhaul
 effort: high # 전 문서 횡단 감사 — 놓친 드리프트가 다음 세션의 정본이 된다
 description: 문서 전수 재정리 — 높은 모델 확인 + 병렬 fresh-context 에이전트로 전 문서를 영역별로 나눠 읽고 중복·모순·낡음·비대를 수거해 정리안을 만든다. 문서가 많이 바뀌고 쌓였을 때 사용자가 호출.
 argument-hint: "[범위 경로 (비면 저장소 전체)]"
@@ -7,7 +7,7 @@ disable-model-invocation: true
 allowed-tools: Read Glob Grep Bash(git *) Agent
 ---
 
-# /reorg — 문서 전수 재정리: "$ARGUMENTS"
+# /overhaul — 문서 전수 재정리: "$ARGUMENTS"
 
 > **계약** · 입력: (선택) 범위 경로 · 산출물: 문서 진단표 + 정리안(이동·병합·삭제·표지판·축약) — **실행은 항목별 OK 후** · 검증: 정리 후 깨진 참조 0 + (킷 파일이면) 밀도 OK
 
