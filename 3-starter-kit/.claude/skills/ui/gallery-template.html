@@ -76,15 +76,19 @@
     if (e && (e.metaKey || e.ctrlKey || e.shiftKey)) return true; // 수식키: 브라우저 기본(원본 새 탭/창)
     document.getElementById('cmptitle').textContent = a.dataset.label;
     document.getElementById('cmpraw').href = a.href;
-    document.getElementById('cmpd').src = a.href;
-    document.getElementById('cmpm').src = a.href;
+    // ★src 대입은 "이동"이라 브라우저 이력을 iframe당 1칸씩 쌓는다(뒤로가기가 창만 비우던 원인 — bnsone !168)
+    //   — location.replace는 "교체"라 이력 무증가
+    document.getElementById('cmpd').contentWindow.location.replace(a.href);
+    document.getElementById('cmpm').contentWindow.location.replace(a.href);
     document.getElementById('cmpov').classList.add('on');
     history.pushState({cmp:1}, '', '#비교'); // 이력 한 칸 — 뒤로가기 = 비교 닫기(갤러리 복귀). 없으면 뒤로가기가 허브 프로젝트 목록으로 튄다(bnsone !147 실측)
     return false;
   }
   function cmpHide(){
     document.getElementById('cmpov').classList.remove('on');
-    document.getElementById('cmpm').src = document.getElementById('cmpd').src = 'about:blank'; // 스크롤·상태 초기화
+    // 비우기도 replace로 — src 대입이면 닫을 때마다 이력이 또 2칸 쌓인다. 스크롤·상태 초기화 목적은 동일
+    try { document.getElementById('cmpm').contentWindow.location.replace('about:blank'); } catch (e) {}
+    try { document.getElementById('cmpd').contentWindow.location.replace('about:blank'); } catch (e) {}
   }
   function cmpClose(){
     if (history.state && history.state.cmp) history.back(); // 이력 칸 소모 → popstate가 닫는다
