@@ -1,6 +1,8 @@
 # 최상위 Claude Code 런타임·로컬 설정 (이 작업폴더 전용 — 프레임워크 내용 아님)
 # 앞의 / 로 루트만 지정: 3-starter-kit/.claude(프레임워크 실물)는 커밋된다
-/.claude/
+# 단 루트 .claude/skills(킷 세션 전용 스킬 — /reorg 등)는 추적한다(예외 패턴 2줄)
+/.claude/*
+!/.claude/skills/
 
 # 로컬 개인값·비밀 (커밋 금지)
 CLAUDE.local.md
