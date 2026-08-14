@@ -267,6 +267,51 @@ if (modelOwner.size) {
   }
 }
 
+// ── 4) 모듈 지도(--map) — 검사가 이미 계산한 그래프를 버리지 않고 한 장으로 출력.
+//    (2026-08-15 Graphify 아이디어 차용: "지도는 결정적 추출로 공짜 생성, AI는 조회만" — LLM·외부 의존 0)
+//    재생성: node scripts/check-boundaries.cjs --map — 새 모듈·index 변경·스키마 변경 후. 낡으면 재생성이 정답.
+if (process.argv.includes('--map')) {
+  const mods = fs.existsSync(MODULE_ROOT)
+    ? fs.readdirSync(MODULE_ROOT, { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith('_')).map((e) => e.name)
+    : [];
+  const exportsOf = (mod) => {
+    for (const ext of ['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs']) {
+      const p = path.join(MODULE_ROOT, mod, `index.${ext}`);
+      if (!fs.existsSync(p)) continue;
+      const code = stripComments(fs.readFileSync(p, 'utf8'));
+      const names = new Set();
+      for (const m of code.matchAll(/\bexport\s+(?:async\s+)?(?:function|const|let|class)\s+([A-Za-z_$][\w$]*)/g)) names.add(m[1]);
+      for (const m of code.matchAll(/\bexport\s*\{([^}]+)\}/g)) m[1].split(',').forEach((s) => { const n = s.split(/\bas\b/).pop().trim(); if (n) names.add(n); });
+      for (const m of code.matchAll(/\bexports\.([A-Za-z_$][\w$]*)\s*=/g)) names.add(m[1]);
+      const mm = code.match(/module\.exports\s*=\s*\{([^}]*)\}/);
+      if (mm) mm[1].split(',').forEach((s) => { const n = s.split(':')[0].trim(); if (n) names.add(n); });
+      return { names: [...names].sort() };
+    }
+    return null;
+  };
+  const uses = new Map(); // 역방향(사용처)
+  for (const [from, tos] of moduleEdges) for (const t of tos) (uses.get(t) || uses.set(t, new Set()).get(t)).add(from);
+  const dbByOwner = new Map();
+  for (const { model, owner } of modelOwner.values()) (dbByOwner.get(owner) || dbByOwner.set(owner, []).get(owner)).push(model);
+  const out = ['# 모듈 지도 — 기계 생성(수동 편집 금지)', '> 재생성: `node scripts/check-boundaries.cjs --map`. 생성 시점 기준이라 낡을 수 있다 — 코드와 다르면 재생성이 정답.', ''];
+  for (const mod of mods.sort()) {
+    const ex = exportsOf(mod);
+    out.push(`## ${mod}`);
+    out.push(`- 공개 함수(index): ${ex ? (ex.names.length ? ex.names.map((n) => '`' + n + '`').join(' · ') : '(export 없음)') : '(index 없음 — 공개 인터페이스 미정)'}`);
+    const deps = [...(moduleEdges.get(mod) || [])].sort();
+    const used = [...(uses.get(mod) || [])].sort();
+    out.push(`- 의존 → ${deps.length ? deps.join(', ') : '없음'} / 사용처 ← ${used.length ? used.join(', ') : '없음'}`);
+    const models = (dbByOwner.get(mod) || []).sort();
+    if (models.length) out.push(`- 소유 DB 모델: ${models.join(', ')}`);
+    out.push('');
+  }
+  if (mods.length) {
+    const mapPath = path.join(MODULE_ROOT, '_MODULE_MAP.md');
+    fs.writeFileSync(mapPath, out.join('\n'));
+    console.log(`🗺  ${toPosix(mapPath)} 생성 (모듈 ${mods.length}개)`);
+  } else console.log('🗺  src/modules 에 모듈 없음 — 지도 생략');
+}
+
 // ── 결과 ──────────────────────────────────────────────────────────
 // ★"검사했다"와 "안 봤다"를 구분해 말한다 — DB 검사 비활성인데 "DB 접근 경계 안"이라고 하면 거짓 보증이다.
 if (!modelOwner.size) warnings.push(`DB 경계 검사 비활성 — ${SCHEMA_DIR} 에 모델 없음(Prisma 스택 아니면 정상). DB 경계는 리뷰 몫`);

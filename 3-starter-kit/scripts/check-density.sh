@@ -79,5 +79,12 @@ check "CLAUDE.md" 200 300
 # 보조 파일(함정.md 등)도 같은 상한 — 본문에서 옮긴 내용이 밀도 회피처가 되는 것을 막는다(2026-08-15 확장).
 for s in .claude/skills/*/*.md; do check "$s" 0 500; done
 
+# digest 신선도 — 원본이 digest보다 새로우면 알림(차단 아님. /docs 갱신 리마인드 — 2026-08-15 stale 패턴 차용)
+for d in docs/[0-9][0-9]_*/_digest.md; do
+  [ -f "$d" ] || continue
+  newer=$(find "$(dirname "$d")" -maxdepth 1 -name "*.md" ! -name "_digest.md" -newer "$d" 2>/dev/null | head -3)
+  [ -n "$newer" ] && echo "ℹ️  $d : 원본이 digest보다 새로움 — /docs로 digest 갱신 검토 ($(echo "$newer" | tr '\n' ' '))"
+done
+
 if [ "$FAIL" = 0 ]; then echo "밀도 OK — 이번에 건드린 줄은 모두 상한 이내"; fi
 exit "$FAIL"
