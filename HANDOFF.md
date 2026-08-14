@@ -21,7 +21,9 @@
 
 **후속(같은 날 — 오너 "알람만 안 울리게, 미루지 말고 더"로 보류분 즉시 소화)**: ①done 7·8단계 서사 압축 → **12.6KB(상한 달성)** ②check-density.sh를 보조 .md까지 확장 + 걸린 장문 6줄 분할 ③가이드 검증 기준 4건 추가(GitLab §7 반영 확인·ClaudeCode ⑤⑥ 성공 확인·Leader 팀 태우는 날/회고 완료 기준) — 42bf9c6 ④**배포처 동기 완료(무음 — 카드 0·알림 0)**: 파일럿 !174·bnsone !196 merged, 양쪽 main 종결초록, approve-mr.sh 무인 2연속 성공. 값 보존 실측: 파일럿 notice·CI(CLAUDE.md 기존재 — 배포처가 정본 앞선 사례 추가)·머지 등급 실측 절 / bnsone people·머지 등급 현지 절(+filename-nfc 목록 보강)·_reference 청사진 경로(파일럿과 달리 **실물 보유** — Leader :78 블록 현지화 유지)·clone URL. ⑤반창고 의심 실측: 파일럿 회귀 원천 0 / bnsone TeamDevMode_Playbook 사본은 자체 표지판 보유 — **묘비(fix:31·card:34) 유지 확정**, 차기 제거 후보로만.
 
-**▶ 다음**: ①done·scaffold 추가 감량, 남은 "의심" 건 정리는 다음 /overhaul 라운드 ②#96 오너 확답 대기 유지 ③연휴 종료 후: bnsone #96 검수요청 라벨 원복 등 연휴 억제분 정리.
+**후속 2 — 외부 3종 채굴(오너 "미루지 말고 추가해보자")**: 인스타 발 도구 3종을 리포 실물 통독으로 감사(에이전트 3, 각 GitHub 실측) — **통짜 도입 3종 전부 기각**(ponytail: 테스트 최소화 사상 충돌 / graphify: py+tree-sitter 27그램마 의존·스킬 41KB·소규모 절감 ~1x 자인 / headroom: 프록시가 settings·훅·CLAUDE.md 자동 수정 + **텔레메트리 기본 켜짐·fail-open 업로드**). 아이디어·문구만 채굴(오너 A~D 전부 채택, fc63106+4192d3f): ①dev 구현 수단 사다리(재사용→stdlib→플랫폼 내장→기설치 의존, 새 의존성 억제 + 검증·보안 축소 금지 가드)·과잉 추상화 금지·단순화 주석(한계+승급 경로) ②fix 호출부 전수 grep ③done 리뷰 과잉설계 렌즈 ④CLAUDE.md 긴 출력 통째 읽기 금지 ⑤docs.md 어휘 제약 조회 ⑥**check-boundaries `--map`** — 이미 계산하던 import 그래프를 `src/modules/_MODULE_MAP.md`(공개 함수·의존·사용처·소유 DB 모델)로 출력, LLM·외부 의존 0 ⑦check-density digest 신선도 알림(bnsone에서 즉시 실발견: design-tokens.md > digest). **동기: 파일럿 !175·bnsone !197**(bnsone은 -next 변형에 --map 이식 — 파일명 박제 결함을 여기서 발견해 킷을 자기참조로 중립화 4192d3f. 파일럿엔 구문구 잔존 — 기능 동일, 다음 동기 때 정렬). 출처 실물은 스크래치패드에 보존했었음(세션 종료 시 소멸 — 재조사 시 조사 보고가 HANDOFF 이 절과 킷 커밋 메시지에 요약돼 있다).
+
+**▶ 다음**: ①done·scaffold 추가 감량, 남은 "의심" 건 정리는 다음 /overhaul 라운드(+파일럿 --map 문구 정렬 동봉) ②#96 오너 확답 대기 유지 ③연휴 종료 후: bnsone #96 검수요청 라벨 원복 등 연휴 억제분 정리 + bnsone design-tokens digest 갱신(/docs) 안내.
 
 ---
 
