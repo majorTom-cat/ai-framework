@@ -1,5 +1,5 @@
 <!-- 시안 갤러리 정본 템플릿 — /ui 시안(갈래1)이 docs/05_UIUX/index.html 이 없을 때 이 파일을 그 자리로 복사한 뒤 아래 <section>을 화면 수만큼 채운다. -->
-<!-- 갈래2(채택)는 이 구조의 클래스를 그대로 편집한다: picked-tag의 hidden 제거·텍스트 채움 / 채택안 링크에 class="picked" / 탈락안 링크에 class="dropped" + href를 _drafts/ 로(비교 보기는 href를 따라가므로 그걸로 끝) / 카드 링크 텍스트 "고르러 가기 →"를 "결정 기록 →"으로(링크 유지). -->
+<!-- 갈래2(채택)는 이 구조의 클래스를 그대로 편집한다: picked-tag의 hidden 제거·텍스트 채움 / 채택안 링크에 class="picked" / 탈락안 링크에 class="dropped" + href를 _drafts/ 로(비교 보기는 href를 따라가므로 그걸로 끝) / 카드 링크 텍스트 "고르러 가기 →"를 "결정 기록 →"으로(링크 유지) / ★<section class="screen">에 decided 클래스 추가 — 결정된 화면은 접혀서 결과만 보인다(제목 클릭으로 펼침). -->
 <!doctype html>
 <html lang="ko">
 <head>
@@ -38,12 +38,19 @@
   #cmppanes iframe { border:0; flex:1; width:100%; }
   #cmppanes .pane.d { flex:1; }                                              /* 데스크톱 = 왼쪽(넓게) */
   #cmppanes .pane.m { flex:none; width:375px; border-left:1px solid var(--bd); } /* ★모바일 = 오른쪽 375px (오너 요구) */
+  /* ── 결정된 화면 접기 — 채택 완료(.decided) 섹션은 결과 줄만 보이고 제목 클릭으로 펼친다 ── */
+  .screen.decided h2 { cursor:pointer; user-select:none; }
+  .screen.decided h2::before { content:"▸ "; color:var(--mut); }
+  .screen.decided.open h2::before { content:"▾ "; }
+  .screen.decided:not(.open) .variants, .screen.decided:not(.open) .notes { display:none; }
+  .screen.decided:not(.open) { padding:12px 20px; }
+  .screen.decided:not(.open) h2 { margin:0; }
 </style>
 </head>
 <body>
 <header>
   <h1><프로젝트> · 화면 시안 모음</h1>
-  <p>후보를 클릭해 브라우저에서 보고, 그 화면의 <b>시안 선택 카드</b>에서 <b>체크박스로 하나</b>를 골라주세요(댓글 아님). 안을 클릭하면 <b>PC와 모바일(오른쪽 375px)이 나란히</b> 열립니다 — 폰에서는 바로 시안으로 이동합니다. 새 시안은 여기에 자동으로 추가됩니다.</p>
+  <p>후보를 클릭해 브라우저에서 보고, 그 화면의 <b>시안 선택 카드</b>에서 <b>체크박스로 하나</b>를 골라주세요(댓글 아님). 안을 클릭하면 <b>PC와 모바일(오른쪽 375px)이 나란히</b> 열립니다 — 폰에서는 바로 시안으로 이동합니다. <b>결정이 끝난 화면은 접혀</b> 있습니다 — 제목을 누르면 후보·기록이 펼쳐집니다. 새 시안은 여기에 자동으로 추가됩니다.</p>
 </header>
 <main>
 
@@ -94,6 +101,10 @@
     if (history.state && history.state.cmp) history.back(); // 이력 칸 소모 → popstate가 닫는다
     else cmpHide();
   }
+  document.addEventListener('click', function(e){           // 결정된 화면 접기/펼치기
+    var h = e.target && e.target.closest ? e.target.closest('.screen.decided h2') : null;
+    if (h) h.closest('.screen').classList.toggle('open');
+  });
   window.addEventListener('popstate', cmpHide);             // 브라우저 뒤로가기로도 닫힘
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape') cmpClose(); });
   if (location.hash === '#비교' || decodeURIComponent(location.hash) === '#비교') history.replaceState(null, '', location.pathname); // 새로고침 잔재 정리
