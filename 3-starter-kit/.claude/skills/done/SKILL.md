@@ -4,7 +4,7 @@ effort: high # 머지·게이트·수용기준 대조 — 실수 비용 큼 (배
 description: 이슈 마무리 루틴 — 머지 전 검사부터 MR 생성·카드 처리까지. 개발 완료 후 사용자가 호출.
 disable-model-invocation: true
 argument-hint: "[이슈번호]"
-allowed-tools: Read Edit Write Glob Grep Bash(git *) Bash(glab *) Bash(npm *) Bash(docker compose *) Bash(taskkill *) Bash(netstat *)
+allowed-tools: Read Edit Write Glob Grep Bash(git *) Bash(glab *) Bash(npm *) Bash(docker compose *) Bash(taskkill *) Bash(netstat *) Bash(lsof *) Bash(kill *)
 ---
 
 # /done — 이슈 #$0 마무리
@@ -36,7 +36,7 @@ allowed-tools: Read Edit Write Glob Grep Bash(git *) Bash(glab *) Bash(npm *) Ba
 6. **수용 기준 1:1 대조**: 카드의 수용 기준 각 항목 ↔ 구현 증거(테스트·화면)를 하나씩 짝지어 확인 —
    diff 리뷰는 *넣은 것의 결함*만 잡고 *빠뜨린 것*은 못 잡는다. 〔검수확인〕 항목이 **브라우저만으로 재연
    가능한지**도 확인하고, 안 되면 카드의 "검수 방법"을 보강하라.
-   구현이 docs 스펙과 달라졌다면: docs 수정이 이 브랜치에 포함됐는지 확인 + **카드에 "스펙과 달라진 점 + 이유" 댓글을 남긴다**(/dev가 준비해 둔 차이 요약이 있으면 그것으로) + @<기획자아이디> 멘션
+   구현이 docs 스펙과 달라졌다면: docs 수정이 이 브랜치에 포함됐는지 확인 + **카드에 "스펙과 달라진 점 + 이유" 댓글을 남긴다**(/dev가 준비해 둔 차이 요약이 있으면 그것으로) + @{기획자} 멘션({기획자} = 실행 시점에 CLAUDE.md 스펙 차이 절에서 읽는다 — 스킬에 아이디를 박지 마라: 킷 동기가 되돌린다)
    — ★**대조 결과를 카드 본문 체크박스에 반영한다**(`- [ ]` → `- [x]`, `glab issue update $0 -d`로 본문 갱신). 증거 댓글만 남기면 **카드 목록엔 `0/N`으로 보여 완료를 판별할 수 없다**(bnsone 실측: #6·#16·#17·#18이 0/N인 채 닫혀 소급 수정). 아직 못 채운 항목은 [ ]로 두고 왜인지 댓글에 적어라. ※갱신 방법의 함정(일괄 치환 사고)은 **`함정.md` §3** — 갱신 전에 읽는다.
 7. push → `glab mr create` (설명에 "관련: #$0") → **머지**:
    — ★**남은 미커밋이 있으면 경로 지목 add — `git add -A`·`add .` 금지**(작업트리의 무관한 미추적 파일이 쓸려 들어간다 — bnsone 15c882c 실사고). **이번 diff가 새 필수 환경변수를 도입했으면** 로컬 기동 3경로(`docker-compose*`·`.env.example`·엔트리포인트)를 **같은 MR에서** 채웠는지 확인(하나만 빠져도 남의 로컬 기동이 통째로 죽는다 — bnsone #63 실측).
@@ -46,12 +46,12 @@ allowed-tools: Read Edit Write Glob Grep Bash(git *) Bash(glab *) Bash(npm *) Ba
    — ★**auto-merge는 파이프라인이 running/pending일 때만 건다.** 이미 종결(success)이면 걸지 말고 **즉시 일반 머지**(`glab mr merge`) — 끝난 파이프라인 위에 걸면 발동할 이벤트가 없어 **영구 대기**한다(파일럿 #14 실측).
    — **status `manual`(blocked)은 실패도 진행도 아니다 — 게이트 승인 대기**: auto-merge 말고 아래 고위험 절차부터. 판정은 `node scripts/pipeline-verdict.cjs <PID>` 1행 토큰으로(status 한 값 판정 금지).
    — ★**auto-merge 설정이 실패하거나("requires a passing pipeline"·"Not Allowed") 안 걸리면 `함정.md` §1을 읽고 처리하라** — 실측된 우회가 있다. 포기 전에 반드시.
-   — ★**고위험 카드면**(인증·인가·세션·비밀값·결제성·DB 마이그레이션·shared 승격·핫스팟 파일, 또는 `고위험` 라벨) **판정한 즉시 `함정.md` §2를 읽어라** — 승인의 실제 실행 방법이 레인·티어·상황마다 다르다(§2-a 동료 / §2-b 셀프 / §2-c 게이트 잡 없음). 늦게 읽으면 승인 단계에서 되돌아온다.
+   — ★**고위험 카드면**(`고위험` 라벨, 또는 CLAUDE.md '머지 등급'의 고위험 유형 — 목록 정본은 그 절) **판정한 즉시 `함정.md` §2를 읽어라** — 승인의 실제 실행 방법이 레인·티어·상황마다 다르다(§2-a 동료 / §2-b 셀프 / §2-c 게이트 잡 없음). 늦게 읽으면 승인 단계에서 되돌아온다.
      — **표준 = 셀프 승인**(경고 레인, §2-b): **증적 3종**(fresh 리뷰 + 본인 diff 확인 + 카드 댓글)을 남기고 `셀프승인` 라벨 → 본인이 게이트 실행·머지. **"머지할까요?"로 뭉뚱그리지 말고 리뷰에서 나온 경고 요지를 먼저 사람에게 보고**하라 — 이 레인이 제3자 눈 대신 택한 것이 바로 그 보고다. 경고를 무시하고 진행하면 그 사유까지 카드에 남긴다.
        — **동료 승인은 선택**(§2-a) — 민감하다 싶거나 사용자가 원하면 요청한다. 손 빈 동료가 있으면 제안은 해 보되, **없다고 멈추지 마라**.
      — ★**①·② 공통 선행: MR 생성 시 `--label 고위험`을 반드시 붙인다** — 게이트 잡을 만드는 건 이 라벨이다(`high-risk-label-gate`). 빠뜨렸으면 `glab mr update <iid> --label 고위험` 후 **새 파이프라인**(라벨은 파이프라인 생성 시점에 읽힌다).
        붙였어도 **게이트 잡이 실제 생성됐는지 잡 목록으로 확인하라**(`glab api "projects/:id/pipelines/{PID}/jobs"`). 안 생겼으면 §2-c 경로로 — **auto-merge·셀프 머지 금지**.
-8. **머지 완료 확인 = `glab mr view <MR iid>` 로 `state`가 `merged`인지 눈으로 본다**(추정 금지 — "auto-merge 걸었으니 됐겠지"·"파이프라인 초록이니 머지됐겠지"는 확인이 아니다. 안 닫힌 MR 위에 검수요청 라벨·멘션이 붙으면 검수자가 없는 화면을 보러 간다). `merged`가 아니면 8·9단계로 가지 말고 상태(`opened`/`merge_when_pipeline_succeeds`)를 그대로 보고하고 §4·§1 경로로 처리한다.
+8. **머지 완료 확인 = `glab mr view <MR iid>` 로 `state`가 `merged`인지 눈으로 본다**(추정 금지 — "auto-merge 걸었으니 됐겠지"·"파이프라인 초록이니 머지됐겠지"는 확인이 아니다. 안 닫힌 MR 위에 검수요청 라벨·멘션이 붙으면 검수자가 없는 화면을 보러 간다). `merged`가 아니면 화면 확인·9단계로 가지 말고 상태(`opened`/`merge_when_pipeline_succeeds`)를 그대로 보고하고 §4·§1 경로로 처리한다.
    — ★**이번 diff에 설정·매니페스트 파일이 있으면**(`k8s/*.yaml`·configmap·env 류) **지금 `함정.md` §7을 읽어라** — "머지=반영"이 성립하지 않는 유형이다.
    머지가 확인되면 **배포된 화면을 먼저 확인한다**: 사용자에게 "검수 서버에서 1분 직접 확인하세요" 안내
    (사용자가 없으면 **`/inspect $0` 절차로** 렌더·클릭 왕복·이상 입력까지 확인하고 그 증거를 남겨라) — **화면 확인 전에는 검수요청 전환으로 못 간다**
@@ -69,6 +69,7 @@ allowed-tools: Read Edit Write Glob Grep Bash(git *) Bash(glab *) Bash(npm *) Ba
    + **이 카드를 의존(선행)으로 가진 열린 카드가 있으면 그 담당자들에게** `"#$0 머지됨 — 착수 가능"` 멘션 (기다리는 사람이 보드를 새로고침하고 있지 않다)
 10. **이 세션에서 띄운 서버·백그라운드 프로세스 전부 종료 + 포트 비점유 확인** — 반드시 **PID 기준**으로:
     Windows `Get-NetTCPConnection -LocalPort {내포트} | ForEach-Object { Stop-Process -Id $_.OwningProcess }` 후 같은 명령이 빈 결과인지.
+    macOS/Linux `lsof -ti tcp:{내포트} | xargs kill` 후 같은 명령이 빈 결과인지.
     **이름 기반 일괄 종료(`taskkill /IM node.exe` 류) 금지** — 동료·IDE의 프로세스까지 죽인다 (실사고 사례)
     → `/todo` 실행해 다음 작업 선택지 제시
 

@@ -36,7 +36,7 @@
 | `ONBOARDING.md` | 역할별 첫날 셋업 + 매일 일하는 순서 (개발자·공통 개발자용 1장 — 역할별 별책 가이드 3종은 `docs/00_Guide/`) |
 | `.claude/settings.json` | 권한 허용목록(승인 클릭 제거) + 훅 등록 + 보안 플러그인 |
 | `.claude/rules/*.md` | 경로별 규칙 — 그 경로 파일을 만질 때 AI에 자동 로드 |
-| `.claude/skills/` | 스킬 **18종**(개발 13: start·todo·card·dev·fix·ui·inspect·done·module·docs·change·log·adr + 공통 개발자 5: design·scaffold·setup-gitlab·assign-module·metrics) — 팀 표준 절차. **예시·결과 표의 정본 = repo-README 스킬 표** |
+| `.claude/skills/` | 스킬 **19종**(개발 13: start·todo·card·dev·fix·ui·inspect·done·module·docs·change·log·adr + 공통 개발자 6: design·scaffold·setup-gitlab·assign-module·metrics·overhaul) — 팀 표준 절차. **예시·결과 표의 정본 = repo-README 스킬 표** |
 | `.claude/hooks/check-push.sh` | push 전 공통 영역 변경 감지 → 확인 요구 (Claude Code `PreToolUse` 훅 전용 — git/husky 훅이 아니다) |
 | `_reference/*.md` | 실전 노트 5종(worktree·push-guard·schema-conflicts·density·ci-needs) — **CLAUDE.md·CI가 본문에서 가리킨다**(자동 로드 ❌) |
 | `scripts/check-density.sh` | 규칙 문서 밀도 검사 — **CI `density-check` 잡이 실행**(로컬: `bash scripts/check-density.sh`) |

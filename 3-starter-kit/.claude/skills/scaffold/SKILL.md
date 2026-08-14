@@ -47,7 +47,7 @@ allowed-tools: Read Glob Grep Edit Write Bash(git *) Bash(npm *) Bash(docker com
      - Edit/Write 모듈 가드 훅 (package.json이 여기서 생기니 husky도 지금 붙인다 — check-push·settings 훅·security 플러그인은 킷 제공)
    - **화면 하단 버전 표시**(웹 앱이면 필수 관례): `<프로젝트> · <git 해시 7자리> · <기동 시각> 기동`을 전 화면 푸터에 작게 — 검수자가 "내가 보는 게 최신인가"를 판별하는 유일한 수단이다(가이드 §5와 짝). git 정보 없으면 `dev` 폴백(그 자체가 "판별 불가" 신호).
    - **스택에 맞춰 다시 쓸 것 2가지**(킷 제공본은 CommonJS·JS 기준이다):
-     - ①**경계검사 스크립트** — 킷 동봉 `scripts/check-boundaries.cjs`(CJS·ESM·TS·별칭 해석 + 순환 + Prisma DB 경계)를 기본으로 쓰되 **상단 값(SCAN_FILES·ALIAS·SCHEMA_DIR·SHARED_DB_ALLOWLIST)을 이 스택으로 치환**한다(회귀 테스트 `test/check-boundaries.test.js` 동봉).
+     - ①**경계검사 스크립트** — 킷 동봉 `scripts/check-boundaries*.cjs`(기본형·Next용 `-next` 변형 — CJS·ESM·TS·별칭 해석 + 순환 + Prisma DB 경계)를 기본으로 쓰되 **상단 값(SCAN_FILES·ALIAS·SCHEMA_DIR·SHARED_DB_ALLOWLIST)을 이 스택으로 치환**한다(회귀 테스트 `test/check-boundaries.test.js` 동봉).
        **DB부는 Prisma 전용** — 다른 ORM이면 "DB 검사 비활성" 경고가 정상이고 DB 경계는 리뷰 몫이라고 CLAUDE.md에 남긴다(+shared→모듈 역방향 의존 금지)
      - ②**CI 잡** — 타입 검사·빌드가 있는 스택이면 test 잡에 typecheck 추가 + build 잡 신설, `high-risk-gate`의 `changes` 목록에 그 스택의 설정 핫스팟(미들웨어·빌드 설정·compose·Dockerfile·CI 자신)을 더한다.
      - `check-push`는 **파일 경로로만** 감지한다(테이블 이름 패턴은 없다 — 초기 커밋부터 0건, 2026-08-06 실측). 폴더 구조가 킷 기본값과 다를 때만 경로 패턴을 고친다.
