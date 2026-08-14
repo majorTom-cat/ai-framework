@@ -76,7 +76,8 @@ check() {
 }
 
 check "CLAUDE.md" 200 300
-for s in .claude/skills/*/SKILL.md; do check "$s" 0 500; done
+# 보조 파일(함정.md 등)도 같은 상한 — 본문에서 옮긴 내용이 밀도 회피처가 되는 것을 막는다(2026-08-15 확장).
+for s in .claude/skills/*/*.md; do check "$s" 0 500; done
 
 if [ "$FAIL" = 0 ]; then echo "밀도 OK — 이번에 건드린 줄은 모두 상한 이내"; fi
 exit "$FAIL"

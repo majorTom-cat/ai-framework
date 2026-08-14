@@ -83,8 +83,10 @@ winget install glab.glab
 glab auth login --hostname <사내GitLab주소>
 ```
 → 토큰을 물으면 ④의 토큰 방법으로 만든 토큰을 붙여넣습니다. 막히면 AI에게 "glab 설치 도와줘".
+→ 잘됐는지 확인: 설치 후 `glab auth status`가 초록으로 나오면 성공.
 
 ⑥ **(Windows) 시스템 환경변수 `CLAUDE_CODE_GIT_BASH_PATH`** = `C:\Program Files\Git\bin\bash.exe` 등록 — 팀 안전장치(훅)가 이게 없으면 **조용히 안 돕니다** (Windows 검색 → "시스템 환경 변수 편집" → 새로 만들기. 막히면 AI에게 "환경변수 등록 도와줘").
+→ 저장 후 터미널을 새로 열어 `claude doctor`(또는 환경변수 조회)로 값이 잡히는지 확인하세요 — 위에 쓴 대로 없으면 조용히 안 돌기 때문에 확인이 필수입니다.
 
 ## 2. 매번 쓸 땐 — 스킬 하나면 끝
 1. **Claude 켜기** — 터미널(방법 A)에서 폴더로 가 `claude`, 또는 VS Code(방법 B) 채팅창:
