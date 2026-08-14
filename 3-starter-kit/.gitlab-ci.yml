@@ -293,6 +293,7 @@ high-risk-gate:
         - "**/package.json"
         - "**/package-lock.json"
         # ★방어선 자신을 바꾸는 변경이 게이트를 안 타면 이중화(CI+AI규칙)가 무의미해진다 — 아래는 스택 무관.
+        - CLAUDE.md                       # AI 팀 규칙 본문 — 방어선 자신 (로컬 훅과 1:1 이중화)
         - .gitlab-ci.yml                  # CI·게이트 설정 (게이트 자체를 무르게 하는 변경)
         - .gitlab/**/*                    # 이슈·MR 템플릿 등 GitLab 설정
         - .claude/**/*                    # AI 규칙 실물 — 스킬·rules·settings.json(권한·훅)·훅 스크립트 전부

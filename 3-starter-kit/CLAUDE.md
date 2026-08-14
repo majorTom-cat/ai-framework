@@ -25,7 +25,7 @@
 ## 머지 등급 — 대부분 셀프, 고위험은 AI 경고 리뷰 후 본인 통과
 - **기본 = 셀프 머지**: CI가 초록불이면 사람 승인 없이 머지한다. 이게 표준 흐름이다 — 전담 승인자는 없다.
   - **★킷 기본 상태에선 초록불이 셀프 머지 근거가 못 된다** — `test`·`boundaries`가 주석이라 없고, `tamper-check`·`density-check`·`ai-connectivity`는 `allow_failure: true`.
-    실제로 막는 건 `secret-scan`·`planner-guard`·`migration-immutable`(머지된 마이그레이션 삭제·수정 — 경로 치환 후 유효)과 **`high-risk-gate`·`high-risk-label-gate`(수동 승인 — 경로/라벨 두 입구)**뿐.
+    실제로 막는 건 `secret-scan`·`filename-nfc-check`·`planner-guard`·`migration-immutable`과 **`high-risk-gate`·`high-risk-label-gate`(수동 승인 — 경로/라벨 두 입구)**뿐(잡 목록 정본 = `.gitlab-ci.yml`).
   - **★게이트는 고위험 정의보다 넓게 걸린다** — `CLAUDE.md`·`.claude/**`·게이트 스크립트 등 **방어선 자신을 바꾸는 변경**에도 발동한다(정본은 `.gitlab-ci.yml`의 `changes:` 목록). 스킬 한 줄만 고쳐도 승인이 뜨는 건 이 때문이다.
   - `/scaffold`가 스택 확정 후 `test`·`boundaries`를 활성화한 뒤에야 위 기본 규칙이 성립한다.
     그 전까지는 셀프 머지 대신 **사람이 diff를 직접 확인**하고(가능하면 동료 눈), 활성화하면서 이 두 줄을 그 repo의 실제 잡 목록으로 고쳐라.

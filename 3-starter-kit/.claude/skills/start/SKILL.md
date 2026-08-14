@@ -115,6 +115,6 @@ CLAUDE.md 모듈 표·`git config user.name` 으로 짐작하되, 확신 없으�
 | 규칙 배치 (루트 CLAUDE.md·`.claude/rules/`·**모듈 소유 표 기입 여부**) | Day 3 (킷 복사·치환) |
 | 강제 장치 (husky pre-push·스냅샷 테스트·**.claude/hooks/check-push.sh 존재**) | Day 4 |
 | 시드·리셋 (모듈 seed 멱등·리셋 스크립트 — **별도 ship 스크립트는 없다**, `/done`이 그 역할) | Day 5 + 파일럿 |
-| 본보기 모듈 (`src/modules/` 에 실기능 모듈) | 골든 패스 가이드 |
+| 본보기 모듈 (`src/modules/` 에 실기능 모듈) | Leader 가이드 Day 6 |
 | `CLAUDE.local.md` 존재 (개인 로컬 설정) | Day 판정과 무관 — **그 자리에서 1-1대로 물어보고 생성** |
 | 전부 통과 | **운영 루틴**: main 상태·보드 대기열(개발자 수 미만이면 기획자와 카드 비축)·검수요청 적체·**최근 셀프완료 카드(증거 댓글·표식 확인)**·공통 변경 로그를 브리핑해줘라 |

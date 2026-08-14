@@ -3,7 +3,7 @@ name: setup-gitlab
 description: GitLab 프로젝트 설정을 한 번에 — 라벨·보드 열·main 보호·Pipelines must succeed·멤버 권한. 골격 구축 Day 2에 공통 개발자가 1회. 손으로 클릭하는 반복 설정을 glab으로 대체.
 disable-model-invocation: true
 argument-hint: "(인자 없음 — 대화로 값 확인)"
-allowed-tools: Bash(glab *) Read Edit
+allowed-tools: Bash(glab *) Bash(echo *) Read Edit
 ---
 
 # /setup-gitlab — GitLab 설정 한 번에 (골격 Day 2, 프로젝트당 1회)

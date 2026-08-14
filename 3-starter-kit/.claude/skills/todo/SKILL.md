@@ -1,7 +1,7 @@
 ---
 name: todo
 description: 내 담당 이슈·멘션 브리핑. 세션 시작 시, 이슈 마무리 후, 사용자가 다음 작업을 물을 때 실행.
-allowed-tools: Bash(glab *) Bash(git *)
+allowed-tools: Bash(glab *) Bash(git *) Bash(node scripts/pipeline-verdict.cjs*)
 ---
 
 > **예시**: `/todo` (세션 시작·이슈 끝나면 자동 실행되기도 — 내 카드·멘션 브리핑)
@@ -10,7 +10,7 @@ allowed-tools: Bash(glab *) Bash(git *)
 
 # 현재 상태 (자동 조회됨)
 
-> **계약** · 입력: 없음 · 산출물: 내 카드·멘션 브리핑 + 번호 선택지 — 기본 조회형 · 검증: 조회형 — 별도 없음
+> **계약** · 입력: 없음 · 산출물: 내 카드·멘션 브리핑 + 번호 선택지 — 기본 조회형 · 검증: 조회형 — 별도 없음. **예외 부작용**: 검수·승인 멘션 처리 시 게이트 잡 실행·close 대행·라벨 전환이 일어난다(아래 절차 절)
 
 내 담당 열린 이슈:
 !`glab issue list --assignee=@me 2>&1 | head -30`
