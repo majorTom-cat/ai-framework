@@ -63,7 +63,9 @@ for j in json.load(sys.stdin):
 }
 
 PIPE=$(head_pipe "$MR")
-[ -z "$PIPE" ] && { echo "⛔ MR 파이프라인 조회 실패"; exit 1; }
+# ★빈 커밋 push 직후엔 head_pipeline 이 잠깐 null 이다 — 최대 6회(1분) 재시도 (8-14 실측: 즉시 exit 1 로 죽음)
+for i in 1 2 3 4 5 6; do [ -n "$PIPE" ] && break; sleep 10; PIPE=$(head_pipe "$MR"); done
+[ -z "$PIPE" ] && { echo "⛔ MR 파이프라인 조회 실패(1분 재시도 후)"; exit 1; }
 echo "MR !$MR 파이프라인: $PIPE"
 echo "── 게이트 즉시 실행 시도(이미 manual 이면)"; play_gates "$PIPE"
 echo "── MR 파이프라인 완료 대기(게이트 뜨면 그때 실행 · head 바뀌면 갈아탐)"
