@@ -70,7 +70,7 @@ allowed-tools: Read Edit Write Glob Grep Bash(git *) Bash(glab *) Bash(npm *) Ba
    + **이 카드를 의존(선행)으로 가진 열린 카드가 있으면 그 담당자들에게** `"#$0 머지됨 — 착수 가능"` 멘션 (기다리는 사람이 보드를 새로고침하고 있지 않다)
 10. **이 세션에서 띄운 서버·백그라운드 프로세스 전부 종료 + 포트 비점유 확인** — 반드시 **PID 기준**으로:
     Windows `Get-NetTCPConnection -LocalPort {내포트} | ForEach-Object { Stop-Process -Id $_.OwningProcess }` 후 같은 명령이 빈 결과인지.
-    macOS/Linux `lsof -ti tcp:{내포트} | xargs kill` 후 같은 명령이 빈 결과인지.
+    macOS/Linux `kill $(lsof -ti tcp:{내포트})` 후 `lsof -ti tcp:{내포트}`가 빈 결과인지.
     **이름 기반 일괄 종료(`taskkill /IM node.exe` 류) 금지** — 동료·IDE의 프로세스까지 죽인다 (실사고 사례)
     → `/todo` 실행해 다음 작업 선택지 제시
 

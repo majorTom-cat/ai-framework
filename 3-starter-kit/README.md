@@ -45,7 +45,7 @@
 
 ## 아직 비어 있는 것 (골격 구축 때 채움)
 
-- `npm run ship` / `npm run gen:module` / **`npm run reseed`**(검수 서버 재시드 — 공통 개발자 운영용) / **`npm run inspect`**(화면 검사 하네스 — /inspect 가 호출, Playwright 계열. 새 실패 유형을 발견할 때마다 검사를 추가해 복리로 키움) 스크립트 (공통 개발자 가이드 Day 1·5·골든 패스 §3)
+- `npm run gen:module` / **`npm run reseed`**(검수 서버 재시드 — 공통 개발자 운영용) / **`npm run inspect`**(화면 검사 하네스 — /inspect 가 호출, Playwright 계열. 새 실패 유형을 발견할 때마다 검사를 추가해 복리로 키움) 스크립트 (공통 개발자 가이드 Day 1·5·골든 패스 §3)
 - **플래그 프리뷰 미들웨어** (`?preview={플래그명}` — 요청 단위 플래그 해제, Day 1 골격) + **버전 푸터**(커밋 해시·배포 시각 — 검수자가 "내가 보는 게 최신인지" 확인)
 - `rules/module-*.md` 의 실제 내용 (본보기 모듈 완성 후 소유자가 채움)
 - husky pre-push, 스냅샷 테스트, CI (공통 개발자 가이드 Day 2·4)
