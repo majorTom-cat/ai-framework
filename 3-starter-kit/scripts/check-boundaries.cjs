@@ -293,7 +293,8 @@ if (process.argv.includes('--map')) {
   for (const [from, tos] of moduleEdges) for (const t of tos) (uses.get(t) || uses.set(t, new Set()).get(t)).add(from);
   const dbByOwner = new Map();
   for (const { model, owner } of modelOwner.values()) (dbByOwner.get(owner) || dbByOwner.set(owner, []).get(owner)).push(model);
-  const out = ['# 모듈 지도 — 기계 생성(수동 편집 금지)', '> 재생성: `node scripts/check-boundaries.cjs --map`. 생성 시점 기준이라 낡을 수 있다 — 코드와 다르면 재생성이 정답.', ''];
+  const SELF = path.basename(__filename); // 스택 변형(-next 등)에서도 재생성 명령이 맞게
+  const out = ['# 모듈 지도 — 기계 생성(수동 편집 금지)', `> 재생성: \`npm run boundaries -- --map\`(없으면 \`node scripts/${SELF} --map\`). 생성 시점 기준이라 낡을 수 있다 — 코드와 다르면 재생성이 정답.`, ''];
   for (const mod of mods.sort()) {
     const ex = exportsOf(mod);
     out.push(`## ${mod}`);
