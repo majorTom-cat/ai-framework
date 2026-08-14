@@ -149,7 +149,7 @@
 | `docs/00_Project/` · `03_Requirement/` · `05_UIUX/` … | 기획·설계 문서 (**STEP 문서가 오면 그 폴더가 생김** — 미리 빈 폴더 안 만듦) | 👤 사람 + 🤖 AI |
 | `docs/adr/` | 되돌리기 어려운 설계 결정 기록(ADR) | 👤 사람 + 🤖 AI |
 | `CLAUDE.md`, `.claude/` | 팀 규칙·스킬·훅(특정 동작 때 자동 실행되는 안전장치) | 🤖 AI가 자동으로 읽음 — 사람은 **CLAUDE.md '실행·테스트' 절**(기동 명령)만 참고하면 됨 |
-| `_reference/` | 실전 노트 5종(worktree·push-guard·schema-conflicts·density·ci-needs) — `CLAUDE.md`·CI가 본문에서 가리키는 "왜 이 규칙?"의 근거 (자동 로드 ❌) | 👤 규칙 이유가 궁금할 때 · 🤖 규칙이 가리킬 때 |
+| `_reference/` | `_reference/` 실전 노트 전부 — `CLAUDE.md`·CI가 본문에서 가리키는 "왜 이 규칙?"의 근거 (자동 로드 ❌) | 👤 규칙 이유가 궁금할 때 · 🤖 규칙이 가리킬 때 |
 | `scripts/` | 검사·운영 스크립트 (`check-density.sh` — CI `density-check`가 실행) | 🤖 CI · 👤 로컬 확인 |
 
 **Day 1(골격 구축)에 생기는 것** (아직 없음 — 스택·모듈 이름은 Day 0에서 정함):

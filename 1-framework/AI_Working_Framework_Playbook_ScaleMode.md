@@ -117,6 +117,7 @@ Framework 기본 체크리스트에 더해 대규모에서 추가로 확인한�
 ## 7. 세 모드 비교
 
 > 이 표 작성 후 **Team Dev Mode**가 추가됐다 — 네 모드 비교의 최신본은 `2-team-dev/AI_Working_Framework_Playbook_TeamDevMode.md` §14.
+> ⚠️ **대체됨(2026-08-14)**: 그 §14 표의 Team Dev "기계 1차 + 고위험만 사람" 어감은 옛 체계 — 현행 고위험은 **경고 레인**(AI 경고 리뷰+증적 3종, 셀프 승인 표준·동료 승인 선택). 정본 = 킷(`3-starter-kit`) CLAUDE.md '머지 등급' 절.
 
 | 구분 | Solo Mode | Framework (기본) | Scale Mode |
 | --- | --- | --- | --- |

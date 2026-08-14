@@ -21,7 +21,7 @@
 | `1-framework/AI_Working_Framework_Onboarding_1Page.md` | 3분 요약본 (신규 합류자용) |
 | `1-framework/AI_Working_Framework_Playbook_SoloMode.md` | 1인 프로젝트용 조정판 |
 | `1-framework/AI_Working_Framework_Playbook_ScaleMode.md` | 대규모·다팀용 조정판 |
-| `2-team-dev/AI_Working_Framework_Playbook_TeamDevMode.md` | ★설계 정본 — 모듈 소유·셀프 머지·스키마 자동 전파·검수 흐름·AI 운영 규칙 전부 |
+| `2-team-dev/AI_Working_Framework_Playbook_TeamDevMode.md` | 설계 이력·청사진(당시의 왜) — 모듈 소유·셀프 머지·스키마 자동 전파·검수 흐름·AI 운영 규칙. **현행 규칙 정본은 킷(`3-starter-kit`)의 CLAUDE.md·스킬** |
 | `2-team-dev/AI_Working_Framework_Guide_GitLab.md` | 전원/비개발자용 — 카드 등록→개발→검수→완료 클릭 순서 |
 | `2-team-dev/AI_Working_Framework_Guide_Leader.md` | 공통 개발자용 — 골격 구축 Day 1~5(프롬프트 포함) + 운영 루틴 |
 | `2-team-dev/AI_Working_Framework_Guide_GoldenPath.md` | 공통 개발자용 — 본보기 모듈·생성기·스킬 체계(`/dev` 등) 구축법 (Day 6~) |
@@ -46,7 +46,7 @@
 ## Team Dev Mode 한 줄 요약
 
 **"기능 하나 = 폴더 하나 = 사람 하나(화면+API+DB 통째 소유), 머지는 CI가 허락하면 셀프(대다수 사람 승인 없음 ·
-고위험 경로만 동료 1명 확인), main은 자동 배포되어 검수자가 화면으로 확인, 규칙·절차·안전장치는 repo에 커밋된
+고위험 = 경고 레인 — AI 경고 리뷰+증적 3종, 셀프 승인 표준·동료 승인 선택), main은 자동 배포되어 검수자가 화면으로 확인, 규칙·절차·안전장치는 repo에 커밋된
 파일(CLAUDE.md·rules·skills·훅)이 전원의 AI에게 자동 적용."**
 
 ## ⚠️ 이 문서들을 다 읽을 필요 없다 — 구현되면 문서는 은퇴한다

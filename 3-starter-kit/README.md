@@ -7,7 +7,7 @@
 ## 사용법 (공통 개발자, 5분)
 
 1. 이 폴더의 `CLAUDE.md`, `.claude/`, `docs/`, `_reference/`, `scripts/`, `.gitlab/`, `.gitlab-ci.yml` 을 **새 repo 루트에 복사**
-   - ⛔**`_reference/`·`scripts/`를 빠뜨리지 마라** — `CLAUDE.md`가 `_reference/`의 5개 문서(worktree·push-guard·schema-conflicts·density·ci-needs)를 본문에서 가리키므로 빠지면 새 repo에서 전부 깨진 링크가 되고, `.gitlab-ci.yml`의 `density-check` 잡이 `bash scripts/check-density.sh`를 실행하므로 빠지면 **매 MR마다 그 잡이 실패**한다(`allow_failure`라 빨간불 없이 조용히 죽어 아무도 모른다).
+   - ⛔**`_reference/`·`scripts/`를 빠뜨리지 마라** — `CLAUDE.md`가 `_reference/`의 실전 노트 전부를 본문에서 가리키므로 빠지면 새 repo에서 전부 깨진 링크가 되고, `.gitlab-ci.yml`의 `density-check` 잡이 `bash scripts/check-density.sh`를 실행하므로 빠지면 **매 MR마다 그 잡이 실패**한다(`allow_failure`라 빨간불 없이 조용히 죽어 아무도 모른다).
    - `docs/` 안에 **`_STEP_INDEX.md`(진행 지도)와 `00_Guide/`(사람이 읽는 가이드 3종: GitLab 실전·공통 개발자·ClaudeCode + 시안 허브 문서 2종: sian-hub-setup·sian-scenarios + 검수 서버 세팅 1종: review-server-setup)가 이미 들어 있다** — 별도로 챙길 것 없이 통째로 복사되면 된다. (가이드 3종의 정본은 `../2-team-dev/`, `review-server-setup.md`의 정본은 `../4-reference/`판 — 킷 동봉본과 어긋나면 정본이 맞으니 로직만 다시 가져오고 **사내 상수는 플레이스홀더로 유지**한다)
    + `ONBOARDING.md`(개발자·공통 개발자 첫날/매일)는 **`docs/00_Guide/`에 들어 있다**(단일본 — README 링크가 거길 가리킨다. ※과거 루트 사본은 드리프트해서 7-23 제거 — 사본을 늘리지 말 것)
    + `repo-README.md` 를 repo 루트에 **`README.md`** 로 복사 — 팀이 clone 후 처음 여는 **역할별 지도**(어느 문서를 볼지 안내). 프로젝트 이름만 채운다
@@ -38,7 +38,7 @@
 | `.claude/rules/*.md` | 경로별 규칙 — 그 경로 파일을 만질 때 AI에 자동 로드 |
 | `.claude/skills/` | 스킬 **19종**(개발 13: start·todo·card·dev·fix·ui·inspect·done·module·docs·change·log·adr + 공통 개발자 6: design·scaffold·setup-gitlab·assign-module·metrics·overhaul) — 팀 표준 절차. **예시·결과 표의 정본 = repo-README 스킬 표** |
 | `.claude/hooks/check-push.sh` | push 전 공통 영역 변경 감지 → 확인 요구 (Claude Code `PreToolUse` 훅 전용 — git/husky 훅이 아니다) |
-| `_reference/*.md` | 실전 노트 5종(worktree·push-guard·schema-conflicts·density·ci-needs) — **CLAUDE.md·CI가 본문에서 가리킨다**(자동 로드 ❌) |
+| `_reference/*.md` | `_reference/` 실전 노트 전부 — **CLAUDE.md·CI가 본문에서 가리킨다**(자동 로드 ❌) |
 | `scripts/check-density.sh` | 규칙 문서 밀도 검사 — **CI `density-check` 잡이 실행**(로컬: `bash scripts/check-density.sh`) |
 | `docs/adr/0000-템플릿.md` | 결정 기록(ADR) 템플릿 — 되돌리기 어려운 결정을 반 장으로 남김 |
 | `.gitlab/issue_templates/카드.md` | 카드(이슈) 양식 — 정본 참조·수용 기준(검수/CI 태그)·**검수(지정자)**·의존·검수 방법 필드 고정 |
