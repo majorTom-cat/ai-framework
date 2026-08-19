@@ -108,6 +108,7 @@ CHANGED=$(printf '%s\n' "$CHANGED" | sed 's/^"//; s/"$//')
 
 # 공통 영역 패턴 — **프로젝트에 맞게 수정**: `.gitlab-ci.yml`의 `high-risk-gate` `changes:` 목록과 1:1로 맞춘다.
 # (CI가 고위험이라 부르는 경로를 로컬 훅이 침묵하면 이중화의 앞단이 비고 CI만 남는다.)
+# ★이 1:1은 시간이 지나면 어긋난다(CI에만 경로를 추가하기 쉽다) — 정기 대조는 `/overhaul` 코드 갈래의 '규칙↔실측' 축이 맡는다.
 # 스택 치환 지점: 마이그레이션 경로(`db/migrations/` — Prisma면 `prisma/`)·라우팅 핫스팟 파일(스택마다 위치가 다르다).
 # scripts/ 는 **게이트 실물만** 열거한다 — 전체를 걸면 스파이크·작업 코드까지 매번 확인창이 떠 도장찍기가 된다.
 # ★lockfile·package.json은 루트 앵커(^) 밖 — 모노레포 하위(`apps/web/package.json`)를 못 잡았다.

@@ -78,6 +78,9 @@ check() {
 check "CLAUDE.md" 200 300
 # 보조 파일(함정.md 등)도 같은 상한 — 본문에서 옮긴 내용이 밀도 회피처가 되는 것을 막는다(2026-08-15 확장).
 for s in .claude/skills/*/*.md; do check "$s" 0 500; done
+# rules/ 도 같은 상한 — CLAUDE.md 에서 "옮겨 놓는" 목적지가 검사 밖이면 감량이 이동으로 위장된다
+# (2026-08-19 bnsone 감사 실측: rules 에 300자 초과 11줄·최장 582자가 아무 게이트도 안 거치고 쌓여 있었다).
+for r in .claude/rules/*.md; do check "$r" 0 500; done
 
 # digest 신선도 — 원본이 digest보다 새로우면 알림(차단 아님. /docs 갱신 리마인드 — 2026-08-15 stale 패턴 차용)
 for d in docs/[0-9][0-9]_*/_digest.md; do
