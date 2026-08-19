@@ -15,7 +15,7 @@
 | `effort: high` | done | 머지·게이트 판단·수용기준 1:1 대조 — 실수=사고 |
 | `effort: high` | adr · change | 비가역 결정 기록 · 요구 변경 영향 분석 |
 | `effort: high` | ui | 시안 다양성·완성도(창의 판단 밀도) |
-| `effort: high` | overhaul | 전 문서 횡단 판정 — 놓친 드리프트가 다음 세션의 정본이 된다. **model 미강제는 의도**(상위 모델 세션을 끌어내리지 않기 위해) — 본문 소프트 플로어가 백스톱 |
+| `effort: high` | overhaul | 전 문서·코드 횡단 판정 — 놓친 드리프트가 다음 세션의 정본이 된다(코드·배포 갈래는 어긋남을 못 보면 감사 자체가 무의미). **model 미강제는 의도**(상위 모델 세션을 끌어내리지 않기 위해) — 본문 소프트 플로어가 백스톱 |
 | (미지정 = 세션 값) | dev · fix · module · docs · inspect · card · setup-gitlab · metrics · start · todo | 게이트가 백스톱이거나 절차·조회형. **todo는 low 금지** — 고위험 승인 대행 경로가 있다 |
 | `effort: low` | log · assign-module | 조회 요약·표 갱신 — 판단 밀도 낮음, 비용 절감 |
 
