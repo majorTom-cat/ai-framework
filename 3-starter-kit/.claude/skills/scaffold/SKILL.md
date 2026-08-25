@@ -30,6 +30,8 @@ allowed-tools: Read Glob Grep Edit Write Bash(git *) Bash(npm *) Bash(docker com
    - **3단계에서 모듈 플래그를 만들면 그 자리에서 플래그 제거 카드도 함께 발행**한다(CLAUDE.md '플래그 생성 = 제거 카드 동시 발행' 규칙).
 3. **뼈대 생성** — ★먼저 **설계에 DB·마이그레이션이 없으면**: 아래 db·migrate·reseed·`db/migrations/`를 생략하고 **CLAUDE.md '스키마·데이터' 절·`/done` 마이그레이션 단계·`rules/migrations.md`를 제거**한다(그 절 주석 지침대로). **비웹 플랫폼**(데스크톱·네이티브)이면 docker-compose·"빈 화면 뜬다" 기준을 그 플랫폼의 기동·실행 방식으로 바꾼다. (아래는 웹+DB 기본형):
    - `src/shared/`(auth·ui·db·nav), `src/modules/{설계의 모듈들}/`(각각 `ui/`·`api/`·`schema`·`seed`·`tests/`·`index`), `db/migrations/`
+     - ★**모듈 폴더를 만들면 그 자리에서 `.claude/rules/module-{이름}.md`도 함께** 찍는다(`_module-template.md` 복사 → `paths:`의 `{모듈이름}` 치환, 소유자는 `<미정>` — `/assign-module`이 채운다).
+       골격이 폴더를 선생성하면 **`/module`은 그 모듈에서 영원히 실행되지 않아**(0단계 "폴더 있으면 중단") 규칙 파일을 만들 경로가 사라진다 — 2026-08-25 실측(bnsone 6모듈 전부 부재·파일럿도 골격분 2모듈만 부재).
    - 각 모듈은 **`index`만 외부에 노출** (공개 인터페이스)
    - **docker-compose**: db(헬스체크) → migrate(마이그레이션+시드) → app 순서. **로그인 없이 빈 화면이 뜨게**(푸터 스펙은 아래 '화면 하단 버전 표시' 한 곳이 정본).
    - 기능 플래그(flags 파일 + `?preview=플래그명` 미들웨어) · `npm run reseed` — ★플래그는 **배선까지가 산출물**: 미들웨어가 심은 프리뷰 값(쿠키 등)을 **읽어서 `isEnabled` 판정에 넘기는 코드까지** 만들고, 플래그 하나로 실제 on/off가 왕복되는지 확인하라(미들웨어만 만들면 프리뷰가 동작하지 않는 반쪽 산출물 — bnsone 실측 2026-07-29)

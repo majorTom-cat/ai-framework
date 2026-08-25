@@ -37,6 +37,7 @@ CLAUDE.md 모듈 표·`git config user.name` 으로 짐작하되, 확신 없으�
   - 진단만을 위한 임시 기동이면 확인 후 **네가 종료한다**(CLAUDE.md "네가 띄운 로컬 서버·백그라운드 프로세스는 작업 종료 전 종료" — 고아 프로세스가 다음 사람의 포트를 잠근다)
 - 내 카드가 있나: `glab issue list --assignee=@me`
 - 내 모듈이 있나: CLAUDE.md 모듈 소유 표·`.claude/rules/module-*.md` 와 `git config user.name` 대조
+  — 표엔 있는데 `module-*.md`가 없으면 **골격이 폴더를 선생성한 모듈**이다(2026-08-25) — `/assign-module {모듈} {소유자}`로 보충하라고 안내(그 스킬이 템플릿에서 만든다)
 - 내 로컬 설정이 있나: repo 루트에 `CLAUDE.local.md` 존재 여부 (개발자·공통 개발자 공통 — 없으면 아래 1-1. 공통 개발자도 개발한다)
 
 ### 1-1. `CLAUDE.local.md`가 없으면 — 네가 물어보고 만들어줘라 (첫날 셋업 6번)
