@@ -55,7 +55,9 @@
 | 후보 | 켜는 법 (1줄) | 기본 미포함 이유 |
 | --- | --- | --- |
 | gitlab MCP (zereight/gitlab-mcp) | `claude mcp add gitlab -- npx -y @zereight/mcp-gitlab` + `GITLAB_API_URL`·PAT, **필요 도구만 활성화** | 사내 인스턴스 실테스트 1회 필요 + 도구 170개 전부 켜면 컨텍스트 낭비 |
-| LSP 플러그인 (예: typescript-lsp) | `/plugin install typescript-lsp@claude-plugins-official` + 언어 서버 바이너리 설치 | 스택 확정 후에만 유효, Windows 바이너리 언어별 확인 필요 |
+| LSP 플러그인 (예: typescript-lsp) | `/plugin install typescript-lsp@claude-plugins-official` **+ `npm i -g typescript-language-server typescript`**(플러그인은 바이너리를 동봉하지 않는다 — 빼면 첫 호출이 `ENOENT`로 죽는다. 2026-08-26 실측) | 스택 확정 후에만 유효, Windows 바이너리 언어별 확인 필요 |
+| playwright MCP | `claude mcp add playwright -s user -- npx -y @playwright/mcp@latest` | 호출 때마다 **cwd에 `.playwright-mcp/`**(스냅샷·콘솔 로그)를 만든다 — `.gitignore`(팀이 안 쓰면 개인 `~/.config/git/ignore`)에 넣지 않으면 커밋에 딸려 간다. 2026-08-26 실측 |
+| context7 MCP (라이브러리 문서) | `claude mcp add context7 -s user -- npx -y @upstash/context7-mcp` | **질의가 외부 호스트로 나간다** — 사내 프로젝트에서 켜는 것은 오너 고지 대상. 개인 범위(`-s user`)로만, 프로젝트 범위는 `.claude/settings.json`=공통 영역이라 공지 절차를 탄다 |
 | claude-md-management (공식) | `/plugin install claude-md-management@claude-plugins-official` | CLAUDE.md가 어느 정도 자란 뒤에 가치 — 초기엔 노이즈 |
 
 > **CI의 보안·중복·변조·AI리뷰 층은 "후보"가 아니라 필수(P1)** — 사람 리뷰가 없는 구조에서 유일한 자동 안전망이라 공통 개발자 가이드 **Day 2**에서 골격과 함께 세운다. (여기 "도입 후보"는 없어도 굴러가는 선택지, CI 안전망은 그렇지 않다.)

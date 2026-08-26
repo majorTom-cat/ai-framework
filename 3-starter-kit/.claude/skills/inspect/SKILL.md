@@ -31,6 +31,7 @@ allowed-tools: Read Glob Grep Bash(npm *) Bash(curl *) Bash(git *) Bash(glab *)
 - **왕복 확인**: 쓰기 액션 후 다시 읽어서 저장·반영이 실제로 됐는지
 
 ## 2. 브라우저 배터리 (하네스/Playwright 있는 프로젝트)
+- ★**검사 산출물이 repo에 남지 않게** — Playwright MCP는 호출 때마다 cwd에 `.playwright-mcp/`(스냅샷·콘솔 로그)를 만든다. `git status`에 뜨면 커밋에 딸려 간다: 팀이 Playwright를 쓰면 `.gitignore`에, 개인 도구로만 쓰면 개인 gitignore(`~/.config/git/ignore`)에 넣어라 — **팀 `.gitignore`는 공통 영역**이라 나 혼자 쓰는 도구 때문에 고치지 않는다(2026-08-26 실측).
 - **콘솔 에러 0** · **반응형**: 모바일 뷰포트(375px)로도 렌더 · **가로 넘침**: `document.body.scrollWidth <= viewport` (넘침은 다른 검사를 전부 빠져나간다)
 - (시안이 있는 프로젝트만) **시안 소스 diff**: 시안 HTML↔렌더를 구조·문구 단위로 대조 — 스크린샷 눈대조가 아니라 소스로
 
