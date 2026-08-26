@@ -20,6 +20,10 @@ const SCAN_FILES = ['middleware.ts'];
 const EXTS = new Set(['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs']);
 const ALIAS = { '@/': 'src/' }; // tsconfig "paths": {"@/*": ["./src/*"]} 기준 — 스택이 다르면 여기만 갱신
 const SKIP_DIRS = new Set(['node_modules', '.next', '.git']);
+// 경계 규칙을 면제할 경로 접두사 — **일회성**(데이터 이관·스파이크)만. 앱 코드에는 쓰지 마라.
+// 왜 필요한가: scripts/ 를 스캔 범위에 넣으면(2026-08-26) 여러 모듈 테이블을 가로지르는 것이 정상인
+// 일회성 도구가 위반으로 잡힌다. 면제는 **한 줄 사유와 함께** 열거한다 — 비면 면제 없음.
+const SCAN_SKIP_PREFIXES = [];
 
 const violations = [];
 const warnings = [];
@@ -39,6 +43,14 @@ function walk(dir) {
 
 const allFiles = [];
 for (const root of SCAN_ROOTS) if (fs.existsSync(root)) allFiles.push(...walk(root));
+if (SCAN_SKIP_PREFIXES.length) {
+  const before = allFiles.length;
+  for (let i = allFiles.length - 1; i >= 0; i--) {
+    if (SCAN_SKIP_PREFIXES.some((p) => allFiles[i].split(path.sep).join('/').startsWith(p))) allFiles.splice(i, 1);
+  }
+  // 면제는 조용히 지나가면 안 된다 — 몇 개를 안 봤는지 알린다(면제가 늘어나는 것을 사람이 보게)
+  if (before - allFiles.length > 0) warnings.push(`경계 면제 ${before - allFiles.length}개 파일(SCAN_SKIP_PREFIXES: ${SCAN_SKIP_PREFIXES.join(', ')})`);
+}
 for (const f of SCAN_FILES) {
   if (fs.existsSync(f)) allFiles.push(f);
   // 없는 파일을 조용히 건너뛰면 설정 드리프트가 무음이 된다 — 소리를 낸다(스택마다 진입점 이름이 다르다)

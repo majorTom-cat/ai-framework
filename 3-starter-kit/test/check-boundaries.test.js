@@ -80,7 +80,9 @@ test('정상 케이스 — 자기 하위·형제, 남의 루트 index, shared, �
   }, (r) => {
     assert.strictEqual(r.status, 0, '정상 구조가 빨간불이면 오탐이다:\n' + r.stderr);
     assert.match(r.stdout, /모듈 경계 OK/);
-    assert.strictEqual(r.stderr.trim(), '', '정상 구조에서 경고·위반이 없어야 한다');
+    // 경고(SCAN_FILES 부재·경계 면제)는 정상 산출물이다 — 위반 줄만 없어야 한다(2026-08-26)
+    const stray = r.stderr.split('\n').filter((l) => l.trim() && !/경고\(막지 않음\)|SCAN_FILES 항목|경계 면제|DB 경계 검사 비활성/.test(l));
+    assert.deepStrictEqual(stray, [], '정상 구조에서 위반이 없어야 한다(경고 줄은 허용)');
   });
 });
 
