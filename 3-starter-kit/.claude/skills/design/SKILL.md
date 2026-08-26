@@ -1,6 +1,6 @@
 ---
 name: design
-model: opus # 조직 allowlist에 없으면 무시되고 세션 모델 유지(공식 fail-soft) — 본문 소프트 플로어가 백스톱
+model: opus # 조직 allowlist에 없으면 무시되고 세션 모델 유지(공식 fail-soft) — CLAUDE.md '모델 소프트 플로어'가 백스톱
 effort: xhigh
 description: 요구사항 문서를 읽어 기술 설계를 제안한다 — 스택·DB(ERD)·모듈 분할 + 공통(shared) 함수·컴포넌트·UI 추출. 공통 개발자가 골격 Day 0에, 요구사항 첫 슬라이스가 올라온 뒤 실행(요구가 더 오면 재실행).
 disable-model-invocation: true
@@ -13,8 +13,6 @@ allowed-tools: Read Glob Grep Edit Write Bash(git *) Bash(glab *)
 > **계약** · 입력: 차터~요구사항 digest(03 필수) · 산출물: docs/06 설계(스택·ERD·모듈·shared) 2~3안→결정→ADR · 검증: docs/06+ADR 기록 (⏸ 사람 결정)
 
 > **예시**: `/design` (인자 없음 — digest들을 읽어 설계 제안. 요구 더 오면 다시 `/design`)
-
-> ★**모델 확인(소프트 플로어)**: 이 스킬은 깊은 설계 판단이다 — 현재 세션이 경량 모델(haiku급)이면 **시작 전에 멈추고** "설계는 상위 모델 권장 — `/model`로 올린 뒤 다시 `/design`"을 안내하라. 상위 모델이면 그대로 진행.
 
 > **공통 개발자 스킬.** 기획자가 요구사항 문서를 올린 뒤, "분석해줘" 같은 자연어 대신 이 스킬로 설계한다.
 

@@ -1,6 +1,6 @@
 ---
 name: scaffold
-model: opus # 조직 allowlist에 없으면 무시되고 세션 모델 유지(공식 fail-soft) — 본문 소프트 플로어가 백스톱
+model: opus # 조직 allowlist에 없으면 무시되고 세션 모델 유지(공식 fail-soft) — CLAUDE.md '모델 소프트 플로어'가 백스톱
 effort: high
 description: 프로젝트 앱 뼈대(골격)를 생성한다 — Day 0 기술설계(스택·모듈)를 읽어 src 구조·docker-compose·CI·CLAUDE.md 빈칸까지 채운다. 골격 구축 Day 1에 공통 개발자가 1회.
 disable-model-invocation: true
@@ -13,8 +13,6 @@ allowed-tools: Read Glob Grep Edit Write Bash(git *) Bash(npm *) Bash(docker com
 > **계약** · 입력: 설계(docs/06) · 산출물: 앱 뼈대(src·docker·CI·CLAUDE.md 빈칸·훅) 커밋 · 검증: 새 clone→docker compose up→빈 앱 렌더 (⏸ 게이트)
 
 > **예시**: `/scaffold` (인자 없음 — `docs/06` 설계를 읽는다)
-
-> ★**모델 확인(소프트 플로어)**: 골격은 이후 전부의 토대다 — 현재 세션이 경량 모델(haiku급)이면 **시작 전에 멈추고** "골격 생성은 상위 모델 권장 — `/model`로 올린 뒤 다시 `/scaffold`"를 안내하라. 상위 모델이면 그대로 진행.
 
 > 이건 **공통 개발자 스킬**이다. 개발자의 `/dev`처럼, 공통 개발자의 "앱 뼈대 만들기"를 붙여넣기 프롬프트 대신 이 스킬로 한다.
 
@@ -30,8 +28,7 @@ allowed-tools: Read Glob Grep Edit Write Bash(git *) Bash(npm *) Bash(docker com
    - **3단계에서 모듈 플래그를 만들면 그 자리에서 플래그 제거 카드도 함께 발행**한다(CLAUDE.md '플래그 생성 = 제거 카드 동시 발행' 규칙).
 3. **뼈대 생성** — ★먼저 **설계에 DB·마이그레이션이 없으면**: 아래 db·migrate·reseed·`db/migrations/`를 생략하고 **CLAUDE.md '스키마·데이터' 절·`/done` 마이그레이션 단계·`rules/migrations.md`를 제거**한다(그 절 주석 지침대로). **비웹 플랫폼**(데스크톱·네이티브)이면 docker-compose·"빈 화면 뜬다" 기준을 그 플랫폼의 기동·실행 방식으로 바꾼다. (아래는 웹+DB 기본형):
    - `src/shared/`(auth·ui·db·nav), `src/modules/{설계의 모듈들}/`(각각 `ui/`·`api/`·`schema`·`seed`·`tests/`·`index`), `db/migrations/`
-     - ★**모듈 폴더를 만들면 그 자리에서 `.claude/rules/module-{이름}.md`도 함께** 찍는다(`_module-template.md` 복사 → `paths:`의 `{모듈이름}` 치환, 소유자는 `<미정>` — `/assign-module`이 채운다).
-       골격이 폴더를 선생성하면 **`/module`은 그 모듈에서 영원히 실행되지 않아**(0단계 "폴더 있으면 중단") 규칙 파일을 만들 경로가 사라진다 — 2026-08-25 실측(bnsone 6모듈 전부 부재·파일럿도 골격분 2모듈만 부재).
+     - ★**모듈 폴더를 만들면 그 자리에서 `.claude/rules/module-{이름}.md`도 함께** 찍는다(`_module-template.md` 복사 → `paths:`의 `{모듈이름}` 치환, 소유자는 `<미정>` — `/assign-module`이 채운다). **여기서 안 찍으면 영영 못 찍는다 — 이유는 `함정.md` §6.**
    - 각 모듈은 **`index`만 외부에 노출** (공개 인터페이스)
    - **docker-compose**: db(헬스체크) → migrate(마이그레이션+시드) → app 순서. **로그인 없이 빈 화면이 뜨게**(푸터 스펙은 아래 '화면 하단 버전 표시' 한 곳이 정본).
    - 기능 플래그(flags 파일 + `?preview=플래그명` 미들웨어) · `npm run reseed` — ★플래그는 **배선까지가 산출물**: 미들웨어가 심은 프리뷰 값(쿠키 등)을 **읽어서 `isEnabled` 판정에 넘기는 코드까지** 만들고, 플래그 하나로 실제 on/off가 왕복되는지 확인하라(미들웨어만 만들면 프리뷰가 동작하지 않는 반쪽 산출물 — bnsone 실측 2026-07-29)
@@ -54,7 +51,7 @@ allowed-tools: Read Glob Grep Edit Write Bash(git *) Bash(npm *) Bash(docker com
      - 실행법은 스택마다 다르니 "이 스택에서 어떻게 할지 적고 만들라":
      ① 마이그레이션→시드 순서로 **실제 DB에 실행**  ② **두 번 연속 돌려 결과가 같은지**(멱등성 실증 — 지금은 주석으로만 "멱등")  ③ 고의로 깨뜨리면 빨간불이 되는지
 4. **CI 활성화** — `.gitlab-ci.yml`의 주석 처리된 **`test`·`boundaries` 스테이지를 이 스택 명령으로 채워 활성화** (`<스택이미지>`·`<테스트명령>`·`<경계검사명령>`).
-   ★**경계검사는 `npm run boundaries`(package.json)로 감싸고 CI·스킬은 그 이름만 부르게 한다** — 스택 변형(`check-boundaries-next.cjs` 등)을 고른 뒤 스킬 본문의 원경로를 일일이 고치면 반드시 한 곳이 남는다(2026-08-26 bnsone 실측: 스킬 3곳이 기본형 경로를 가리키고 있었다). 변형 선택은 package.json 한 줄에서 끝낸다.
+   ★**경계검사는 `npm run boundaries`(package.json)로 감싸고 CI·스킬은 그 이름만 부르게 한다** — 스택 변형(`check-boundaries-next.cjs` 등) 선택은 package.json 한 줄에서 끝낸다. 스킬 본문의 원경로를 일일이 고치면 **반드시 한 곳이 남는다** — 실측 경위 `함정.md` §7.
      ★**파일 이름을 바꿔 쓸 거면** CI `high-risk-gate` 경로 목록·`check-push.sh`의 `HITS`·회귀 테스트의 `CHECKER` 경로까지 **같은 커밋에서** — 셋 중 하나가 남으면 게이트가 조용히 헛돈다. `high-risk-gate`의 `changes:` 스택 보강은 아래 ★대조표 한 곳에서 한다.
    **`migration-immutable`의 `DIR`·`high-risk-gate`의 마이그레이션 경로도 이 스택 값으로 치환**(Prisma 폴더형이면 `prisma/schema/migrations`). 고치면 `glab ci lint`로 문법 검증.
    ★**`needs`를 쓰면 가리키는 잡과 `rules`를 맞춰라** — 한쪽만 `changes:`로 빠지면 그 커밋에서 **파이프라인 생성이 거부**되어 잡 0개(전 게이트 무효)가 된다. 원칙: 같은 `changes:`를 공유(앵커)하거나, 산출물을 안 쓰는 경우에만 `optional: true`. `ci lint`·dry_run 다 통과하니 문법 검증으론 안 잡힌다 — **배포 잡을 만들 땐 `_reference/ci-needs.md`를 읽어라.**
