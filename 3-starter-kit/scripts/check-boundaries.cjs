@@ -15,7 +15,7 @@ const path = require('path');
 
 const MODULE_ROOT = 'src/modules';
 // 검사 범위: 모듈 + 공용(shared) + 라우트 계층(app/ — Next 이식 대비) + 진입점 + 테스트 (구판은 modules만 봤다)
-const SCAN_ROOTS = [MODULE_ROOT, 'src/shared', 'app', 'test'];
+const SCAN_ROOTS = [MODULE_ROOT, 'src/shared', 'app', 'test', 'scripts', 'prisma']; // scripts·prisma 포함: 시드·배치가 모듈 내부를 직접 파고들어도 잡는다(2026-08-19 감사 지적 → bnsone 선행 적용분 역수거)
 const SCAN_FILES = ['server.js'];
 const EXTS = new Set(['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs']);
 const ALIAS = { '@/': 'src/' }; // tsconfig "paths": {"@/*": ["./src/*"]} 기준 — 스택이 다르면 여기만 갱신
@@ -39,7 +39,11 @@ function walk(dir) {
 
 const allFiles = [];
 for (const root of SCAN_ROOTS) if (fs.existsSync(root)) allFiles.push(...walk(root));
-for (const f of SCAN_FILES) if (fs.existsSync(f)) allFiles.push(f);
+for (const f of SCAN_FILES) {
+  if (fs.existsSync(f)) allFiles.push(f);
+  // 없는 파일을 조용히 건너뛰면 설정 드리프트가 무음이 된다 — 소리를 낸다(스택마다 진입점 이름이 다르다)
+  else warnings.push(`SCAN_FILES 항목 '${f}' 가 없다 — 진입점이 이동·개명됐는지 확인하라(검사가 그만큼 덜 본다)`);
+}
 
 // 주석 제거(줄 수 보존) — 주석 속 require('...')·$queryRaw 언급이 오탐되는 것 방지.
 // 블록 주석은 개행만 남기고, 줄 주석은 앞이 ':'가 아닐 때만 지운다(문자열 속 URL의 //는 살아남는다).
@@ -160,6 +164,9 @@ const SCHEMA_OWNER_OVERRIDES = {
 };
 const SCHEMA_DIR = 'prisma/schema';
 const SHARED_DB_ALLOWLIST = ['src/shared/db.js']; // 공용 클라이언트 래퍼 자리 — 여기서만 new PrismaClient 허용
+// 앱 프로세스 밖에서 도는 독립 스크립트(시드·점검 배치)는 자기 클라이언트를 만들어야 한다 — 여기 열거한 것만 예외.
+// 비우면 예외 없음. 스택 값(2026-08-26 bnsone 선행 적용분 역수거)
+const STANDALONE_DB_SCRIPTS = [];
 
 const PRISMA_OPS = [
   'findMany', 'findUnique', 'findUniqueOrThrow', 'findFirst', 'findFirstOrThrow',
@@ -260,7 +267,7 @@ if (modelOwner.size) {
       }
 
       // 3-4) 모듈·공용 코드에서 PrismaClient 직접 생성 — 클라이언트는 공용 래퍼 한 곳으로 모은다
-      if (/new\s+PrismaClient\s*\(/.test(line)) {
+      if (/new\s+PrismaClient\s*\(/.test(line) && !STANDALONE_DB_SCRIPTS.includes(posix)) {
         violations.push(`${at}: new PrismaClient() — 클라이언트 생성은 ${SHARED_DB_ALLOWLIST.join(', ')} 한 곳으로 모아라`);
       }
     });

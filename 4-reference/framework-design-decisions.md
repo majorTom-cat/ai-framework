@@ -51,6 +51,10 @@
 
 **적용**: bnsone `main` 보호는 **Allowed to merge = Developer 이상**(HANDOFF §3·Leader Day 2). 파일럿 5역할 계정(planner·designer·dev1·dev2·yskim)은 앞으로의 문서 리허설 재사용 위해 유지.
 
+★**리허설이 덮는 범위와 못 덮는 범위(2026-08-26 실측)** — "파일럿 초록"을 과신하지 않기 위한 경계선.
+- **덮는다(스택 동일)**: 파일럿도 bnsone과 같은 Next.js(App Router)+Prisma+vitest+docker-compose이고, 경계검사기도 같은 Next판이다(파일 이름만 달랐다가 2026-08-26 통일). CI 게이트 공통 11종(test·boundaries·tamper-check·density-check·secret-scan·filename-nfc·high-risk 2종·migration-immutable·planner-guard·deploy-review)도 양쪽에 있다 → **스킬·절차·게이트·경계 규칙 변경은 파일럿 리허설이 유효하다**.
+- **못 덮는다(배포층 부재)**: 파일럿엔 `k8s/`(app·postgres·configmap·secret·ci-rbac·cronjob 2종)도, `service-deploy`·`docker-build`·`seed-int` 잡도 없다. 사내 클러스터가 필요해 구조적으로 못 만든다 → **배포·인프라·권한(rbac)·정기작업·시드 통합 변경은 파일럿에서 리허설되지 않는다.** 이 층의 정기 점검은 `/overhaul` **배포 갈래**(대조 6쌍)가 맡고, 실검증은 bnsone에서만 가능하다. 그런 변경을 동기할 땐 보고에 **"배포층 미검증"**을 명시하라.
+
 **뒤집힐 조건**: 없음(검증 방법론). 다만 가상 계정 대신 실팀 계정을 쓰는 건 **팀 착수 후에만**(그 전엔 실 알림 발송 위험 — 메모리 `no-team-notifications-before-launch`).
 
 ---
