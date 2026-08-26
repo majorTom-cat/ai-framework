@@ -77,37 +77,47 @@ tamper-check:
       CICONF=$(echo "$CH" | grep -E "$CI_RE" | grep -vE "$TEST_RE" || true)
       # 소스 = 테스트가 아닌 src 파일. 스택별 루트 소스(server.js·middleware.ts 등)는 /scaffold 가 여기 추가한다.
       SRCS=$(echo "$CH" | grep -E '^src/' | grep -vE "$TEST_RE" || true)
-      WARN=0
+      # ★2026-08-26 개정 — 두 층으로 나눈다(오너 결정).
+      #   ⓘ알림(NOTE, 통과): '동시 수정' 조합. 이건 우리 표준 작업 방식이기도 해서 빨간불로 두면
+      #      상시 실패가 된다(bnsone 실측: 최근 23건 중 14건 실패 → 아무도 안 봄 = 진짜 변조도 놓침).
+      #   ⛔의심(SUSPECT, 실패): 테스트 무력화 신호. 이쪽이 훨씬 정확하고, 지금까진 '소스를 안 건드린
+      #      경우'에만 돌아서 소스와 함께 테스트를 끄는 형태를 아예 못 봤다 — 그 공백도 함께 메운다.
+      NOTE=0
+      SUSPECT=0
       if [ -n "$SRCS" ] && [ -n "$TESTS" ]; then
-        echo "⚠ 소스와 테스트를 동시 수정 — 테스트를 통과시키려 테스트를 고친 게 아닌지 검토"
+        echo "ⓘ 소스와 테스트 동시 수정(정상 작업일 수 있음 — 기록만)"
         echo "  소스:"; echo "$SRCS" | sed 's/^/    /'
         echo "  테스트:"; echo "$TESTS" | sed 's/^/    /'
-        WARN=1
+        NOTE=1
       fi
       # CI설정은 테스트와 별개 축으로 센다 — 한 덩어리로 세면 CI만 고쳐도 '테스트 동시 수정'으로 오탐난다.
       if [ -n "$CICONF" ] && [ -n "$TESTS" ]; then
-        echo "⚠ CI설정과 테스트를 동시 수정 — 게이트를 무르게 하면서 테스트를 고친 게 아닌지 검토"
-        WARN=1
+        echo "ⓘ CI설정과 테스트 동시 수정(기록만) — 게이트를 무르게 하며 테스트를 고친 게 아닌지는 리뷰가 본다"
+        NOTE=1
       fi
-      # 소스+CI설정 동시 수정 — 코드를 넣으면서 그걸 검사하는 게이트를 함께 무르게 하는 형태.
       if [ -n "$SRCS" ] && [ -n "$CICONF" ]; then
-        echo "⚠ 소스와 CI설정을 동시 수정 — 통과시키려고 게이트를 무르게 한 게 아닌지 검토"
-        WARN=1
+        echo "ⓘ 소스와 CI설정 동시 수정(기록만)"
+        NOTE=1
       fi
-      # ★위 분리가 만든 감지 공백을 메운다 — 소스를 안 건드리고 테스트만 지우거나 skip 처리하는 변조.
-      #   테스트 '추가·보강'은 조용히 통과시킨다(줄 삭제 · skip/only/todo 추가만 본다).
-      #   ※공백 든 파일명까지 안전하게 다루려면 파일럿의 scripts/tamper-check.sh 판을 쓴다.
-      if [ -z "$SRCS" ] && [ -z "$CICONF" ] && [ -n "$TESTS" ]; then
+      # ⛔무력화 감지 — 테스트 파일이 바뀌었으면 **항상** 본다.
+      #   ·skip/only/todo 추가 = 어떤 경우든 의심(테스트를 끄는 행위 자체)
+      #   ·줄 삭제 = 소스·CI를 안 건드린 '테스트만 변경'일 때만 의심(리팩터링 중 줄 삭제는 정상)
+      #   테스트 '추가·보강'은 조용히 통과시킨다. ※공백 든 파일명은 파일럿 scripts/tamper-check.sh 판이 안전하다.
+      if [ -n "$TESTS" ]; then
         DIFF=$(git --literal-pathspecs diff --no-renames --unified=0 origin/main...HEAD -- $TESTS)
         DEL=$(echo "$DIFF" | grep -E '^-' | grep -vE '^--- ' || true)
         OFF=$(echo "$DIFF" | grep -E '^\+' | grep -vE '^\+\+\+ ' | grep -E '(^|[^A-Za-z0-9_])(it|test|describe)(\.[A-Za-z]+)*\.(skip|only|todo|failing)[[:space:]]*[(<`.]|(^|[^A-Za-z0-9_])x(it|test|describe)[[:space:]]*\(' || true)
-        if [ -n "$DEL" ] || [ -n "$OFF" ]; then
-          echo "⚠ 테스트만 변경됐는데 줄 삭제 또는 skip/only/todo 추가가 있다 — 테스트 무력화가 아닌지 검토"
-          WARN=1
+        if [ -n "$OFF" ]; then
+          echo "⛔ 테스트에 skip/only/todo 추가 — 테스트 무력화가 아닌지 검토"
+          SUSPECT=1
+        fi
+        if [ -z "$SRCS" ] && [ -z "$CICONF" ] && [ -n "$DEL" ]; then
+          echo "⛔ 테스트만 변경됐는데 줄 삭제가 있다 — 테스트 무력화가 아닌지 검토"
+          SUSPECT=1
         fi
       fi
-      if [ "$WARN" = "1" ]; then exit 1; fi
-      echo "변조 의심 조합 아님 — OK"
+      if [ "$SUSPECT" = "1" ]; then exit 1; fi
+      if [ "$NOTE" = "1" ]; then echo "동시 수정 알림만 — 무력화 신호 없음 · OK"; else echo "변조 의심 조합 아님 — OK"; fi
   allow_failure: true
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
