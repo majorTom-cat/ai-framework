@@ -107,11 +107,19 @@ tamper-check:
         DIFF=$(git --literal-pathspecs diff --no-renames --unified=0 origin/main...HEAD -- $TESTS)
         DEL=$(echo "$DIFF" | grep -E '^-' | grep -vE '^--- ' || true)
         OFF=$(echo "$DIFF" | grep -E '^\+' | grep -vE '^\+\+\+ ' | grep -E '(^|[^A-Za-z0-9_])(it|test|describe)(\.[A-Za-z]+)*\.(skip|only|todo|failing)[[:space:]]*[(<`.]|(^|[^A-Za-z0-9_])x(it|test|describe)[[:space:]]*\(' || true)
+        # 테스트 케이스 '순감소' — 제목 수정처럼 선언 1줄을 지우고 1줄 추가하는 것까지 걸리면 또 상시 경고가
+        # 된다. 그래서 삭제 선언 수 > 추가 선언 수일 때만 본다(파일을 test/ 밖으로 옮겨 없애는 은닉이 이 형태).
+        CASE_RE='(^|[^A-Za-z0-9_])(it|test|describe)(\.[A-Za-z]+)*[[:space:]]*[(<`]'
+        DEL_CASES=$(echo "$DIFF" | grep -E '^-' | grep -vE '^--- ' | grep -cE "$CASE_RE" || true)
+        ADD_CASES=$(echo "$DIFF" | grep -E '^\+' | grep -vE '^\+\+\+ ' | grep -cE "$CASE_RE" || true)
         if [ -n "$OFF" ]; then
           echo "⛔ 테스트에 skip/only/todo 추가 — 테스트 무력화가 아닌지 검토"
           SUSPECT=1
         fi
-        if [ -z "$SRCS" ] && [ -z "$CICONF" ] && [ -n "$DEL" ]; then
+        if [ "$DEL_CASES" -gt "$ADD_CASES" ]; then
+          echo "⛔ 테스트 케이스가 순감소했다 — 무력화·은닉이 아닌지 검토 (선언 삭제 $DEL_CASES · 추가 $ADD_CASES)"
+          SUSPECT=1
+        elif [ -z "$SRCS" ] && [ -z "$CICONF" ] && [ -n "$DEL" ]; then
           echo "⛔ 테스트만 변경됐는데 줄 삭제가 있다 — 테스트 무력화가 아닌지 검토"
           SUSPECT=1
         fi
