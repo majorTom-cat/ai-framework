@@ -77,6 +77,10 @@ tamper-check:
       CICONF=$(echo "$CH" | grep -E "$CI_RE" | grep -vE "$TEST_RE" || true)
       # 소스 = 테스트가 아닌 src 파일. 스택별 루트 소스(server.js·middleware.ts 등)는 /scaffold 가 여기 추가한다.
       SRCS=$(echo "$CH" | grep -E '^src/' | grep -vE "$TEST_RE" || true)
+      # ★수집 설정 — 소스도 테스트도 아닌 사각지대(2026-08-26 신설). include 를 줄이면 **테스트 파일을
+      #   한 줄도 안 고치고 전부 끌 수 있다**. 스택마다 이름이 다르니 /scaffold 가 이 목록을 치환한다.
+      CFG_RE='(^|/)(vitest\.config\.[a-z]+|vitest\.workspace\.[a-z]+|jest\.config\.[a-z]+|package\.json)$'
+      CFG=$(echo "$CH" | grep -E "$CFG_RE" || true)
       # ★2026-08-26 개정 — 두 층으로 나눈다(오너 결정).
       #   ⓘ알림(NOTE, 통과): '동시 수정' 조합. 이건 우리 표준 작업 방식이기도 해서 빨간불로 두면
       #      상시 실패가 된다(bnsone 실측: 최근 23건 중 14건 실패 → 아무도 안 봄 = 진짜 변조도 놓침).
@@ -84,6 +88,17 @@ tamper-check:
       #      경우'에만 돌아서 소스와 함께 테스트를 끄는 형태를 아예 못 봤다 — 그 공백도 함께 메운다.
       NOTE=0
       SUSPECT=0
+      # ⓪수집 설정 변경 — 수집 범위·테스트 명령이 바뀌면 의심(버전 올림 같은 무관한 변경은 안 걸린다)
+      if [ -n "$CFG" ]; then
+        CFGHIT=$(git --literal-pathspecs diff --no-renames --unified=0 origin/main...HEAD -- $CFG \
+          | grep -E '^[-+]' | grep -vE '^(\+\+\+|---)' \
+          | grep -E 'include|exclude|testMatch|testPathIgnorePatterns|setupFiles|coverage|threshold|"test"[[:space:]]*:' || true)
+        if [ -n "$CFGHIT" ]; then
+          echo "⛔ 테스트 수집 설정이 바뀌었다 — 수집 범위를 줄여 테스트를 통째로 끈 게 아닌지 검토"
+          echo "$CFGHIT" | head -10
+          SUSPECT=1
+        fi
+      fi
       if [ -n "$SRCS" ] && [ -n "$TESTS" ]; then
         echo "ⓘ 소스와 테스트 동시 수정(정상 작업일 수 있음 — 기록만)"
         echo "  소스:"; echo "$SRCS" | sed 's/^/    /'
@@ -106,7 +121,8 @@ tamper-check:
       if [ -n "$TESTS" ]; then
         DIFF=$(git --literal-pathspecs diff --no-renames --unified=0 origin/main...HEAD -- $TESTS)
         DEL=$(echo "$DIFF" | grep -E '^-' | grep -vE '^--- ' || true)
-        OFF=$(echo "$DIFF" | grep -E '^\+' | grep -vE '^\+\+\+ ' | grep -E '(^|[^A-Za-z0-9_])(it|test|describe)(\.[A-Za-z]+)*\.(skip|only|todo|failing)[[:space:]]*[(<`.]|(^|[^A-Za-z0-9_])x(it|test|describe)[[:space:]]*\(' || true)
+        # skipIf(true)·runIf(false) 포함 — 조건을 상수로 박아 끄는 우회(조건부 자체는 관용구라 제외)
+        OFF=$(echo "$DIFF" | grep -E '^\+' | grep -vE '^\+\+\+ ' | grep -E '(^|[^A-Za-z0-9_])(it|test|describe)(\.[A-Za-z]+)*\.(skip|only|todo|failing)[[:space:]]*[(<`.]|(^|[^A-Za-z0-9_])x(it|test|describe)[[:space:]]*\(|\.(skipIf[[:space:]]*\([[:space:]]*true|runIf[[:space:]]*\([[:space:]]*false)' || true)
         # 테스트 케이스 '순감소' — 제목 수정처럼 선언 1줄을 지우고 1줄 추가하는 것까지 걸리면 또 상시 경고가
         # 된다. 그래서 삭제 선언 수 > 추가 선언 수일 때만 본다(파일을 test/ 밖으로 옮겨 없애는 은닉이 이 형태).
         CASE_RE='(^|[^A-Za-z0-9_])(it|test|describe)(\.[A-Za-z]+)*[[:space:]]*[(<`]'
