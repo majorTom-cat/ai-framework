@@ -127,6 +127,36 @@ test('순환 의존 — 모듈 index 상호 참조 검출', () => {
   });
 });
 
+test('scripts/ 도 검사 범위 — 면제 목록 밖의 스크립트는 모듈 코드와 같은 규칙 (2026-08-26)', () => {
+  withFixture({
+    ...BASE,
+    // ★경로 깊이 주의: 이 픽스처 문자열도 실제 검사기가 읽는다(test/ 가 스캔 대상). test/ 기준으로
+    //   저장소 밖을 가리키게 두 단계로 두어, 이 파일 자신의 위반으로 잡히지 않게 한다.
+    'scripts/sub/report.ts': [
+      "import { hr } from '../../src/modules/people/services/hr';",
+      "import { PrismaClient } from '@prisma/client';",
+      "const prisma = new PrismaClient();",
+      "export const n = () => prisma.employee.findMany();",
+      "export const m = hr;",
+      "",
+    ].join('\n'),
+  }, (r) => {
+    const out = r.stderr + r.stdout;
+    assert.strictEqual(r.status, 1, `scripts/ 가 검사되지 않았다:\n${out}`);
+    assert.match(out, /scripts\/sub\/report\.ts:1: .*내부 파일 직접 import/);
+    assert.match(out, /scripts\/sub\/report\.ts:3: new PrismaClient/);
+    assert.match(out, /scripts\/sub\/report\.ts:4: .*'Employee'.*직접 쿼리/);
+  });
+});
+
+test('진입점 드리프트 — SCAN_FILES 가 가리키는 파일이 없으면 소리를 낸다 (2026-08-26)', () => {
+  const base = { ...BASE };
+  delete base['middleware.ts'];   // 진입점이 이동·개명된 상황(스택 이주에서 실제로 일어난다)
+  withFixture(base, (r) => {
+    assert.match(r.stderr + r.stdout, /SCAN_FILES 항목 'middleware\.ts' 가 없다/);
+  });
+});
+
 test('DB 스키마 없는 스택 — 비활성을 소리 내어 알린다', () => {
   const { ['prisma/schema/boards.prisma']: _1, ['prisma/schema/people.prisma']: _2, ['prisma/schema/shared.prisma']: _3, ...noDb } = BASE;
   withFixture(noDb, (r) => {
