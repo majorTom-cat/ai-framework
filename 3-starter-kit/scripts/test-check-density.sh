@@ -42,6 +42,26 @@ t OK "한글 250자는 상한 300 이내다(바이트로 세면 750으로 잡혀
 ko 250 >> "$R/CLAUDE.md"                        # 건드린 줄로 추가
 t OK "새로 추가한 한글 250자 줄도 통과"
 
+# ★옛(바이트) 검사기의 경계를 정확히 찌르는 케이스 — 한글 101자 = 303바이트.
+#   100자(=300바이트)는 옛 판도 «초과 아님»이라 판별력이 없다. 101자여야 옛 FAIL / 새 PASS 로 갈린다.
+ko 101 >> "$R/CLAUDE.md"
+t OK "한글 101자(=303바이트) — 옛 바이트 계수였다면 여기서 걸린다"
+git -C "$R" checkout -q -- CLAUDE.md 2>/dev/null || :
+
+echo "── A2. 다른 문자 폭도 글자로 센다 (bnsone 케이스 수용)"
+awk 'BEGIN{s="";for(i=0;i<200;i++)s=s "\360\237\230\200";print s}' >> "$R/CLAUDE.md"   # 이모지 200자 = 800바이트
+t OK "이모지 200자(800바이트)는 통과"
+git -C "$R" checkout -q -- CLAUDE.md 2>/dev/null || :
+awk 'BEGIN{s="";for(i=0;i<125;i++)s=s "가a";print s}' >> "$R/CLAUDE.md"                    # 혼합 250자 = 500바이트
+t OK "한글+ASCII 혼합 250자(500바이트)는 통과"
+git -C "$R" checkout -q -- CLAUDE.md 2>/dev/null || :
+en 300 >> "$R/CLAUDE.md"
+t OK "ASCII 300자 — 경계 이내는 통과"
+git -C "$R" checkout -q -- CLAUDE.md 2>/dev/null || :
+: > "$R/CLAUDE.md"
+t OK "빈 파일도 조용히 통과"
+git -C "$R" checkout -q -- CLAUDE.md 2>/dev/null || :
+
 echo "── B. 진짜 초과는 막는다"
 ko 301 >> "$R/CLAUDE.md"
 t FAIL "한글 301자 줄은 막는다" "이번에 건드린 줄이 300"
