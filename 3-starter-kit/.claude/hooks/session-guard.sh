@@ -8,7 +8,7 @@
 #
 # ★두 조각이 필요하다 — ①만으로는 재발 건을 못 잡는다:
 #   ① SessionStart : 이 클론을 이미 다른 살아있는 세션이 점유 중이면 알린다.
-#   ② PreToolUse   : **다른 폴더로 cd 해서** HEAD를 옮기는 명령(checkout/switch/pull/reset/merge)을 알린다.
+#   ② PreToolUse   : **다른 폴더로 cd 해서**(또는 `git -C` 로) HEAD를 옮기는 명령(checkout/switch/pull/reset/merge/rebase)을 알린다.
 #      남의 폴더에 cd 로 들어가는 세션은 그 폴더에서 SessionStart 를 겪지 않는다 — 재발 건이 정확히 이 경로다.
 #      훅은 **세션의 project dir 것만 로드**되므로, 남의 repo 훅은 그 세션을 막지 못한다. 그래서 ②는 내 쪽에 있어야 한다.
 #
@@ -96,9 +96,10 @@ CMD=$(printf '%s' "$INPUT" | sed -nE 's/.*"command"[[:space:]]*:[[:space:]]*"((\
 # HEAD 를 옮기는 git 명령인가 (명령 경계 기준 — check-push.sh 와 같은 이유로 \n·\r·\t 포함)
 printf '%s' "$CMD" | grep -Eiq '(^|[;&|(]|\\n|\\r|\\t)[[:space:]]*git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?(checkout|switch|pull|reset|merge|rebase)([[:space:]]|$|"|\\)' || exit 0
 
-# 대상 디렉터리: `cd <경로>` 또는 `git -C <경로>` 가 있으면 그것, 없으면 현재 폴더(=내 project dir → 남의 것 아님)
-TARGET=$(printf '%s' "$CMD" | sed -nE 's/.*(^|[;&|(]|\\n)[[:space:]]*cd[[:space:]]+"?([^"[:space:];&|]+)"?.*/\2/p' | tail -1)
-[ -z "$TARGET" ] && TARGET=$(printf '%s' "$CMD" | sed -nE 's/.*git[[:space:]]+-C[[:space:]]+"?([^"[:space:];&|]+)"?.*/\1/p' | tail -1)
+# 대상 디렉터리: `git -C <경로>` 가 있으면 **그것이 우선**, 없으면 `cd <경로>`, 그것도 없으면 현재 폴더(=내 project dir → 남의 것 아님)
+# ★순서 주의: `cd A && git -C B checkout` 은 HEAD 가 **B** 에서 움직인다. cd 를 먼저 보면 A 를 보고 B 를 놓친다(2026-08-27 리뷰 지적).
+TARGET=$(printf '%s' "$CMD" | sed -nE 's/.*git[[:space:]]+-C[[:space:]]+"?([^"[:space:];&|]+)"?.*/\1/p' | tail -1)
+[ -z "$TARGET" ] && TARGET=$(printf '%s' "$CMD" | sed -nE 's/.*(^|[;&|(]|\\n)[[:space:]]*cd[[:space:]]+"?([^"[:space:];&|]+)"?.*/\2/p' | tail -1)
 [ -z "$TARGET" ] && exit 0
 case "$TARGET" in "~"*) TARGET="$HOME${TARGET#\~}";; esac
 [ -d "$TARGET" ] || exit 0
@@ -108,6 +109,11 @@ MYROOT=$(repo_root "${CLAUDE_PROJECT_DIR:-.}")
 [ "$ROOT" = "$MYROOT" ] && exit 0        # 내 repo 면 ①이 담당한다
 
 OTHERS=$(live_others "$ROOT/$LOCKREL" "$MYPID")
+# pid 를 못 찾았을 때(MYPID 빈 문자열) 는 pid 비교가 아무것도 못 거른다 — 내 project dir 로 등록된 항목을 빼서
+# 자기 점유를 '남의 세션'으로 오경고하지 않게 한다(2026-08-27 리뷰 지적 ㉢. 게이트의 1순위는 정상 작업에 침묵).
+if [ -z "$MYPID" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
+  OTHERS=$(printf '%s' "$OTHERS" | awk -F'\t' -v me="$CLAUDE_PROJECT_DIR" '$4 != me')
+fi
 [ -z "$OTHERS" ] && exit 0
 
 WHO=$(printf '%s' "$OTHERS" | head -1 | awk -F'\t' '{printf "pid %s 브랜치 %s 시작 %s", $1, $2, $3}')

@@ -48,6 +48,9 @@ t ASK '남의 작업 폴더' "cd $OTHER \&\& git checkout main"
 t ASK '남의 작업 폴더' "cd $OTHER \&\& git switch -c feature/y"
 t ASK '남의 작업 폴더' "cd $OTHER \&\& git pull origin main"
 t ASK '남의 작업 폴더' "git -C $OTHER reset --hard origin/main"
+t ASK '남의 작업 폴더' "cd $OTHER \&\& git rebase origin/main"
+# ★`cd A && git -C B` — HEAD 는 B 에서 움직인다. 대상 판정이 cd 를 먼저 보던 시절엔 이걸 놓쳤다(2026-08-27 리뷰).
+t ASK '남의 작업 폴더' "cd $MINE \&\& git -C $OTHER checkout main"
 
 echo "── B. 조용해야 하는 것"
 t SILENT - "cd $MINE \&\& git checkout main"                 # 내 repo = ①이 담당
@@ -55,6 +58,7 @@ t SILENT - "cd $OTHER \&\& git log --oneline -5"             # HEAD 안 옮김
 t SILENT - "cd $OTHER \&\& git status"                       # 〃
 t SILENT - "cd $OTHER \&\& npm test"                         # git 아님
 t SILENT - "echo git checkout main"                          # 명령 경계 밖(인자)
+t SILENT - "cd $OTHER \&\& git -C $MINE checkout main"      # 뒤집힌 짝 — 실제 대상은 내 repo
 
 echo "── C. 점유가 없으면 조용 (죽은 항목만 남은 경우)"
 printf '%s\t%s\t%s\t%s\n' "999998" "dead/y" "2020-01-01 00:00" "$OTHER" > "$OTHER/.claude/.session-lock"
