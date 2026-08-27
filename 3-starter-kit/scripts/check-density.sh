@@ -45,7 +45,16 @@ check() {
     FAIL=1
   fi
 
-  local all; all=$(awk -v m="$maxcol" 'length>m{print NR"\t"length}' "$f")
+  # ★한 줄의 길이는 **글자 수**다 — awk 의 length 는 로케일에 따라 **바이트**를 센다(맥 awk 실측: 한글 10자 → 30).
+  #   그대로 두면 한국어 규칙 문서에 상한이 **3배 엄하게** 걸려, 지킬 수 없는 줄이 "옛 초과"로 쌓인다.
+  #   LC_ALL=C 로 바이트 열람을 고정한 뒤 **UTF-8 연속바이트(0x80–0xBF)를 빼서** 글자 수를 센다.
+  #   ★범위 정규식(`[\200-\277]`)은 busybox awk 가 거부한다 — 표를 만들어 index 로 판정해야 CI(alpine)에서도 돈다.
+  local all; all=$(LC_ALL=C awk -v m="$maxcol" '
+      BEGIN { for (i = 128; i < 192; i++) CONT[sprintf("%c", i)] = 1 }
+      function clen(s,   i, n, c) { n = 0
+        for (i = 1; i <= length(s); i++) { c = substr(s, i, 1); if (!(c in CONT)) n++ }
+        return n }
+      { L = clen($0); if (L > m) print NR"\t"L }' "$f")
   [ -n "$all" ] || return 0
 
   local touched; touched=$(changed_lines "$f")
