@@ -21,8 +21,11 @@ ko() { # $1=글자수 → 한글 그만큼
 en() { awk -v n="$1" 'BEGIN{ s=""; for(i=0;i<n;i++) s=s "a"; print s }'; }
 
 commit_base() { ( cd "$R" && git add -A && git commit -qm base && git update-ref refs/heads/main HEAD ) >/dev/null 2>&1; }
-run() { ( cd "$R" && bash "$SCRIPT" 2>&1 ); }
-rc()  { ( cd "$R" && bash "$SCRIPT" >/dev/null 2>&1; echo $? ); }
+# ★CI 변수를 반드시 지우고 부른다 — CI 는 `CI_MERGE_REQUEST_DIFF_BASE_SHA` 를 넣는데 그 SHA 는
+#   이 임시 repo 에 없다. 그러면 검사기가 BASE 를 버리고 **전수 검사 폴백**으로 떨어져,
+#   «건드린 줄만 막는다»는 핵심 분기를 CI 안에서는 영영 검사하지 못한다(로컬만 초록. 2026-08-27 bnsone 실측).
+run() { ( cd "$R" && unset CI_MERGE_REQUEST_DIFF_BASE_SHA CI_MERGE_REQUEST_TARGET_BRANCH_NAME && bash "$SCRIPT" 2>&1 ); }
+rc()  { ( cd "$R" && unset CI_MERGE_REQUEST_DIFF_BASE_SHA CI_MERGE_REQUEST_TARGET_BRANCH_NAME && bash "$SCRIPT" >/dev/null 2>&1; echo $? ); }
 
 t() { # $1=기대(OK|FAIL)  $2=설명  [$3=출력에 있어야 할 조각]
   local got; got=$(rc)

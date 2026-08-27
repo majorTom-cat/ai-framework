@@ -162,7 +162,33 @@ density-check:
   allow_failure: true
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: [CLAUDE.md, ".claude/skills/**/*", scripts/check-density.sh]
+      # ★rules/ 도 검사 대상인데(줄당 500자) changes 에 없어서 rules 만 고친 MR 은 이 잡이 아예 안 돌았다.
+      changes: [CLAUDE.md, ".claude/skills/**/*", ".claude/rules/**/*", scripts/check-density.sh]
+
+# 검사기 자신의 회귀 테스트 — ★차단한다(allow_failure 없음).
+# 왜 차단인가: 검사기가 깨지면 그 검사기가 지키던 것 전부가 **무음으로 통과**한다. 이 repo 가 반복해서
+#   밟은 실패 유형이 정확히 그것이다(CI 이미지에 git 이 없어 훅 검사가 통째로 무음 → 초록 집계).
+# ★scripts/test-*.sh 를 **찾아서 전부** 돈다 — 새 자기테스트가 생겨도 이 목록을 고칠 필요가 없다
+#   (배포처가 자기 테스트를 더 갖고 있어도 그대로 잡힌다).
+self-tests:
+  stage: test
+  image: alpine:3
+  variables:
+    GIT_DEPTH: 0
+  script:
+    - apk add --no-cache bash git >/dev/null
+    - |
+      RC=0
+      for t in scripts/test-*.sh; do
+        [ -f "$t" ] || continue
+        echo "════════ $t"
+        bash "$t" || RC=1
+      done
+      [ "$RC" = 0 ] && echo "자기테스트 전부 통과" || echo "⛔ 위에서 실패한 자기테스트가 있다"
+      exit $RC
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: ["scripts/**/*", ".claude/hooks/**/*"]
 
 # ★needs 함정 — 배포 잡을 추가할 때 반드시 읽어라: `_reference/ci-needs.md`
 #   needs가 rules(changes)로 빠질 수 있는 잡을 가리키면, 그 잡이 빠지는 커밋에서 GitLab이

@@ -70,6 +70,11 @@ t SILENT - "cd $OTHER \&\& git checkout main"
 printf '%s\t%s\t%s\t%s\n' "$GHOST" "feature/x" "2026-01-01 00:00" "$OTHER" > "$OTHER/.claude/.session-lock"
 
 echo "── D. SessionStart 등록·점유 경고"
+# ★세션 pid 를 **환경에 기대지 않는다** — CI 컨테이너엔 claude 프로세스도 CLAUDE_PID 도 없어서
+#   등록이 «한계 ㉡»(조용히 건너뜀)으로 떨어지고, D절 전체가 환경 탓으로 빨개진다(alpine 실측 4 FAIL).
+#   살아 있는 pid 를 직접 심어 «등록이 되는 경로»를 어디서나 같게 만든다.
+sleep 300 & SESS=$!
+export CLAUDE_PID="$SESS"
 OUT=$(CLAUDE_PROJECT_DIR="$MINE" bash "$HOOK" register 2>/dev/null); RC=$?
 { [ "$RC" -eq 0 ] && [ -z "$OUT" ]; } && pass=$((pass+1)) || { echo "FAIL(빈 클론 첫 세션은 조용해야: rc=$RC out=$OUT)"; fail=$((fail+1)); }
 [ -s "$MINE/.claude/.session-lock" ] && pass=$((pass+1)) || { echo "FAIL(등록이 안 됨)"; fail=$((fail+1)); }
@@ -82,13 +87,29 @@ N1=$(grep -c . "$MINE/.claude/.session-lock"); CLAUDE_PROJECT_DIR="$MINE" bash "
 N2=$(grep -c . "$MINE/.claude/.session-lock")
 [ "$N1" = "$N2" ] && pass=$((pass+1)) || { echo "FAIL(재진입에 중복 등록: $N1 → $N2)"; fail=$((fail+1)); }
 
-echo "── D2. CLAUDE_PID 없어도 조상 폴백으로 등록된다"
+# claude 조상이 있는 환경인가 — 없으면 조상 폴백은 성립할 수 없다(CI 컨테이너가 그렇다).
+has_claude_ancestor() {
+  local p i; p=$(ps -o ppid= -p $$ 2>/dev/null | tr -d ' '); i=0
+  while [ -n "$p" ] && [ "$p" != "1" ] && [ "$i" -lt 6 ]; do
+    case "$(ps -o comm= -p "$p" 2>/dev/null)" in *claude*) return 0;; esac
+    p=$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' '); i=$((i+1))
+  done; return 1
+}
 rm -f "$MINE/.claude/.session-lock"
 OUT=$(env -u CLAUDE_PID CLAUDE_PROJECT_DIR="$MINE" bash "$HOOK" register 2>/dev/null); RC=$?
-{ [ "$RC" -eq 0 ] && [ -s "$MINE/.claude/.session-lock" ]; } && pass=$((pass+1)) || { echo "FAIL(조상 폴백 등록 실패: rc=$RC)"; fail=$((fail+1)); }
-# 등록된 pid 가 살아있어야 한다(죽은 $$ 로 등록하면 다음 읽기에 사라진다 — 한계 ㉡의 옛 결함)
-RP=$(awk -F'\t' 'NR==1{print $1}' "$MINE/.claude/.session-lock")
-kill -0 "$RP" 2>/dev/null && pass=$((pass+1)) || { echo "FAIL(등록 pid $RP 가 이미 죽음 — 조용히 미등록이 된다)"; fail=$((fail+1)); }
+if has_claude_ancestor; then
+  echo "── D2. CLAUDE_PID 없어도 조상 폴백으로 등록된다"
+  { [ "$RC" -eq 0 ] && [ -s "$MINE/.claude/.session-lock" ]; } && pass=$((pass+1)) || { echo "FAIL(조상 폴백 등록 실패: rc=$RC)"; fail=$((fail+1)); }
+  # 등록된 pid 가 살아있어야 한다(죽은 $$ 로 등록하면 다음 읽기에 사라진다 — 한계 ㉡의 옛 결함)
+  RP=$(awk -F'\t' 'NR==1{print $1}' "$MINE/.claude/.session-lock")
+  kill -0 "$RP" 2>/dev/null && pass=$((pass+1)) || { echo "FAIL(등록 pid $RP 가 이미 죽음 — 조용히 미등록이 된다)"; fail=$((fail+1)); }
+else
+  # ★여기서 «건너뜀»이 아니라 **다른 것을 검사한다** — pid 를 못 찾으면 훅은 «건너뛴다고 말해야» 한다(한계 ㉡).
+  #   조용한 미등록이 옛 결함이었으므로, 이 환경에서는 그 말이 나오는지가 정확히 볼 것이다.
+  echo "── D2. (claude 조상 없는 환경) pid 미확인이면 '건너뛴다'고 말해야 한다"
+  { [ "$RC" -eq 0 ] && printf '%s' "$OUT" | grep -q '건너뛴다'; } && pass=$((pass+1)) || { echo "FAIL(조용한 미등록 — 말해야 한다): rc=$RC out=${OUT:-무음}"; fail=$((fail+1)); }
+  [ ! -s "$MINE/.claude/.session-lock" ] && pass=$((pass+1)) || { echo "FAIL(못 찾은 pid로 등록해 버렸다)"; fail=$((fail+1)); }
+fi
 
 echo "── C2. 잠금 폴더가 쓰기 불가여도 점유는 보고한다(청소만 못 할 뿐)"
 chmod a-w "$OTHER/.claude" 2>/dev/null
@@ -103,6 +124,6 @@ OUT=$(printf 'not json' | bash "$HOOK" 2>/dev/null); RC=$?
 OUT=$(printf '{"tool_input":{"command":"cd /nope/nope && git checkout main"}}' | CLAUDE_PROJECT_DIR="$MINE" bash "$HOOK" 2>/dev/null); RC=$?
 { [ -z "$OUT" ] && [ "$RC" -eq 0 ]; } && pass=$((pass+1)) || { echo "FAIL(없는 경로)"; fail=$((fail+1)); }
 
-kill "$GHOST" 2>/dev/null
+kill "$GHOST" 2>/dev/null; kill "${SESS:-}" 2>/dev/null
 echo "──────── $pass OK / $fail FAIL"
 [ "$fail" -eq 0 ] || exit 1
