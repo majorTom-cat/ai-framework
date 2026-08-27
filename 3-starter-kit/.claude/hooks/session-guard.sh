@@ -14,6 +14,15 @@
 #
 # 규약: PreToolUse 는 **ask 아니면 무음**(check-push.sh 와 동일 — allow·deny 금지, 비정상 종료 금지).
 #       SessionStart 는 평문 한 줄(컨텍스트로 들어간다).
+#
+# ⚠️ **한계 — "장치가 있으니 이제 안전하다"고 읽지 마라**(bnsone 리뷰 지적, 2026-08-27):
+#   ㉠ 경고는 **점유한 쪽이 잠금에 등록돼 있어야** 뜬다. 등록은 SessionStart·PreCompact 에서만 일어나므로
+#      **이 훅이 깔리기 전에 시작된 세션은 잠금에 없다** → 그 세션이 점유 중이어도 ②는 무음이다.
+#      양쪽 세션이 모두 이 훅 배포 이후에 시작돼야 온전히 작동한다.
+#   ㉡ 세션 pid 를 못 찾으면(=CLAUDE_PID 없고 조상에도 claude 없음) **등록을 건너뛰고 그 사실을 말한다.**
+#      옛 판(2026-08-27 초안)은 `$$`(훅 서브셸)로 등록했는데, 그건 즉시 죽어 다음 읽기에서 청소되므로
+#      **그 세션이 조용히 미등록 상태**가 됐다 — 안전 실패지만 보이지 않는 실패라 더 나쁘다.
+#   즉 이 훅은 **보조 장치**다. 1차 방어는 여전히 CLAUDE.md 규칙("남의 클론에서 HEAD 옮기지 마라")이다.
 # 잠금 파일: <repo>/.claude/.session-lock — `pid \t 브랜치 \t 시각 \t 세션 project dir` (gitignore 대상).
 # 세션 식별: $CLAUDE_PID(= claude 프로세스 pid, `kill -0`으로 생존 확인). 없으면 조상에서 claude 를 찾아 폴백.
 
@@ -29,7 +38,7 @@ my_pid() {
     case "$(ps -o comm= -p "$p" 2>/dev/null)" in *claude*) printf '%s' "$p"; return;; esac
     p=$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' '); i=$((i+1))
   done
-  printf '%s' "$$"   # 최후 폴백 — 어차피 경고 전용이라 오탐이 나도 안전하다
+  return 1   # 못 찾음 — 등록은 건너뛰고 그 사실을 말한다(위 한계 ㉡). `$$` 로 등록하면 조용히 미등록이 된다.
 }
 
 # ── 죽은 항목 청소 + 살아있는 '남의' 항목만 표준출력으로 ──
@@ -50,10 +59,14 @@ live_others() { # $1=lock 경로  $2=내 pid
 repo_root() { git -C "${1:-.}" rev-parse --show-toplevel 2>/dev/null; }
 
 MODE="${1:-check}"
-MYPID=$(my_pid)
+MYPID=$(my_pid) || MYPID=""
 
 # ══════════════════ ① SessionStart — 등록 + 점유 경고 ══════════════════
 if [ "$MODE" = "register" ]; then
+  if [ -z "$MYPID" ]; then
+    echo "⚠️ 세션 pid를 찾지 못해 워킹트리 점유 등록을 건너뛴다 — 이 세션은 다른 세션에게 보이지 않는다(session-guard 한계 ㉡)."
+    exit 0
+  fi
   ROOT=$(repo_root "${CLAUDE_PROJECT_DIR:-.}") || exit 0
   [ -z "$ROOT" ] && exit 0
   LOCK="$ROOT/$LOCKREL"

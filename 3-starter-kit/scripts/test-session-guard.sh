@@ -73,6 +73,14 @@ N1=$(grep -c . "$MINE/.claude/.session-lock"); CLAUDE_PROJECT_DIR="$MINE" bash "
 N2=$(grep -c . "$MINE/.claude/.session-lock")
 [ "$N1" = "$N2" ] && pass=$((pass+1)) || { echo "FAIL(재진입에 중복 등록: $N1 → $N2)"; fail=$((fail+1)); }
 
+echo "── D2. CLAUDE_PID 없어도 조상 폴백으로 등록된다"
+rm -f "$MINE/.claude/.session-lock"
+OUT=$(env -u CLAUDE_PID CLAUDE_PROJECT_DIR="$MINE" bash "$HOOK" register 2>/dev/null); RC=$?
+{ [ "$RC" -eq 0 ] && [ -s "$MINE/.claude/.session-lock" ]; } && pass=$((pass+1)) || { echo "FAIL(조상 폴백 등록 실패: rc=$RC)"; fail=$((fail+1)); }
+# 등록된 pid 가 살아있어야 한다(죽은 $$ 로 등록하면 다음 읽기에 사라진다 — 한계 ㉡의 옛 결함)
+RP=$(awk -F'\t' 'NR==1{print $1}' "$MINE/.claude/.session-lock")
+kill -0 "$RP" 2>/dev/null && pass=$((pass+1)) || { echo "FAIL(등록 pid $RP 가 이미 죽음 — 조용히 미등록이 된다)"; fail=$((fail+1)); }
+
 echo "── E. 이상 입력 (fail-silent)"
 OUT=$(printf '' | bash "$HOOK" 2>/dev/null); RC=$?
 { [ -z "$OUT" ] && [ "$RC" -eq 0 ]; } && pass=$((pass+1)) || { echo "FAIL(빈 입력)"; fail=$((fail+1)); }
