@@ -3,3 +3,4 @@ node_modules/
 # 개인 로컬 파일 — 커밋 금지 (CLAUDE.md '세션 규칙' · /start 1-1)
 CLAUDE.local.md
 .claude/settings.local.json
+.claude/.session-lock

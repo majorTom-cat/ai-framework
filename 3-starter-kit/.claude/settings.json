@@ -86,6 +86,10 @@
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check-push.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-guard.sh"
           }
         ]
       }
@@ -97,6 +101,10 @@
           {
             "type": "command",
             "command": "echo '세션 시작: /todo 를 실행해 담당 이슈와 멘션을 브리핑하라.'"
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-guard.sh register"
           }
         ]
       },
@@ -106,6 +114,10 @@
           {
             "type": "command",
             "command": "echo '컨텍스트가 압축되었다. 핵심 규칙 재확인: 남의 모듈 수정 금지 · 공통 영역 변경은 공지 후 · 마무리는 /done 으로만 · 검수요청 전 사용자 화면 확인.'"
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-guard.sh register"
           }
         ]
       }
