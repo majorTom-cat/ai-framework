@@ -6,6 +6,9 @@
 # 인자는 JSON 안에 들어갈 **이스케이프된** 명령 문자열이다(실제 개행은 \n, 따옴표는 \").
 set -u
 HOOK="$(cd "$(dirname "$0")/.." && pwd)/.claude/hooks/check-push.sh"
+# ★훅 파일 자체가 없으면 전 케이스가 exit 127 로 무더기 FAIL 이 된다 — "검사가 깨졌다"로 오독된다.
+#   미배포는 테스트 실패가 아니라 배포 문제다. 그렇게 말하고 끝낸다.
+[ -f "$HOOK" ] || { echo "⛔ 훅이 없다: $HOOK"; echo "   이 저장소엔 check-push 훅이 아직 배포되지 않았다 — 테스트 실패가 아니라 미배포다."; echo "   킷의 .claude/hooks/check-push.sh 를 이 저장소에 복사한 뒤 다시 돌려라."; exit 1; }
 pass=0; fail=0
 
 # ★케이스는 **격리 저장소**에서 돌린다 — 훅의 공통영역 검사는 «현재 체크아웃의 origin/main...HEAD» 를 보므로,
