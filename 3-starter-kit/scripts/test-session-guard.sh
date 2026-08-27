@@ -51,6 +51,8 @@ t ASK '남의 작업 폴더' "git -C $OTHER reset --hard origin/main"
 t ASK '남의 작업 폴더' "cd $OTHER \&\& git rebase origin/main"
 # ★`cd A && git -C B` — HEAD 는 B 에서 움직인다. 대상 판정이 cd 를 먼저 보던 시절엔 이걸 놓쳤다(2026-08-27 리뷰).
 t ASK '남의 작업 폴더' "cd $MINE \&\& git -C $OTHER checkout main"
+# ★뒤에 붙은 cd 가 판정을 뒤집으면 안 된다 — 실제 대상은 checkout 앞의 cd 다(2026-08-27 리뷰).
+t ASK '남의 작업 폴더' "cd $OTHER \&\& git checkout main \&\& cd $MINE"
 
 echo "── B. 조용해야 하는 것"
 t SILENT - "cd $MINE \&\& git checkout main"                 # 내 repo = ①이 담당
@@ -87,6 +89,11 @@ OUT=$(env -u CLAUDE_PID CLAUDE_PROJECT_DIR="$MINE" bash "$HOOK" register 2>/dev/
 # 등록된 pid 가 살아있어야 한다(죽은 $$ 로 등록하면 다음 읽기에 사라진다 — 한계 ㉡의 옛 결함)
 RP=$(awk -F'\t' 'NR==1{print $1}' "$MINE/.claude/.session-lock")
 kill -0 "$RP" 2>/dev/null && pass=$((pass+1)) || { echo "FAIL(등록 pid $RP 가 이미 죽음 — 조용히 미등록이 된다)"; fail=$((fail+1)); }
+
+echo "── C2. 잠금 폴더가 쓰기 불가여도 점유는 보고한다(청소만 못 할 뿐)"
+chmod a-w "$OTHER/.claude" 2>/dev/null
+t ASK '남의 작업 폴더' "cd $OTHER \&\& git checkout main"
+chmod u+w "$OTHER/.claude" 2>/dev/null
 
 echo "── E. 이상 입력 (fail-silent)"
 OUT=$(printf '' | bash "$HOOK" 2>/dev/null); RC=$?

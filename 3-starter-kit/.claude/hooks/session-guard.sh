@@ -43,16 +43,20 @@ my_pid() {
 
 # ── 죽은 항목 청소 + 살아있는 '남의' 항목만 표준출력으로 ──
 live_others() { # $1=lock 경로  $2=내 pid
+  # ★청소(쓰기)가 안 되더라도 **읽기는 반드시 한다** — 남의 repo 의 잠금은 이쪽에 쓰기 권한이 없을 수 있는데,
+  #   옛 판은 tmp 생성 실패에 return 0 이라 «점유 중인데 무음»이 됐다(2026-08-27 리뷰 지적).
   [ -f "$1" ] || return 0
-  local tmp="$1.tmp$$"; : > "$tmp" 2>/dev/null || return 0
+  local tmp="$1.tmp$$"; local can_clean=1
+  : > "$tmp" 2>/dev/null || can_clean=""
   while IFS="$(printf '\t')" read -r pid br ts dir; do
     [ -z "${pid:-}" ] && continue
     kill -0 "$pid" 2>/dev/null || continue          # 끝난 세션 = 버린다
-    printf '%s\t%s\t%s\t%s\n' "$pid" "${br:-?}" "${ts:-?}" "${dir:-?}" >> "$tmp"
+    [ -n "$can_clean" ] && printf '%s\t%s\t%s\t%s\n' "$pid" "${br:-?}" "${ts:-?}" "${dir:-?}" >> "$tmp"
     [ "$pid" = "$2" ] && continue
     printf '%s\t%s\t%s\t%s\n' "$pid" "${br:-?}" "${ts:-?}" "${dir:-?}"   # 남의 것만 보고
   done < "$1"
-  mv -f "$tmp" "$1" 2>/dev/null || rm -f "$tmp" 2>/dev/null
+  [ -n "$can_clean" ] && { mv -f "$tmp" "$1" 2>/dev/null || rm -f "$tmp" 2>/dev/null; }
+  return 0
 }
 
 # ── repo 루트 찾기(아니면 빈 문자열) ──
@@ -99,7 +103,12 @@ printf '%s' "$CMD" | grep -Eiq '(^|[;&|(]|\\n|\\r|\\t)[[:space:]]*git[[:space:]]
 # 대상 디렉터리: `git -C <경로>` 가 있으면 **그것이 우선**, 없으면 `cd <경로>`, 그것도 없으면 현재 폴더(=내 project dir → 남의 것 아님)
 # ★순서 주의: `cd A && git -C B checkout` 은 HEAD 가 **B** 에서 움직인다. cd 를 먼저 보면 A 를 보고 B 를 놓친다(2026-08-27 리뷰 지적).
 TARGET=$(printf '%s' "$CMD" | sed -nE 's/.*git[[:space:]]+-C[[:space:]]+"?([^"[:space:];&|]+)"?.*/\1/p' | tail -1)
-[ -z "$TARGET" ] && TARGET=$(printf '%s' "$CMD" | sed -nE 's/.*(^|[;&|(]|\\n)[[:space:]]*cd[[:space:]]+"?([^"[:space:];&|]+)"?.*/\2/p' | tail -1)
+# ★cd 폴백은 **그 git 명령 앞쪽**에서 찾는다 — 뒤에 붙은 cd 까지 세면 판정이 뒤집힌다:
+#   `cd 남의폴더 && git checkout main && cd 내폴더` 가 '내 repo'로 읽혀 무음이 됐다(2026-08-27 리뷰 지적).
+if [ -z "$TARGET" ]; then
+  HEAD_CMD=$(printf '%s' "$CMD" | sed -E 's/(git[[:space:]]+(checkout|switch|pull|reset|merge|rebase)([[:space:]]|$)).*/\1/')
+  TARGET=$(printf '%s' "$HEAD_CMD" | sed -nE 's/.*(^|[;&|(]|\\n)[[:space:]]*cd[[:space:]]+"?([^"[:space:];&|]+)"?.*/\2/p' | tail -1)
+fi
 [ -z "$TARGET" ] && exit 0
 case "$TARGET" in "~"*) TARGET="$HOME${TARGET#\~}";; esac
 [ -d "$TARGET" ] || exit 0
