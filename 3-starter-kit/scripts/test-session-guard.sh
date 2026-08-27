@@ -116,6 +116,24 @@ chmod a-w "$OTHER/.claude" 2>/dev/null
 t ASK '남의 작업 폴더' "cd $OTHER \&\& git checkout main"
 chmod u+w "$OTHER/.claude" 2>/dev/null
 
+echo "── F. 경고문에 들어가는 값이 JSON 을 깨뜨리지 않는다"
+# ★git 은 브랜치명에 따옴표를 허용한다(실측: `feat"quote` 생성됨). 옛 판은 그 값을 그대로 보간해
+#   **깨진 JSON** 을 내보냈고, 그러면 훅 판정이 통째로 버려진다 — 이 파일이 막으려던 바로 그 무음이다.
+#   파서 없이 확인한다: 위험 글자가 '로 바뀌어 나오고, 원래 따옴표는 출력에 없어야 한다.
+printf '%s\t%s\t%s\t%s\n' "$GHOST" 'feat"quote' "2026-01-01 00:00" "$OTHER" > "$OTHER/.claude/.session-lock"
+OUT=$(printf '{"tool_input":{"command":"%s"}}' "cd $OTHER \&\& git checkout main" \
+      | CLAUDE_PROJECT_DIR="$MINE" bash "$HOOK" 2>/dev/null)
+case "$OUT" in
+  *"feat'quote"*) pass=$((pass+1));;
+  *) echo "FAIL(위험 글자가 안 걸러짐/무음): ${OUT:-무음}"; fail=$((fail+1));;
+esac
+case "$OUT" in
+  *'feat"quote'*) echo "FAIL(원래 따옴표가 그대로 나가 JSON 이 깨진다)"; fail=$((fail+1));;
+  *) pass=$((pass+1));;
+esac
+# 잠금을 원래대로
+printf '%s\t%s\t%s\t%s\n' "$GHOST" "feature/x" "2026-01-01 00:00" "$OTHER" > "$OTHER/.claude/.session-lock"
+
 echo "── E. 이상 입력 (fail-silent)"
 OUT=$(printf '' | bash "$HOOK" 2>/dev/null); RC=$?
 { [ -z "$OUT" ] && [ "$RC" -eq 0 ]; } && pass=$((pass+1)) || { echo "FAIL(빈 입력)"; fail=$((fail+1)); }
