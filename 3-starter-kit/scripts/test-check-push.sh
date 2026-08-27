@@ -8,8 +8,29 @@ set -u
 HOOK="$(cd "$(dirname "$0")/.." && pwd)/.claude/hooks/check-push.sh"
 pass=0; fail=0
 
-t() { # $1=ASK|SILENT  $2=기대 사유 조각(ASK일 때, - 면 무시)  $3=명령
-  OUT=$(printf '{"tool_input":{"command":"%s"}}' "$3" | bash "$HOOK" 2>/dev/null); RC=$?
+# ★케이스는 **격리 저장소**에서 돌린다 — 훅의 공통영역 검사는 «현재 체크아웃의 origin/main...HEAD» 를 보므로,
+#   이 저장소에서 그냥 돌리면 «공통 영역을 건드린 브랜치»에서만 SILENT 기대 케이스가 무더기로 깨진다
+#   (파일럿 2026-08-26 실측: 같은 스크립트가 main에서 47/47, 동기 브랜치에서 42/47).
+# ★git 이 없으면 훅의 공통영역 검사가 통째로 무음이 되어 «의존 명령 부재 = 초록»이 된다 — 통과로 세지 않는다
+#   (CI 이미지에 git 이 없어 초록으로 보이던 실측이 있다).
+command -v git >/dev/null 2>&1 || { echo "⛔ git 이 없다 — 이 회귀 테스트(공통영역 감지)는 git 이 있어야 성립한다"; exit 1; }
+TMPROOT=$(mktemp -d); trap 'rm -rf "$TMPROOT"' EXIT
+mkfixture() { # $1=저장소 이름  $2=work 브랜치에서 바꿀 파일 경로
+  R="$TMPROOT/$1"; mkdir -p "$R"; ( cd "$R"
+    git init -q -b main . && git config user.email t@example.com && git config user.name t
+    git config core.hooksPath "$R/.nohooks"
+    echo base > README.md && git add -A && git commit -qm base
+    git update-ref refs/remotes/origin/main "$(git rev-parse main)"
+    git checkout -qb work
+    mkdir -p "$(dirname "$2")" && echo changed > "$2" && git add -A && git commit -qm change ) >/dev/null 2>&1
+  printf '%s' "$R"
+}
+CLEAN=$(mkfixture clean src/modules/sample/x.ts)     # 공통 영역 아님 → 조용해야 한다
+COMMON=$(mkfixture common .gitlab-ci.yml)            # 공통 영역 → ask 를 내야 한다
+REPO="$CLEAN"
+
+t() { # $1=ASK|SILENT  $2=기대 사유 조각(ASK일 때, - 면 무시)  $3=명령   ※$REPO 저장소에서 실행
+  OUT=$(cd "$REPO" && printf '{"tool_input":{"command":"%s"}}' "$3" | bash "$HOOK" 2>/dev/null); RC=$?
   if [ "$RC" -ne 0 ]; then echo "FAIL(exit $RC): $3"; fail=$((fail+1)); return; fi
   case "$OUT" in *'"permissionDecision":"allow"'*|*'"permissionDecision":"deny"'*)
     echo "FAIL(철칙 위반 — ask 아님): $3"; fail=$((fail+1)); return;; esac
@@ -85,6 +106,14 @@ OUT=$(printf '' | bash "$HOOK" 2>/dev/null); RC=$?
 { [ -z "$OUT" ] && [ "$RC" -eq 0 ]; } && pass=$((pass+1)) || { echo "FAIL(빈 입력)"; fail=$((fail+1)); }
 OUT=$(printf 'not json' | bash "$HOOK" 2>/dev/null); RC=$?
 { [ -z "$OUT" ] && [ "$RC" -eq 0 ]; } && pass=$((pass+1)) || { echo "FAIL(비 JSON)"; fail=$((fail+1)); }
+
+echo "── H. 공통 영역 감지 — 양성·음성 양쪽"
+REPO="$COMMON"
+t ASK '공통 영역' 'git push origin work'
+t ASK '공통 영역' 'git push -n origin work'                 # dry-run 이어도 알린다
+t ASK 'force push 감지' 'git push -f origin work'           # force 가 공통영역보다 우선
+REPO="$CLEAN"
+t SILENT - 'git push origin work'                           # 공통 영역이 아니면 조용
 
 echo "──────── $pass OK / $fail FAIL"
 [ "$fail" -eq 0 ] || exit 1

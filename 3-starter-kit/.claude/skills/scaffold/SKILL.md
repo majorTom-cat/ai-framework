@@ -52,7 +52,7 @@ allowed-tools: Read Glob Grep Edit Write Bash(git *) Bash(npm *) Bash(docker com
      ① 마이그레이션→시드 순서로 **실제 DB에 실행**  ② **두 번 연속 돌려 결과가 같은지**(멱등성 실증 — 지금은 주석으로만 "멱등")  ③ 고의로 깨뜨리면 빨간불이 되는지
 4. **CI 활성화** — `.gitlab-ci.yml`의 주석 처리된 **`test`·`boundaries` 스테이지를 이 스택 명령으로 채워 활성화** (`<스택이미지>`·`<테스트명령>`·`<경계검사명령>`).
    ★**경계검사는 `npm run boundaries`(package.json)로 감싸고 CI·스킬은 그 이름만 부르게 한다** — 스택 변형(`check-boundaries-next.cjs` 등) 선택은 package.json 한 줄에서 끝낸다. 스킬 본문의 원경로를 일일이 고치면 **반드시 한 곳이 남는다** — 실측 경위 `함정.md` §7.
-     ★**파일 이름을 바꿔 쓸 거면** CI `high-risk-gate` 경로 목록·`check-push.sh`의 `HITS`·회귀 테스트의 `CHECKER` 경로까지 **같은 커밋에서** — 셋 중 하나가 남으면 게이트가 조용히 헛돈다. `high-risk-gate`의 `changes:` 스택 보강은 아래 ★대조표 한 곳에서 한다.
+     ★**파일 이름을 바꿔 쓸 거면** CI `high-risk-gate` 경로 목록·`check-push.sh`의 `HITS`·회귀 테스트의 `CHECKER` 경로까지 **같은 커밋에서** — 셋은 한 몸이고, 하나가 남으면 게이트가 조용히 헛돈다(정기 대조는 `/overhaul` 코드 갈래 '규칙↔실측'). `high-risk-gate`의 `changes:` 스택 보강은 아래 ★대조표 한 곳에서 한다.
    **`migration-immutable`의 `DIR`·`high-risk-gate`의 마이그레이션 경로도 이 스택 값으로 치환**(Prisma 폴더형이면 `prisma/schema/migrations`). 고치면 `glab ci lint`로 문법 검증.
    ★**`needs`를 쓰면 가리키는 잡과 `rules`를 맞춰라** — 한쪽만 `changes:`로 빠지면 그 커밋에서 **파이프라인 생성이 거부**되어 잡 0개(전 게이트 무효)가 된다. 원칙: 같은 `changes:`를 공유(앵커)하거나, 산출물을 안 쓰는 경우에만 `optional: true`. `ci lint`·dry_run 다 통과하니 문법 검증으론 안 잡힌다 — **배포 잡을 만들 땐 `_reference/ci-needs.md`를 읽어라.**
    ★**자기 검증 대조표(필수 — 지시만 있고 이행이 새는 게 실측됐다)**:
