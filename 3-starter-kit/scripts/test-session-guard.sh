@@ -55,7 +55,7 @@ t ASK '남의 작업 폴더' "cd $MINE \&\& git -C $OTHER checkout main"
 t ASK '남의 작업 폴더' "cd $OTHER \&\& git checkout main \&\& cd $MINE"
 
 echo "── B. 조용해야 하는 것"
-t SILENT - "cd $MINE \&\& git checkout main"                 # 내 repo = ①이 담당
+t SILENT - "cd $MINE \&\& git checkout main"                 # 내 클론 + 점유 없음 = 무음 (점유가 있으면 G절)
 t SILENT - "cd $OTHER \&\& git log --oneline -5"             # HEAD 안 옮김
 t SILENT - "cd $OTHER \&\& git status"                       # 〃
 t SILENT - "cd $OTHER \&\& npm test"                         # git 아님
@@ -141,6 +141,24 @@ OUT=$(printf 'not json' | bash "$HOOK" 2>/dev/null); RC=$?
 { [ -z "$OUT" ] && [ "$RC" -eq 0 ]; } && pass=$((pass+1)) || { echo "FAIL(비 JSON)"; fail=$((fail+1)); }
 OUT=$(printf '{"tool_input":{"command":"cd /nope/nope && git checkout main"}}' | CLAUDE_PROJECT_DIR="$MINE" bash "$HOOK" 2>/dev/null); RC=$?
 { [ -z "$OUT" ] && [ "$RC" -eq 0 ]; } && pass=$((pass+1)) || { echo "FAIL(없는 경로)"; fail=$((fail+1)); }
+
+echo "── G. 내 클론을 다른 세션이 쓰는 중이면 HEAD 이동에 확인을 받는다 (2026-08-31 신설)"
+# ★왜 생겼나: ①SessionStart 경고를 «정보 한 줄»로 낮췄다(세션 시작의 정지가 정보량 0 — 오너 지적).
+#   그러면 «같은 클론 두 세션»(2026-08-13 실사고)의 확인 지점이 여기밖에 없다.
+#   옛 판은 대상이 내 repo 면 «①이 담당한다»며 무조건 나갔으므로 **이 절은 옛 훅에서 전부 FAIL 한다**
+#   (= 회귀 케이스가 유효하다는 증거. 초록만 보고 넘어가면 안 된다 — 2026-08-28 함정).
+printf '%s\t%s\t%s\t%s\n' "$GHOST" "feature/x" "2026-01-01 00:00" "$OTHER" > "$MINE/.claude/.session-lock"
+t ASK '이 클론을 다른 세션이' "cd $MINE \&\& git checkout main"
+t ASK '이 클론을 다른 세션이' "git checkout -b feature/z"      # cd 도 -C 도 없다 = 내 클론
+t ASK '이 클론을 다른 세션이' "git -C $MINE pull origin main"
+t ASK '이 클론을 다른 세션이' "git reset --hard origin/main"
+t SILENT - "git log --oneline -5"                              # HEAD 를 안 옮긴다
+t SILENT - "git status"                                        # 〃
+# 점유가 사라지면(죽은 항목만) 다시 조용해진다 — 정상 작업에 침묵이 게이트의 1순위다
+printf '%s\t%s\t%s\t%s\n' "999997" "dead/z" "2020-01-01 00:00" "$OTHER" > "$MINE/.claude/.session-lock"
+t SILENT - "cd $MINE \&\& git checkout main"
+rm -f "$MINE/.claude/.session-lock"
+t SILENT - "git checkout main"                                 # 잠금 파일 자체가 없어도 조용
 
 kill "$GHOST" 2>/dev/null; kill "${SESS:-}" 2>/dev/null
 echo "──────── $pass OK / $fail FAIL"

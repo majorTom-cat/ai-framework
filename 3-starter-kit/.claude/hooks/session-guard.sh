@@ -85,7 +85,8 @@ if [ "$MODE" = "register" ]; then
     printf '%s\n' "$OTHERS" | while IFS="$(printf '\t')" read -r p b t d; do
       echo "   · pid $p · 브랜치 $b · 시작 $t"
     done
-    echo "   → 사용자에게 알리고 확인받아라. 계속하려면 별도 워크트리나 클론을 쓴다."
+    echo "   → 사용자에게 **한 줄로 알린 뒤 하던 일(브리핑·조회)을 계속하라** — 조회는 남의 세션에 영향이 없다."
+    echo "     확인은 여기가 아니라 **HEAD 를 옮기기 직전**에 받는다(②가 그 자리에서 묻는다). 별도 워크트리·클론 권장."
   fi
   exit 0
 fi
@@ -109,13 +110,19 @@ if [ -z "$TARGET" ]; then
   HEAD_CMD=$(printf '%s' "$CMD" | sed -E 's/(git[[:space:]]+(checkout|switch|pull|reset|merge|rebase)([[:space:]]|$)).*/\1/')
   TARGET=$(printf '%s' "$HEAD_CMD" | sed -nE 's/.*(^|[;&|(]|\\n)[[:space:]]*cd[[:space:]]+"?([^"[:space:];&|]+)"?.*/\2/p' | tail -1)
 fi
-[ -z "$TARGET" ] && exit 0
-case "$TARGET" in "~"*) TARGET="$HOME${TARGET#\~}";; esac
-[ -d "$TARGET" ] || exit 0
-
-ROOT=$(repo_root "$TARGET"); [ -z "$ROOT" ] && exit 0
 MYROOT=$(repo_root "${CLAUDE_PROJECT_DIR:-.}")
-[ "$ROOT" = "$MYROOT" ] && exit 0        # 내 repo 면 ①이 담당한다
+# ★대상 경로가 없다(= 그냥 `git checkout`) → **내 클론**이다. 옛 판은 여기서 «①이 담당한다»며 나갔는데,
+#   2026-08-31 개정으로 ①은 «정보 한 줄»이 됐다(세션 시작의 정지가 정보량 0이라 오너 지적) —
+#   그러면 «같은 클론 두 세션»(2026-08-13 실사고)의 확인 지점이 **어디에도 남지 않는다.**
+#   규칙이 «HEAD 이동 직전에 확인받아라»라고 말하는 이상 장치도 거기 있어야 한다. 점유가 없으면 여전히 무음.
+if [ -z "$TARGET" ]; then
+  ROOT="$MYROOT"
+else
+  case "$TARGET" in "~"*) TARGET="$HOME${TARGET#\~}";; esac
+  [ -d "$TARGET" ] || exit 0
+  ROOT=$(repo_root "$TARGET")
+fi
+[ -z "$ROOT" ] && exit 0
 
 OTHERS=$(live_others "$ROOT/$LOCKREL" "$MYPID")
 # pid 를 못 찾았을 때(MYPID 빈 문자열) 는 pid 비교가 아무것도 못 거른다 — 내 project dir 로 등록된 항목을 빼서
@@ -130,5 +137,9 @@ WHO=$(printf '%s' "$OTHERS" | head -1 | awk -F'\t' '{printf "pid %s 브랜치 %s
 #   경로·브랜치명에 " 나 \ 가 있으면 JSON 이 깨지고 훅 판정이 **통째로 버려진다**(= 이 파일이 막으려던 그 무음).
 #   경고문에 정확한 글자가 필요한 게 아니므로 **위험 글자는 '로 바꿔** 흘린다(escape 보다 단순·확실).
 sanitize() { printf '%s' "$1" | tr '"\\' "''" | tr -d '\000-\037'; }
-printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"⚠️ 남의 작업 폴더의 HEAD를 옮기려 한다: %s — 다른 세션이 점유 중(%s). 그 세션의 체크아웃이 발밑에서 바뀐다. 별도 워크트리나 GitLab 웹에서 하거나, 상대 세션에 먼저 확인하라."}}\n' "$(sanitize "$ROOT")" "$(sanitize "$WHO")"
+if [ "$ROOT" = "$MYROOT" ]; then
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"⚠️ 이 클론을 다른 세션이 쓰는 중인데 HEAD를 옮기려 한다: %s — 점유 중(%s). 한쪽의 checkout이 다른 쪽 커밋을 남의 브랜치에 얹는다(2026-08-13 실사고). 별도 워크트리·클론을 쓰거나, 그 세션이 끝났는지 확인하라."}}\n' "$(sanitize "$ROOT")" "$(sanitize "$WHO")"
+else
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"⚠️ 남의 작업 폴더의 HEAD를 옮기려 한다: %s — 다른 세션이 점유 중(%s). 그 세션의 체크아웃이 발밑에서 바뀐다. 별도 워크트리나 GitLab 웹에서 하거나, 상대 세션에 먼저 확인하라."}}\n' "$(sanitize "$ROOT")" "$(sanitize "$WHO")"
+fi
 exit 0
