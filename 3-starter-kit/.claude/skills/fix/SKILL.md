@@ -7,12 +7,14 @@ allowed-tools: Bash(glab *) Bash(git *) Bash(npm *) Read Edit Write Glob Grep
 ---
 
 이슈 내용 (자동 조회됨):
-!`case "$0" in ''|*[!0-9]*) echo "⛔ 이슈 번호가 없다(또는 숫자가 아니다) — 조회를 건너뛰었다.";; *) glab issue view "$0" 2>&1 | head -40;; esac`
+!`glab issue view "$0" 2>&1 | head -40`
 
 최근 댓글 (반려 사유·추가 지시는 여기 있다):
-!`case "$0" in ''|*[!0-9]*) echo "⛔ 위와 같음.";; *) glab issue view "$0" --comments 2>&1 | tail -40;; esac`
+!`glab issue view "$0" --comments 2>&1 | tail -40`
 
-> **★위 조회가 ⛔면 여기서 멈춘다** — 번호를 문맥으로 추측하지 마라(엉뚱한 카드에 브랜치·커밋이 생긴다). `/fix {번호}` 로 다시 부르라고 안내하고 종료.
+> **★위 조회가 «오류·빈 결과·엉뚱한 카드» 중 무엇이든이면 여기서 멈춘다** — 번호를 문맥으로 추측하지 마라(엉뚱한 카드에 브랜치·커밋이 생긴다). `/fix {번호}` 로 다시 부르라고 안내하고 종료.
+> **인자 없이 불렀으면 `$0` 가 숫자가 아닌 값으로 확장돼 조회가 실패한다** — 그것도 이 정지 사유다.
+> ⚠️**이 판정은 AI 가 한다 — 셸 조건문으로 되돌리지 마라**(`allowed-tools` 에 없는 `echo`·`grep`·`case` 가 섞이면 **스킬 실행 자체가 거부된다**. 정본 = CLAUDE.md '스킬 frontmatter `!` 명령').
 
 # /fix — 이슈 #$0 작은 수정
 
