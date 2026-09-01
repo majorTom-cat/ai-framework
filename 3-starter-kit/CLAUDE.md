@@ -134,6 +134,7 @@
 - ★**셸(`cat`·`sed`·`grep`)로 읽으면 로드되지 않는다** — 격리 프로젝트 + `InstructionsLoaded` 훅 로그로 실측했다:
   같은 파일을 셸로 읽으면 세션 시작 파일만, Read 도구로 읽으면 `load_reason: path_glob_match` 로 규칙이 붙었다.
   **Bash 우선으로 읽는 세션에서는 `paths:` 규칙 전체가 조용히 무력화된다**(migrations·shared·docs·module-*).
+- ★**새 파일을 «만드는» 순간에도 안 걸린다**(2026-09-01 실측): Read·Edit·**기존 파일 덮어쓰기**는 걸리는데 **Write 로 새 파일을 만들면 안 걸린다.** 새 마이그레이션·새 docs·남의 모듈에 파일을 «처음» 놓는 그 순간이 규칙 없는 구간이다.
 - 그래서 **«반드시 지켜져야 하는 것»을 `paths:` 규칙에만 두지 마라.** 두는 곳은 세 층뿐이다:
   ①이 파일(CLAUDE.md)이나 `paths:` 없는 rules = 항상 읽힘 ②훅·CI = 기계가 강제 ③스킬 = 그 명령을 부를 때.
   `paths:` 규칙은 «Read 로 열었을 때 붙는 보강»으로만 믿어라. 근거·재현법 = `_reference/rules-loading.md`.
