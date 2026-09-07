@@ -10,6 +10,8 @@ allowed-tools: Read Glob Grep Edit Write Bash(git *) Bash(npm *) Bash(docker com
 
 # /scaffold — 앱 뼈대 생성 (골격 Day 1, 프로젝트당 1회)
 
+> ★★**이 스킬은 한도(5,376자)를 넘어서, 대화가 길어지면 뒤쪽 «금지» 절이 컴팩션 뒤 안 읽힌다. 잘려도 이 셋은 지켜라** — ①**설계 문서 없이 스택을 정하지 마라**(감 스택 = 뒤에서 전면 재작업) ②**브라우저에 실제로 뜨기 전엔 완료가 아니다**(2번 게이트·7번 확인) ③**모듈 이름을 임의로 만들지 마라** — 모듈 경계는 설계(요구 근거) 산출물이다. 상세는 본문 «❌ 금지» 절. (크기 경고 = `scripts/check-skill-size.sh`)
+
 > **계약** · 입력: 설계(docs/06) · 산출물: 앱 뼈대(src·docker·CI·CLAUDE.md 빈칸·훅) 커밋 · 검증: 새 clone→docker compose up→빈 앱 렌더 (⏸ 게이트)
 
 > **예시**: `/scaffold` (인자 없음 — `docs/06` 설계를 읽는다)

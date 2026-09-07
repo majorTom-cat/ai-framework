@@ -158,12 +158,22 @@ density-check:
     GIT_DEPTH: 0
   script:
     - apk add --no-cache bash git >/dev/null
+    # ★검사기 자체가 맞는지 먼저 본다 — bnsone 관례를 역이관했다(2026-09-07).
+    #   self-tests 잡은 `changes: scripts/**` 라 **스킬만 고친 MR 에서는 안 돈다** — 그 MR 에서
+    #   검사기가 깨져 있으면 무음으로 통과한다(bnsone #158 이 «바이트 계수»로 겪은 그 실패 유형).
+    - bash scripts/test-check-density.sh
     - bash scripts/check-density.sh
+    # ★스킬 크기 — 컴팩션은 스킬마다 «앞 5,000토큰만 남기고 뒤를 자른다»(공식). 넘는 스킬은
+    #   대화가 길어지면 뒤쪽 절이 조용히 안 읽힌다. 경고형(exit 0)이라 여기 함께 둔다.
+    - bash scripts/test-check-skill-size.sh
+    - bash scripts/check-skill-size.sh
   allow_failure: true
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       # ★rules/ 도 검사 대상인데(줄당 500자) changes 에 없어서 rules 만 고친 MR 은 이 잡이 아예 안 돌았다.
-      changes: [CLAUDE.md, ".claude/skills/**/*", ".claude/rules/**/*", scripts/check-density.sh]
+      # ★검사기의 «자기테스트»도 트리거에 넣는다 — 그것만 고치는 MR 에서 잡이 안 뜨면
+      #   그 변경만 검사 밖으로 샌다(bnsone #158 리뷰에서 온 관례).
+      changes: [CLAUDE.md, ".claude/skills/**/*", ".claude/rules/**/*", scripts/check-density.sh, scripts/test-check-density.sh, scripts/check-skill-size.sh, scripts/test-check-skill-size.sh]
 
 # 검사기 자신의 회귀 테스트 — ★차단한다(allow_failure 없음).
 # 왜 차단인가: 검사기가 깨지면 그 검사기가 지키던 것 전부가 **무음으로 통과**한다. 이 repo 가 반복해서
