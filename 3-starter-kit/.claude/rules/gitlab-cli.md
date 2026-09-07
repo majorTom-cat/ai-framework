@@ -2,6 +2,7 @@
 
 - 카드·댓글·MR의 **여러 줄 본문을 PowerShell로 `-m`/`-d`에 직접 넘기지 마라** — 개행에서 인자가 쪼개져 `Accepts 1 arg(s), received N`으로 실패한다. `glab api -f body=@파일`도 금지 — gh(GitHub CLI) 전용 문법이라 glab에선 `@경로`가 **문자 그대로 본문에 올라간다**.
 - 안전 패턴: 본문을 파일로 쓴 뒤 **Bash에서** `glab issue note {번호} -m "$(cat 파일)"` (issue/mr create의 `-d`도 동일. heredoc `-m "$(cat <<'EOF' … EOF)"`도 가능). **+생성·등록 명령엔 `</dev/null`로 stdin을 닫아라** — Windows에서 glab이 stdin을 물고 **무기한 행**에 걸린다(2026-07-29 실측 2회: 8분+ 행·출력 없음. 프롬프트를 기다리는 게 아니라 그냥 멈춘다). 타임아웃(60~90초)도 함께 걸면 행이 나도 세션이 살아난다.
+- ⚠️**그 타임아웃은 macOS 에서 못 건다** — `timeout` 은 GNU coreutils 라 mac 에 기본 미설치다(`command not found` — 2026-09-01 bnsone 실측). `gtimeout`(coreutils 설치 시)을 쓰거나 **`</dev/null` 만으로** 간다. mac 에서 이 방어는 선택이다 — **행(hang) 사고는 Windows 에서 관측됐다.**
 - **루프·배치 안의 glab 호출에도 `</dev/null`을 하나씩 다 붙여라** — 2026-08-04 실측: 루프에서 빠뜨린 `glab mr create` 2건이 출력 한 줄 없이 무음 실패(브랜치만 올라가고 MR 없음 — 루프는 에러도 안 보여준다).
 - ★**이슈 본문(description) 갱신엔 위 수법이 안 통한다** — `-d`·`--description` 은 개행에서 잘려 «at least one parameter…» 로 무시되고, `glab api --field "description=…"` 는 **본문을 빈 값으로 덮어써 카드를 손상**시킨다(2026-09-01 bnsone 실측 — 복구함).
 - 되는 형태 하나: `{"description": 본문}` JSON 파일 → `glab api --method PUT "projects/:id/issues/{번호}" -H "Content-Type: application/json" --input {파일} </dev/null`. ⚠️**PUT 은 통째로 갈아치운다 — 현재 본문을 받아 고친 «전체»를 넣어라.**

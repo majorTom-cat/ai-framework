@@ -149,6 +149,37 @@ test('scripts/ 도 검사 범위 — 면제 목록 밖의 스크립트는 모듈
   });
 });
 
+// SCAN_SKIP_PREFIXES 는 repo 마다 값이 다르다(킷 기본은 빈 배열) — 소스에서 실제 값을 읽어 양쪽을 다 잰다.
+const SKIP_PREFIXES = (() => {
+  const m = fs.readFileSync(CHECKER, 'utf8').match(/const SCAN_SKIP_PREFIXES = \[([^\]]*)\]/);
+  return m ? m[1].split(',').map((x) => x.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean) : [];
+})();
+
+test('경계 면제(SCAN_SKIP_PREFIXES) — 면제한 것은 통과시키되 «몇 개를 안 봤는지» 반드시 알린다 (2026-08-26)', () => {
+  // 여러 모듈 테이블을 가로지르는 일회성 도구 — 면제 폴더 안이면 정상, 밖이면 위반이다.
+  const CROSS = [
+    "import { PrismaClient } from '@prisma/client';",
+    'const prisma = new PrismaClient();',
+    'export const n = () => prisma.employee.findMany();',
+    '',
+  ].join('\n');
+  if (SKIP_PREFIXES.length === 0) {
+    // 면제가 빈 repo: 같은 파일이 **위반으로 잡혀야** 한다 — 빈 배열이 «전부 통과»로 새면 검사가 통째로 죽는다.
+    withFixture({ ...BASE, 'scripts/one-off/migrate.ts': CROSS }, (r) => {
+      const out = r.stderr + r.stdout;
+      assert.strictEqual(r.status, 1, `면제가 비었는데 scripts/ 가 무검사로 지나갔다:\n${out}`);
+      assert.doesNotMatch(out, /경계 면제/, `면제가 없는데 면제 경고가 났다:\n${out}`);
+    });
+    return;
+  }
+  const target = `${SKIP_PREFIXES[0].replace(/\/$/, '')}/migrate.ts`;
+  withFixture({ ...BASE, [target]: CROSS }, (r) => {
+    const out = r.stderr + r.stdout;
+    assert.strictEqual(r.status, 0, `면제 폴더가 위반으로 잡혔다:\n${out}`);
+    assert.match(out, /경계 면제 [1-9][0-9]*개 파일/, `면제를 조용히 지나가면 안 된다:\n${out}`);
+  });
+});
+
 test('진입점 드리프트 — SCAN_FILES 가 가리키는 파일이 없으면 소리를 낸다 (2026-08-26)', () => {
   const base = { ...BASE };
   delete base['middleware.ts'];   // 진입점이 이동·개명된 상황(스택 이주에서 실제로 일어난다)

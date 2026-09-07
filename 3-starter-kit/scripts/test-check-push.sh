@@ -29,7 +29,11 @@ mkfixture() { # $1=저장소 이름  $2=work 브랜치에서 바꿀 파일 경�
   printf '%s' "$R"
 }
 CLEAN=$(mkfixture clean src/modules/sample/x.ts)     # 공통 영역 아님 → 조용해야 한다
-COMMON=$(mkfixture common .gitlab-ci.yml)            # 공통 영역 → ask 를 내야 한다
+# ★**양성 케이스를 한 종류로 두지 마라** — bnsone 은 양성이 `.gitlab-ci.yml` 하나뿐이라 **인증 코어 9경로가 훅에서
+#   통째로 빠져 있는데도 51케이스가 전부 초록**이었다(2026-09-04 실측). 공통 영역의 «갈래마다» 하나씩 둔다.
+COMMON=$(mkfixture common .gitlab-ci.yml)            # 공통 영역(CI 설정) → ask 를 내야 한다
+CHECKER=$(mkfixture checker scripts/check-density.sh)  # 검사기 자신 → ask (게이트를 느슨하게 하는 변경도 알린다)
+SHARED=$(mkfixture shared src/shared/db.ts)          # 공용 코드 → ask
 REPO="$CLEAN"
 
 t() { # $1=ASK|SILENT  $2=기대 사유 조각(ASK일 때, - 면 무시)  $3=명령   ※$REPO 저장소에서 실행
@@ -115,6 +119,10 @@ REPO="$COMMON"
 t ASK '공통 영역' 'git push origin work'
 t ASK '공통 영역' 'git push -n origin work'                 # dry-run 이어도 알린다
 t ASK 'force push 감지' 'git push -f origin work'           # force 가 공통영역보다 우선
+REPO="$CHECKER"
+t ASK '공통 영역' 'git push origin work'                    # 검사기 자신 — 게이트를 느슨하게 하는 변경도 알린다
+REPO="$SHARED"
+t ASK '공통 영역' 'git push origin work'                    # 공용 코드
 REPO="$CLEAN"
 t SILENT - 'git push origin work'                           # 공통 영역이 아니면 조용
 

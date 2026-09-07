@@ -108,11 +108,14 @@ CHANGED=$(printf '%s\n' "$CHANGED" | sed 's/^"//; s/"$//')
 
 # 공통 영역 패턴 — **프로젝트에 맞게 수정**: `.gitlab-ci.yml`의 `high-risk-gate` `changes:` 목록과 1:1로 맞춘다.
 # (CI가 고위험이라 부르는 경로를 로컬 훅이 침묵하면 이중화의 앞단이 비고 CI만 남는다.)
-# ★이 1:1은 시간이 지나면 어긋난다(CI에만 경로를 추가하기 쉽다) — 정기 대조는 `/overhaul` 코드 갈래의 '규칙↔실측' 축이 맡는다.
+# ★이 1:1은 시간이 지나면 어긋난다(CI에만 경로를 추가하기 쉽다). **「정기 대조는 /overhaul 이 맡는다」로는 안 잡혔다** —
+#   아무도 안 돌려서 3주간 어긋난 채였다(2026-09-04 bnsone 실측: 인증 코어 9경로가 훅에서 통째로 빠졌고, 검사기 11개가 CI 게이트 밖이었다).
+#   ⇒ **훅과 CI 를 기계로 대조하는 검사를 CI 에 둬라** — 한쪽에만 경로를 더하면 CI 가 빨개진다(bnsone 실물: `scripts/test-guard-coverage.sh`).
 # 스택 치환 지점: 마이그레이션 경로(`db/migrations/` — Prisma면 `prisma/`)·라우팅 핫스팟 파일(스택마다 위치가 다르다).
-# scripts/ 는 **게이트 실물만** 열거한다 — 전체를 걸면 스파이크·작업 코드까지 매번 확인창이 떠 도장찍기가 된다.
+# scripts/ 는 **이름 규약으로 잡아라**(`check-*`·`test-*`·`notify-*`·`extract-*`). `scripts/**` 전체를 걸면 스파이크·작업 코드까지
+#   매번 확인창이 떠 도장찍기가 되고, 반대로 **하나씩 열거하면 신설 검사기를 계속 빠뜨린다**(2026-09-04 bnsone 실측).
 # ★lockfile·package.json은 루트 앵커(^) 밖 — 모노레포 하위(`apps/web/package.json`)를 못 잡았다.
-HITS=$(printf '%s\n' "$CHANGED" | grep -iE '^(src/shared/|\.claude/|\.gitlab/|\.husky/|db/migrations/|CLAUDE\.md$|\.gitattributes$|\.gitlab-ci\.ya?ml$|docker-compose\.ya?ml$|Dockerfile$|scripts/(check-boundaries\.cjs|check-density\.sh|gen-module\.cjs)$)|(^|/)(middleware|proxy)\.[a-z.]+$|(^|/)package(-lock)?\.json$|(^|/)(yarn\.lock|pnpm-lock\.yaml)$' || true)
+HITS=$(printf '%s\n' "$CHANGED" | grep -iE '^(src/shared/|\.claude/|\.gitlab/|\.husky/|db/migrations/|CLAUDE\.md$|\.gitattributes$|\.gitlab-ci\.ya?ml$|docker-compose\.ya?ml$|Dockerfile$|scripts/(check|test|notify|extract)-[A-Za-z0-9._-]*\.(sh|cjs|ts)$|scripts/gen-module\.cjs$)|(^|/)(middleware|proxy)\.[a-z.]+$|(^|/)package(-lock)?\.json$|(^|/)(yarn\.lock|pnpm-lock\.yaml)$' || true)
 [ -z "$HITS" ] && exit 0
 
 N=$(printf '%s\n' "$HITS" | grep -c .)

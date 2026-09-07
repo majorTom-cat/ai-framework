@@ -16,6 +16,9 @@ const path = require('path');
 const MODULE_ROOT = 'src/modules';
 // 검사 범위(bnsone 값): 모듈 + 공용(shared) + App Router 전체(route.ts·layout·page — 라우트 계층은 모듈 index만 import 가능) + 테스트
 const SCAN_ROOTS = [MODULE_ROOT, 'src/shared', 'src/app', 'test', 'scripts', 'prisma']; // scripts·prisma 포함: 시드·배치가 모듈 내부를 직접 파고들어도 잡는다(2026-08-19 감사 지적 → bnsone 선행 적용분 역수거)
+// ★**진입점을 새로 만들거나 옮기면 여기에 반영해라** — 안 하면 그 파일의 import 는 아무도 안 본다.
+//   실제로 관문이 `middleware.ts` → `src/proxy.ts` 로 이주했는데 여기만 안 따라와, 없는 파일을 가리킨 채
+//   **조용히 0개를 스캔**하고 있었다(2026-09-04 bnsone 실측 — '있는데 안 도는' 형태). 아래 경고가 그래서 있다.
 const SCAN_FILES = ['middleware.ts'];
 const EXTS = new Set(['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs']);
 const ALIAS = { '@/': 'src/' }; // tsconfig "paths": {"@/*": ["./src/*"]} 기준 — 스택이 다르면 여기만 갱신
@@ -178,6 +181,8 @@ const SCHEMA_DIR = 'prisma/schema';
 const SHARED_DB_ALLOWLIST = ['src/shared/db.ts']; // 공용 클라이언트 래퍼 자리 — 여기서만 new PrismaClient 허용
 // 앱 프로세스 밖에서 도는 독립 스크립트(시드·점검 배치)는 자기 클라이언트를 만들어야 한다 — 여기 열거한 것만 예외.
 // 비우면 예외 없음. 스택 값(2026-08-26 bnsone 선행 적용분 역수거)
+// ★**여기 넣기 전에 «앱 안에서는 부를 수 없는 일인가»를 먼저 답하라** — 나머지 `scripts/` 는 모듈 코드와 같은 규칙을 받는다.
+//   이 목록이 헐거워지면 scripts/ 가 통째로 무검사가 된다(2026-09-04 bnsone 실측).
 const STANDALONE_DB_SCRIPTS = [];
 // ★공용 소유 — 이 파일들의 모델은 "공용 테이블"이라 모든 모듈이 접근 가능하다(소유 검사 제외).
 //   bnsone 실물: shared.prisma(공용 2모델). 스키마 *변경*의 게이트·공지는 별도 규칙(CI high-risk·훅)이 담당.
