@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # 승인 실행(사용자 1회) — 게이트 ▶ → 파이프라인 종결초록 → 머지 → main 종결초록
 # 사용: bash approve.sh <repo경로> <MR번호>
+# ★환경변수 SKIP_MAIN_WAIT=1 이면 **머지까지만 하고 돌려준다** — main 파이프라인 초록 대기를 건너뛴다.
+#   왜: 머지되는 순간 사람의 일은 끝났는데, 그 뒤 main 검사를 기다리느라 오너가 8분을 더 붙잡혔다
+#   (2026-09-07 실측: bnsone 승인 22분 중 main 대기가 8분 · 오너 「너무 느린데」). 확인 자체는
+#   포기하지 말고 **호출한 쪽이 뒤에서 지켜보다 빨간불일 때만 알린다.**
 # ★수정(2026-08-12): 게이트 잡은 앞 단계가 끝나야 manual 이 된다 — 시작 시 한 번만 찾으면 놓친다.
 #   대기 루프가 '게이트대기'를 만나면 그 자리에서 눌러야 진행된다(옛 스크립트는 이 분기가 없어 15분을 헛기다렸다).
 # ★수정2(2026-08-12 저녁): MR 파이프라인 ID 를 시작 시 한 번만 잡으면, 그 사이 새 커밋이 push 되면
@@ -86,6 +90,9 @@ done
 # 405 Method Not Allowed 의 대표 원인 = head 커밋의 파이프라인이 아직 안 끝났다(위에서 갈아탐).
 [ -z "$MERGED" ] && { echo "⛔ 머지 실패 — head 파이프라인 $(head_pipe "$MR") 상태를 웹에서 확인"; exit 1; }
 
+if [ "${SKIP_MAIN_WAIT:-}" = "1" ]; then
+  echo "── main 파이프라인 대기 건너뜀(SKIP_MAIN_WAIT=1) — 호출한 쪽이 뒤에서 확인한다"; exit 0
+fi
 echo "── main 파이프라인 판정"; sleep 10
 MPIPE=$(glab api "projects/:id/pipelines?ref=main&per_page=1" </dev/null | python3 -c "import json,sys;print(json.load(sys.stdin)[0]['id'])" 2>/dev/null)
 [ -z "$MPIPE" ] && { echo "⛔ main 파이프라인 조회 실패 — glab ci status 로 확인"; exit 1; }
