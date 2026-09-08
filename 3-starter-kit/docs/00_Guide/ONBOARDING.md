@@ -157,7 +157,7 @@ flowchart LR
 > 🤖 **당신이 직접 하는 건 clone·2·3과 4의 로그인뿐** — 설치 프로그램·시스템 설정·계정 인증은 AI가 대신 못 한다. **나머지(1의 의존성 설치·4의 glab 설치·5·6)는 3번까지 마치고 `/start` 한 번이면 AI가 대신 실행**하고 확인 주소를 알려준다. 명령을 외우거나 복사해 칠 필요 없다.
 1. repo clone → **의존성 설치(`npm install`)는 `/start`가 대신 실행**(3번 신뢰 수락 후) — 팀 규칙·훅(hook — git·AI 동작 직전에 자동 실행되는 안전장치)은 `.claude/` 에 동봉돼 있고 아래 3번(신뢰 수락) 때 발효된다
    (git 훅을 쓰는 프로젝트면 install 때 husky〔git 훅을 전원에게 자동 설치해주는 도구〕가 깔린다)
-   — ★**개인 설정 한 줄(처음 한 번)**: `~/.claude/settings.json` 에 `"sandbox": {"network": {"allowLocalBinding": true}}` — 킷은 AI 명령을 **울타리(샌드박스) 안에서 묻지 않고** 돌리는데(프로젝트 `.claude/settings.json` `sandbox`), 개발 서버가 **포트를 여는 것만은 개인 설정으로만** 풀린다(공식: 프로젝트 설정 불가 · 2026-09-08 실측 EPERM). 안 넣으면 `npm run dev`·테스트 서버가 울타리 안에서 실패하고 «울타리 밖에서 다시 할까» 질문이 매번 뜬다.
+   — **AI 명령은 울타리(샌드박스) 안에서 묻지 않고 돈다**(프로젝트 `.claude/settings.json` `sandbox`). 개발 서버가 **포트를 여는 허용만은 개인 설정 전용**이라(공식: 프로젝트 설정 불가 · 2026-09-08 실측 EPERM) **세션 시작 훅 `ensure-user-settings.cjs` 가 `~/.claude/settings.json` 에 자동으로 넣는다** — 첫 세션에 «[킷] 개인 설정에 자동으로 넣음» 한 줄이 뜨고 다음 세션부터 적용. 사람이 할 일 없음.
    — **(권장) Python 3 설치** — 킷의 `security-guidance` 플러그인 훅이 Python 3을 쓴다. 없으면 매 작업마다 `no working Python 3 interpreter found` 같은 **비차단 에러**가 뜬다(작업은 되나 노이즈·보안 리마인더 누락). [python.org](https://python.org)에서 설치(Windows는 Microsoft Store판 말고 python.org판). 안 쓸 팀이면 `.claude/settings.json`의 `enabledPlugins`에서 이 플러그인을 빼도 된다(권한 파일이라 **사람이** 편집 — AI는 못 고침)
 2. **(Windows 필수) 시스템 환경변수 `CLAUDE_CODE_GIT_BASH_PATH`** = Git Bash 경로(보통 `C:\Program Files\Git\bin\bash.exe`) 등록
    (Windows 검색 → "시스템 환경 변수 편집" → 환경 변수 → 새로 만들기. 막히면 AI에게 "환경변수 등록 도와줘")
