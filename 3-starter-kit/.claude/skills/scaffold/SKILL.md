@@ -1,7 +1,6 @@
 ---
 name: scaffold
-model: opus # 조직 allowlist에 없으면 무시되고 세션 모델 유지(공식 fail-soft) — CLAUDE.md '모델 소프트 플로어'가 백스톱
-effort: high
+model: opus # 조직 allowlist에 없으면 무시되고 세션 모델 유지(공식 fail-soft) — CLAUDE.md '모델·effort 소프트 플로어'가 백스톱
 description: 프로젝트 앱 뼈대(골격)를 생성한다 — Day 0 기술설계(스택·모듈)를 읽어 src 구조·docker-compose·CI·CLAUDE.md 빈칸까지 채운다. 골격 구축 Day 1에 공통 개발자가 1회.
 disable-model-invocation: true
 argument-hint: "(인자 없음 — docs/06_TechnicalDesign을 읽는다)"

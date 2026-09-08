@@ -1,6 +1,5 @@
 ---
 name: ui
-effort: high # 시안 다양성·완성도 (배정 기준: _reference/skill-tiers.md)
 description: 화면 UI를 프로젝트 디자인 시스템에 맞춰 완성도 있게 만든다 — 디자이너 없이도 일관되고 세련되게. 화면(UI)을 만들 때 /dev 안에서 또는 단독으로. "시안 {화면이름}" 인자면 구현 전 시안 후보 2~3안 생성 + 시안 선택 카드 발행, "시안 채택 {화면} {안} [#카드]"이면 체크박스 확인 후 채택 확정 모드.
 argument-hint: "[이슈번호 또는 화면 이름 / 시안 화면이름 / 시안 채택 화면이름 안 #카드번호]"
 allowed-tools: Read Glob Grep Edit Write Bash(npm *) Bash(git *) Bash(glab *)

@@ -1,6 +1,5 @@
 ---
 name: overhaul
-effort: high # 전 문서 횡단 판정 — 놓친 드리프트가 다음 세션의 정본이 된다 (배정 기준: _reference/skill-tiers.md)
 description: 문서 전수 재정리 — 병렬 fresh-context 에이전트로 전 문서를 영역별로 나눠 읽고 중복·모순·낡음·자리·비대를 수거해 정리안을 만든다. 문서가 많이 바뀌고 쌓였을 때 사용자가 호출.
 argument-hint: "[범위 경로·자연어 지시 (비면 저장소 전체)]"
 disable-model-invocation: true

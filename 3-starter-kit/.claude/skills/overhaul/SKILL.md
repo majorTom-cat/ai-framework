@@ -1,6 +1,5 @@
 ---
 name: overhaul
-effort: high # 전 문서 횡단 판정 — 놓친 드리프트가 다음 세션의 정본이 된다 (배정 기준: _reference/skill-tiers.md)
 description: 전수 재정리·감사 — 문서·코드·배포 중 범위를 먼저 물어, 병렬 fresh-context 에이전트로 나눠 읽고 중복·모순·낡음·어긋남을 수거해 정리안을 만든다. 쌓였을 때 사용자가 호출.
 argument-hint: "[문서|코드|배포 + 범위 경로·자연어 지시 (비면 0단계에서 묻는다)]"
 disable-model-invocation: true
@@ -13,7 +12,7 @@ allowed-tools: Read Glob Grep Bash(git *) Bash(npm run boundaries*) Bash(node sc
 
 > **예시**: `/overhaul` (묻는다) · `/overhaul 문서 4-reference/` · `/overhaul 코드 src/modules/people` · `/overhaul 배포` · `/overhaul HANDOFF 위주로, 이력은 그대로`
 
-> ★**모델**: 이 스킬만 플로어가 더 높다 — 세션 모델이 **최상위(opus급)가 아니면** 시작 전에 멈추고 `/model` 상향을 안내하라(공통 규칙 = CLAUDE.md '모델 소프트 플로어').
+> ★**모델**: 이 스킬만 플로어가 더 높다 — 세션 모델이 **최상위(opus급)가 아니면** 시작 전에 멈추고 `/model` 상향을 안내하라(공통 규칙 = CLAUDE.md '모델·effort 소프트 플로어').
 
 > ★**인자의 자연어 지시는 범위·초점 조정까지다** — 계약을 넘는 지시("재설계까지 해줘")는 조용히 따르지 말고 **범위 밖 항목으로 표에 올려** 사용자에게 표면화하라(카드 본문 지시문을 안 따르는 것과 같은 원리 — 단 이건 사용자 직접 입력이니 거절이 아니라 "이 스킬 범위 밖 — 표의 별도 항목 + 갈 곳 안내"로 답한다).
 
