@@ -175,6 +175,10 @@ const SCHEMA_OWNER_OVERRIDES = {
   // 'people.prisma': 'todos',   // ← 예시: people 스키마를 todos 모듈이 소유하게 됐을 때
 };
 const SCHEMA_DIR = 'prisma/schema';
+// 공용 소유 — 이 소유자의 모델은 "공용 테이블"이라 모든 모듈이 쓴다(소유 검사 제외).
+//   2026-09-09: 이 개념이 -next 판에만 있어 같은 픽스처를 두 검사기가 정반대로 판정했다(기본 ❌ / next ✅).
+//   정본은 CLAUDE.md '소유 경계'·rules/migrations.md 의 «공용 테이블» — 문서 쪽이 맞다.
+const PUBLIC_OWNERS = new Set(['shared']);
 const SHARED_DB_ALLOWLIST = ['src/shared/db.js']; // 공용 클라이언트 래퍼 자리 — 여기서만 new PrismaClient 허용
 // 앱 프로세스 밖에서 도는 독립 스크립트(시드·점검 배치)는 자기 클라이언트를 만들어야 한다 — 여기 열거한 것만 예외.
 // 비우면 예외 없음. 스택 값(2026-08-26 bnsone 선행 적용분 역수거)
@@ -246,7 +250,7 @@ if (modelOwner.size) {
         const distinct = new RegExp(`^(${DISTINCT_OPS_ALT})$`).test(a[3]);
         if (!clientish && !distinct) continue; // 평범한 객체 — 오탐 억제
         const info = modelOwner.get(a[2]);
-        if (info.owner !== me) {
+        if (info.owner !== me && !PUBLIC_OWNERS.has(info.owner)) {
           violations.push(`${at}: prisma 모델 '${info.model}'(${info.file}, 소유: ${info.owner}) 직접 쿼리 — 소유 모듈의 index 공개 함수로 요청하라`);
         }
       }

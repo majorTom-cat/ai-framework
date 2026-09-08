@@ -4,7 +4,7 @@ effort: xhigh # 배정표 = _reference/skill-tiers.md
 description: 이슈 마무리 루틴 — 머지 전 검사부터 MR 생성·카드 처리까지. 개발 완료 후 사용자가 호출.
 disable-model-invocation: true
 argument-hint: "[이슈번호]"
-allowed-tools: Read Edit Write Glob Grep Bash(git *) Bash(glab *) Bash(npm *) Bash(node scripts/pipeline-verdict.cjs*) Bash(docker compose *) Bash(taskkill *) Bash(netstat *) Bash(lsof *) Bash(kill *)
+allowed-tools: Workflow Read Edit Write Glob Grep Bash(git *) Bash(glab *) Bash(npm *) Bash(node scripts/pipeline-verdict.cjs*) Bash(docker compose *) Bash(taskkill *) Bash(netstat *) Bash(lsof *) Bash(kill *)
 ---
 
 # /done — 이슈 #$0 마무리

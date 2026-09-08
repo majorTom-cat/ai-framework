@@ -4,7 +4,7 @@ effort: max # 배정표 = _reference/skill-tiers.md (킷 원본과 같아야 한
 description: 전수 재정리·감사 — 문서·코드·배포 중 범위를 먼저 물어, 병렬 fresh-context 에이전트로 나눠 읽고 중복·모순·낡음·어긋남을 수거해 정리안을 만든다. 쌓였을 때 사용자가 호출.
 argument-hint: "[문서|코드|배포 + 범위 경로·자연어 지시 (비면 0단계에서 묻는다)]"
 disable-model-invocation: true
-allowed-tools: Read Glob Grep Bash(git *) Bash(npm run boundaries*) Bash(node scripts/check-boundaries*) Bash(glab *) Bash(ssh *) Bash(kubectl get *) Bash(kubectl describe *) Bash(curl -sI *) Agent
+allowed-tools: Workflow Read Glob Grep Bash(git *) Bash(npm run boundaries*) Bash(node scripts/check-boundaries*) Bash(glab *) Bash(ssh *) Bash(kubectl get *) Bash(kubectl describe *) Bash(curl -sI *) Agent
 ---
 
 # /overhaul — 전수 재정리·감사: "$ARGUMENTS"
