@@ -416,6 +416,8 @@ Framework의 Playbook은 사람이 읽는 문서였다. AI 에이전트 팀에�
 | --- | --- | --- | --- |
 | 1 | main 보호 | Settings → Repository → Protected branches | 직접 push 금지(MR로만), Merge 허용 = Developer 이상 |
 | 2 | 파이프라인 필수 | Settings → Merge requests | **"Pipelines must succeed"** 켜기 — CI 초록불 없으면 머지 버튼이 안 눌림 (무료 기능). ★**merged results 파이프라인("main과 합쳐진 결과로 CI")은 GitLab Premium 전용 — 무료 티어(self-hosted CE)엔 없다(파일럿 실측: `merge_pipelines_enabled` 미지원).** 그래서 "각각 GREEN인데 합치면 깨지는 의미 충돌"을 머지 전에 못 잡는다. **무료 티어 대체책**: ①`/done`이 **머지 직전 `git pull origin main` → 병합 → 테스트**를 강제(브랜치가 최신 main과 합쳐 green인지 로컬 확인 — 이게 1차 방어) ②그래도 auto-merge 대기 중 다른 MR이 끼면 사각이니, **main 파이프라인(머지 후)이 깨지면 즉시 revert**(전원 공통 규칙 "main 깨지면 revert 최우선")로 사후 복구. 유료 티어면 merged results로 승격 |
+> ⚠️ **대체됨(2026-09-09)**: 아래 #3 의 security·guard 스테이지(SAST·의존성 스캔·중복 경고)는 **킷에 미구현**이다. 실제로 도는 잡 목록 정본 = 킷 `.gitlab-ci.yml`(지금은 `secret-scan`·`tamper-check` 가 그 자리를 맡는다).
+
 | 3 | CI/CD | `.gitlab-ci.yml` | test 스테이지(빌드+테스트+타입+경계검사+빈 DB 마이그레이션) + **security 스테이지(SAST·시크릿·의존성=차단)** + **guard 스테이지(중복 경고·테스트 변조 차단)** + **고위험 경로 manual gate**(db/migrations·인증·shared) → main이면 deploy 스테이지(검수 서버 자동 배포). 문서만 바뀐 커밋은 rules:changes로 test 생략. **사람 리뷰가 없으니 이 CI 층이 유일한 자동 안전망 — 공통 개발자 가이드 Day 2 P1** |
 | 4 | 이슈 보드 | Issue Boards | 열: Open(대기) / 진행중 / 검수요청 / Closed(완료) — 가운데 두 열은 같은 이름의 **상태 라벨**로 만든다. 라벨 세트(정본 = 킷 `/setup-gitlab`): **상태 `진행중`·`검수요청`** + 모듈별(개수는 `/design`이 정한 만큼 — 4개 고정 아님) + `shared` + `docs` + **`무효`**(기획 변경으로 필요 없어진 카드 — 12절) + **`고위험`**(인증·결제·DB 마이그레이션·shared 승격·핫스팟 — 머지 전 동료 1명 승인, §5) + **`대기(불명확)`**(수용 기준 모호로 착수 보류). ★스킬이 적용하므로 미리 생성 필수 |
 | 5 | 공통 영역 경고 | `.gitlab-ci.yml` | MR이 `src/shared/`·공용 테이블·루트 CLAUDE.md를 건드리면 파이프라인에 **경고 표시 + 전 모듈 테스트 확대 실행** (차단 아님 — 로컬 AI 경고·채팅 공지를 잊었을 때의 안전망) |
@@ -544,6 +546,8 @@ flowchart TD
 
 **시작 전 (공통 개발자)**
 - [ ] 앱 뼈대 + docker-compose(db→migrate→app 자동 기동)가 준비됨
+> ⚠️ **대체됨(2026-09-08)**: `/done` 의 리뷰는 저장 워크플로 `/merge-review` 다(없으면 `/code-review xhigh`). **`ultra` 는 별도 과금이라 금지.** 아래에서 «/code-review» 라고만 적힌 자리는 이 규칙으로 읽어라.
+
 - [ ] CI(빌드+테스트+타입+경계검사+빈 DB 마이그레이션 **+ 보안 스캔 + 중복·변조 guard + 고위험 경로 manual gate**)와 main 자동 배포가 동작함 — 사람 리뷰 없는 구조의 자동 안전망이라 P1 (전부 무료). AI 리뷰는 `/done`의 `/code-review`(개발자 구독)가 담당 — CI 자동 잡은 별도 API 결제라 P2 선택
 - [ ] GitLab 설정 완료 (main 보호 · Pipelines must succeed · 이슈 보드 · 공통 영역 경고 · **라벨 생성: 고위험·무효·대기(불명확)** · 유료 티어면 고위험 승인 규칙)
 - [ ] package-lock 충돌 안전판(`.gitattributes`에 `package-lock.json merge=binary`)이 repo에 등록됨 — **자동 머지 드라이버는 두지 않는다**(8절)
@@ -559,6 +563,8 @@ flowchart TD
 - [ ] repo 루트에서 이 이슈 전용 새 세션을 시작했다 (이어갈 이슈면 `-n issue-<번호>` 이름은 선택)
 - [ ] 최신 main에서 브랜치를 팠다
 - [ ] 머지 전: 최신 main 반영 → 테스트 → AI 리뷰를 돌렸다
+> ⚠️ **대체됨(2026-09-09)**: 머지 등급·라벨 세트의 정본은 킷 `CLAUDE.md` '머지 등급' 과 `/setup-gitlab` 3단계다(`셀프승인` 라벨이 표준, 되돌리기 쉬운 경로는 ▶ 없이 자동 통과). 아래의 «동료 1명 승인» 은 옛 규칙이다.
+
 - [ ] CI 초록불을 확인하고 셀프 머지했다 (공통 영역이면 AI 경고 확인 + 채팅 공지 후 · **고위험 경로면 동료 1명 승인 후**)
 - [ ] **검수요청 전에 배포된 화면을 내가 직접 열어 확인했다** (AI의 "완료" 보고만 믿지 않기)
 - [ ] 브랜치가 이틀을 넘기지 않았다
