@@ -49,8 +49,6 @@
       "Bash(curl *)"
     ],
     "deny": [
-      "Read(.env)",
-      "Read(.env.*)",
       "PowerShell(git push * --force*)",
       "PowerShell(git push --force*)",
       "PowerShell(git push -f*)",
