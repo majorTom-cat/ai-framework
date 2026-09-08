@@ -358,6 +358,22 @@ high-risk-gate:
   variables:
     GATE_REASON: "고위험 경로 변경(shared·마이그레이션·의존성·lock 등)"
   rules:
+    # ★2026-09-09 오너 결정 «위험한 것만 묻기» — 되돌리기 어려운 경로는 라벨과 무관하게 ▶ 를 유지한다.
+    #   09-08 의 «셀프승인 라벨이면 전 경로 자동 통과» 를 전 경로에 걸었더니 **MR 에서 사람이 반드시 서는
+    #   지점이 0** 이 됐다(2026-09-09 전면 감사 — 편집→커밋→push→라벨→게이트→머지가 전부 AI 한 손에 있었다).
+    #   되돌리기 쉬운 쪽(shared·마이그레이션·의존성·lock·검사기)은 아래 규칙 그대로 라벨로 자동 통과하고,
+    #   **방어선 자신·CI·AI 규칙·git 훅·배포 매니페스트만** 사람이 누른다(그 경로는 드물어 클릭 수는 거의 안 는다).
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: &high-risk-hard
+        - CLAUDE.md                       # AI 팀 규칙 본문 — 방어선 자신
+        - .gitlab-ci.yml                  # 게이트 자신
+        - .gitlab/**/*                    # 이슈·MR 템플릿
+        - .claude/**/*                    # 스킬·rules·settings.json(권한·훅)·훅 스크립트
+        - .husky/**/*                     # git 훅 실물
+        - .gitattributes                  # 줄바꿈 규칙
+        - k8s/**/*                        # 배포 매니페스트 — 머지 즉시 클러스터 반영, 버튼 없음
+      when: manual
+      allow_failure: false
     # ★2026-09-08 오너 결정: MR 에 `셀프승인` 라벨이 «파이프라인 생성 전에» 붙어 있으면 ▶ 없이 자동 실행된다.
     #   판정 스크립트는 그대로 돌아 «✅ 본인 통과(경고 레인)» 로그를 남긴다 — 승인의 실체는 증적 3종+라벨이고
     #   ▶ 클릭은 정보량 0 이었다(8/6 실측 게이트 24건 중 18건 본인 실행). 라벨 없는 MR 은 아래 manual 규칙(동료 레인) 그대로.
@@ -400,9 +416,8 @@ high-risk-label-gate:
   variables:
     GATE_REASON: "MR 에 '고위험' 라벨이 붙어 있음(경로 목록과 무관)"
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_LABELS =~ /고위험/ && $CI_MERGE_REQUEST_LABELS =~ /(^|,)셀프승인(,|$)/'
-      when: on_success          # 셀프승인 라벨 = 자동 통과(위 high-risk-gate 와 같은 결정)
-      allow_failure: false
+    # ★2026-09-09 오너 결정 «위험한 것만 묻기» — `고위험` 라벨은 «경로로 못 잡는 위험»(인증·결제 로직)이
+    #   붙는 자리다. 그 정의상 되돌리기 어려운 쪽이므로 셀프승인 라벨로도 자동 통과시키지 않는다.
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_LABELS =~ /고위험/'
       when: manual
       allow_failure: false
