@@ -491,11 +491,11 @@ planner-guard:
       CH=""
       ZERO="0000000000000000000000000000000000000000"
       if [ -n "${CI_COMMIT_BEFORE_SHA:-}" ] && [ "$CI_COMMIT_BEFORE_SHA" != "$ZERO" ]; then
-        CH=$({ git log --name-only --pretty=format: "$CI_COMMIT_BEFORE_SHA".."$CI_COMMIT_SHA" 2>/dev/null || true; } | sed '/^$/d' | sort -u)
+        CH=$({ git -c core.quotepath=false log --name-only --pretty=format: "$CI_COMMIT_BEFORE_SHA".."$CI_COMMIT_SHA" 2>/dev/null || true; } | sed '/^$/d' | sort -u)
       fi
       # 폴백 — 새 브랜치 첫 push는 BEFORE_SHA가 0으로 채워진 SHA다(MR 파이프라인도 동일). 그땐 종전대로 마지막 커밋만 본다.
       if [ -z "$CH" ]; then
-        CH=$(git show --name-only --pretty=format: "$CI_COMMIT_SHA" | sed '/^$/d')
+        CH=$(git -c core.quotepath=false show --name-only --pretty=format: "$CI_COMMIT_SHA" | sed '/^$/d')
       fi
       echo "변경 파일:"; echo "$CH"
       BAD=$(echo "$CH" | grep -vE '^(docs/|README)' || true)

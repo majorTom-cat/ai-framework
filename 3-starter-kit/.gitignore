@@ -6,3 +6,4 @@ CLAUDE.local.md
 # 잠금 본체 + 훅이 쓰는 임시본(.self<pid>·.tmp<pid>) — mv/rm 이 둘 다 실패하면 잔해가 남는다.
 # ★.gitignore 는 줄 끝 주석을 지원하지 않는다 — 같은 줄에 붙이면 패턴의 일부가 된다.
 .claude/.session-lock*
+docs/inbox/_tmp/

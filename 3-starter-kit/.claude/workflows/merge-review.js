@@ -62,7 +62,7 @@ if (a.externalSurface) {
 phase('Find')
 log(`merge-review: ${card} · base ${base} · 렌즈 ${LENSES.map(l => l.key).join(', ')}`)
 const found = await parallel(LENSES.map(l => () =>
-  agent(`fresh-context 코드 리뷰어. 이 diff 를 쓴 사람이 아니다 — 자기 결과를 옹호할 이유가 없다.\n${l.prompt}`, { label: `find:${l.key}`, phase: 'Find', schema: FINDINGS })
+  agent(`fresh-context 코드 리뷰어. 이 diff 를 쓴 사람이 아니다 — 자기 결과를 옹호할 이유가 없다.\n${l.prompt}`, { label: `find:${l.key}`, phase: 'Find', schema: FINDINGS, effort: 'xhigh' })
     .then(r => r ? { lens: l.key, ...r } : null)))
 
 const finders = found.filter(Boolean)
