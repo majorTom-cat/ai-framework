@@ -126,5 +126,14 @@ t ASK '공통 영역' 'git push origin work'                    # 공용 코드
 REPO="$CLEAN"
 t SILENT - 'git push origin work'                           # 공통 영역이 아니면 조용
 
+echo "── I. push 대상이 «지금 폴더»가 아닐 때 (2026-09-09 — 훅이 엉뚱한 저장소를 검사하던 구멍)"
+# ★킷 동기는 워크트리에서 `git -C <경로> push` 로 올린다 — 예전 훅은 언제나 현재 폴더만 diff 해서
+#   공통영역 저장소를 -C 로 올리면 무음, 깨끗한 저장소를 -C 로 올리면 오탐 ask 였다.
+REPO="$CLEAN"
+t ASK '공통 영역' "git -C $COMMON push origin work"          # 대상이 공통영역 → 현재 폴더가 깨끗해도 알린다
+t ASK '공통 영역' "cd $COMMON && git push origin work"       # cd 형태도 같다
+REPO="$COMMON"
+t SILENT - "git -C $CLEAN push origin work"                  # 대상이 깨끗 → 현재 폴더가 공통영역이어도 조용(오탐 금지)
+
 echo "──────── $pass OK / $fail FAIL"
 [ "$fail" -eq 0 ] || exit 1

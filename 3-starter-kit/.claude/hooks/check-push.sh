@@ -102,7 +102,13 @@ fi
 # 원격 main 대비 변경 파일. 실패(=ref 없음·repo 밖)는 "모름" — 무출력으로 일반 권한 체계에 위임(allow 반환 = fail-open 금지).
 # core.quotepath=false: 한글 경로가 8진 이스케이프로 나오면 앵커가 빗나간다(실측). diff.renames=false: rename이 도착 경로만
 # 남아 공통 영역에서 "빼내는" 이동이 침묵한다(실측) — 원본·도착 둘 다 보이게 끈다.
-CHANGED=$(git -c core.quotepath=false -c diff.renames=false diff --name-only origin/main...HEAD 2>/dev/null) || exit 0
+# ★push 대상이 «지금 폴더»가 아닐 수 있다 — `git -C <경로> push` 나 `cd <경로> && git push`(킷 동기가 워크트리에서
+#   쓰는 바로 그 형태다). 그대로 두면 엉뚱한 저장소를 검사한다: 공통영역 repo 를 -C 로 push 하면 무음, 반대로
+#   깨끗한 repo 를 -C 로 push 하면 오탐 ask 가 났다(2026-09-09 격리 저장소 실측 3건).
+TARGET=$(printf '%s' "$CMD" | grep -oE 'git[[:space:]]+-C[[:space:]]+[^[:space:]]+' | head -1 | awk '{print $NF}')
+[ -z "$TARGET" ] && TARGET=$(printf '%s' "$CMD" | grep -oE '(^|[;&|(])[[:space:]]*cd[[:space:]]+[^[:space:];&|)]+' | head -1 | sed 's/.*cd[[:space:]][[:space:]]*//; s/[[:space:]]*$//')
+[ -n "$TARGET" ] && [ -d "$TARGET" ] || TARGET=.
+CHANGED=$(git -C "$TARGET" -c core.quotepath=false -c diff.renames=false diff --name-only origin/main...HEAD 2>/dev/null) || exit 0
 [ -z "$CHANGED" ] && exit 0
 CHANGED=$(printf '%s\n' "$CHANGED" | sed 's/^"//; s/"$//')
 
