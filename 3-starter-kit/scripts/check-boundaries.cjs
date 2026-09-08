@@ -191,10 +191,15 @@ const OPS_ALT = PRISMA_OPS.join('|');
 const DISTINCT_OPS_ALT = 'findMany|findUnique|findUniqueOrThrow|findFirst|findFirstOrThrow|createMany|createManyAndReturn|updateMany|deleteMany|upsert|aggregate|groupBy';
 
 const modelOwner = new Map(); // clientProp(소문자 시작) → { model, owner, table, file }
-if (fs.existsSync(SCHEMA_DIR)) {
-  for (const f of fs.readdirSync(SCHEMA_DIR)) {
+// ★2026-09-09: Prisma 기본값은 폴더가 아니라 한 파일(prisma/schema.prisma)이다 — 폴더만 보면 그런 repo 는
+//   DB 경계 검사가 통째로 꺼진 채 «✅ 초록» 이 나온다(실측: 남의 모델 직접 쿼리가 EXIT=0). 폴더가 없으면 그 파일도 읽는다.
+const SCHEMA_ENTRIES = fs.existsSync(SCHEMA_DIR)
+  ? fs.readdirSync(SCHEMA_DIR).map(f => [f, path.join(SCHEMA_DIR, f)])
+  : (fs.existsSync('prisma/schema.prisma') ? [['schema.prisma', 'prisma/schema.prisma']] : []);
+if (SCHEMA_ENTRIES.length) {
+  for (const [f, full] of SCHEMA_ENTRIES) {
     if (!f.endsWith('.prisma')) continue;
-    const src = fs.readFileSync(path.join(SCHEMA_DIR, f), 'utf8');
+    const src = fs.readFileSync(full, 'utf8');
     const owner = SCHEMA_OWNER_OVERRIDES[f] || f.replace(/\.prisma$/, '');
     let mb;
     const blockRe = /model\s+(\w+)\s*\{([\s\S]*?)\n\}/g;
@@ -334,7 +339,7 @@ if (process.argv.includes('--map')) {
 
 // ── 결과 ──────────────────────────────────────────────────────────
 // ★"검사했다"와 "안 봤다"를 구분해 말한다 — DB 검사 비활성인데 "DB 접근 경계 안"이라고 하면 거짓 보증이다.
-if (!modelOwner.size) warnings.push(`DB 경계 검사 비활성 — ${SCHEMA_DIR} 에 모델 없음(Prisma 스택 아니면 정상). DB 경계는 리뷰 몫`);
+if (!modelOwner.size) warnings.push(`DB 경계 검사 비활성 — ${SCHEMA_DIR}/ 에도 prisma/schema.prisma 에도 모델이 없다. Prisma 를 안 쓰면 정상이지만 **쓰는데 못 찾은 것일 수도 있다**(그때는 DB 경계가 꺼진 채 초록이 나온다). DB 경계는 리뷰 몫`);
 if (warnings.length) console.warn('⚠️ 경고(막지 않음):\n' + warnings.join('\n'));
 if (violations.length) {
   console.error('❌ 모듈 경계 위반:\n' + violations.join('\n'));

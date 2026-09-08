@@ -140,7 +140,7 @@
     ],
     "network": {
       "allowedDomains": [
-        "gitlab.bns.co.kr",
+        "<사내GitLab주소>",
         "registry.npmjs.org",
         "*.npmjs.org",
         "*.npmjs.com"

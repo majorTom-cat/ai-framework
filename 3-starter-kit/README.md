@@ -6,7 +6,7 @@
 
 ## 사용법 (공통 개발자, 5분)
 
-1. 이 폴더의 `CLAUDE.md`, `.claude/`, `docs/`, `_reference/`, `scripts/`, `.gitlab/`, `.gitlab-ci.yml` 을 **새 repo 루트에 복사**
+1. 이 폴더의 `CLAUDE.md`, `.claude/`, `docs/`, `_reference/`, `scripts/`, `test/`, `.gitlab/`, `.gitlab-ci.yml`, `.gitignore` 을 **새 repo 루트에 복사**
    - ⛔**`_reference/`·`scripts/`를 빠뜨리지 마라** — `CLAUDE.md`가 `_reference/`의 실전 노트 전부를 본문에서 가리키므로 빠지면 새 repo에서 전부 깨진 링크가 되고, `.gitlab-ci.yml`의 `density-check` 잡이 `bash scripts/check-density.sh`를 실행하므로 빠지면 **매 MR마다 그 잡이 실패**한다(`allow_failure`라 빨간불 없이 조용히 죽어 아무도 모른다).
    - `docs/` 안에 **`_STEP_INDEX.md`(진행 지도)와 `00_Guide/`(사람이 읽는 가이드 3종: GitLab 실전·공통 개발자·ClaudeCode + 시안 허브 문서 2종: sian-hub-setup·sian-scenarios + 검수 서버 세팅 1종: review-server-setup)가 이미 들어 있다** — 별도로 챙길 것 없이 통째로 복사되면 된다. (가이드 3종의 정본은 `../2-team-dev/`, `review-server-setup.md`의 정본은 `../4-reference/`판 — 킷 동봉본과 어긋나면 정본이 맞으니 로직만 다시 가져오고 **사내 상수는 플레이스홀더로 유지**한다)
    + `ONBOARDING.md`(개발자·공통 개발자 첫날/매일)는 **`docs/00_Guide/`에 들어 있다**(단일본 — README 링크가 거길 가리킨다. ※과거 루트 사본은 드리프트해서 7-23 제거 — 사본을 늘리지 말 것)
@@ -17,14 +17,14 @@
    - **`<기동명령>`** → 로컬 앱 기동 명령 (CLAUDE.md '실행·테스트' 절이 전 문서 명령의 정본)
    - `<검수서버URL>` → 자동 배포 주소 (★검수자가 자기 자리에서 접속할 **공용 주소**. 아직 없으면 임시로 localhost를 넣되 **"공용 주소 전환" 카드를 바로 발행** — 위반 상태를 카드 없이 방치 금지)
    - `<시안허브URL>` → 화면 시안 열람 주소 (CLAUDE.md ★실행 절·`/ui 시안`이 사용. 세팅은 인스턴스에 1회 — `docs/00_Guide/sian-hub-setup.md`. 아직 없으면 리터럴로 두면 `/ui 시안`이 세팅부터 안내한다)
-   - `<사내GitLab주소>` (ONBOARDING의 glab 로그인) / `<팀채팅주소>` → 실제 채팅 채널
+   - `<사내GitLab주소>` (ONBOARDING의 glab 로그인 · **`.claude/settings.json` 의 `sandbox.network.allowedDomains` 도 같은 자리다**) / `<팀채팅주소>` → 실제 채팅 채널
    - **CLAUDE.md 모듈 소유 표** → 팀 태울 때 소유자 기입 (본보기 모듈 이관 포함 — 비워두면 /card 배정·/start 진단 불능)
    - `.claude/hooks/check-push.sh`의 **공통 영역 감지는 파일 경로 기준**이다(테이블 이름이 아니다 — `src/shared/`·`.claude/`·`db/migrations/`·`CLAUDE.md`·CI/컨테이너 설정·lockfile·middleware). repo 폴더 구조가 킷과 다르면 그 `grep -iE` 패턴의 **경로**를 실제 구조에 맞게 고쳐라. ※테이블명 치환은 필요 없다 — 스크립트에 테이블 이름은 없다
    - **`.claude/rules/*.md`의 `paths:` 글롭** → 실제 repo 폴더 구조에 맞게 (구조가 다르면 규칙이 조용히 죽는다)
    - `.claude/rules/migrations.md`의 `<확장자>` → 마이그레이션 도구 표준(.sql/.ts 등).
      **DB·마이그레이션 없는 스택이면**: rules/migrations.md 삭제 + CLAUDE.md '스키마·데이터' 절 제거 + /done 2단계 제거
    - package-lock.json 은 **스켈레톤에 커밋**해 둔다 (untracked 로 방치하면 카드 무관 커밋에 휩쓸린다)
-3. repo `.gitignore`에 추가: `CLAUDE.local.md`, `.claude/settings.local.json`, `.env*`
+3. `.gitignore` 는 **동봉된 것을 그대로 쓴다**(`CLAUDE.local.md`·`.claude/settings.local.json`·`.env*`·세션 잠금·`docs/inbox/_tmp/` 가 들어 있다) — 손으로 더할 것 없음
 4. 커밋. **각 팀원은 clone 후 repo 루트에서 `claude` 첫 실행 → 신뢰 수락** — 그래야 권한·훅이 발효된다
    (Windows 전원: ONBOARDING 첫날 셋업의 **`CLAUDE_CODE_GIT_BASH_PATH` 환경변수 포함** — 없으면 bash 훅이 조용히 안 돈다)
 
