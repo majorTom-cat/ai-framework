@@ -358,8 +358,11 @@ high-risk-gate:
   variables:
     GATE_REASON: "고위험 경로 변경(shared·마이그레이션·의존성·lock 등)"
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes:
+    # ★2026-09-08 오너 결정: MR 에 `셀프승인` 라벨이 «파이프라인 생성 전에» 붙어 있으면 ▶ 없이 자동 실행된다.
+    #   판정 스크립트는 그대로 돌아 «✅ 본인 통과(경고 레인)» 로그를 남긴다 — 승인의 실체는 증적 3종+라벨이고
+    #   ▶ 클릭은 정보량 0 이었다(8/6 실측 게이트 24건 중 18건 본인 실행). 라벨 없는 MR 은 아래 manual 규칙(동료 레인) 그대로.
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_LABELS =~ /(^|,)셀프승인(,|$)/'
+      changes: &high-risk-paths
         - src/shared/**/*
         - db/migrations/**/*              # 스택 마이그레이션 경로로 치환 (Prisma 면 prisma/**/*)
         - "**/package.json"
@@ -378,6 +381,10 @@ high-risk-gate:
         - scripts/gen-module.cjs          # 모듈 생성기 = 새 모듈의 골격을 정한다
         # ↑ 스택 무관 고위험 경로. /scaffold가 스택 확정 후 인증·라우팅·설정 경로(라우팅 파일은 스택마다 위치가 다르다)를 여기 추가한다.
         #   경로로 못 잡는 고위험(모듈 내부 인증·결제 로직 등)은 `고위험` 라벨 + /done이 사람 승인으로 막는다 — 라벨이 정본.
+      when: on_success
+      allow_failure: false
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: *high-risk-paths
       when: manual
       allow_failure: false
 
@@ -393,6 +400,9 @@ high-risk-label-gate:
   variables:
     GATE_REASON: "MR 에 '고위험' 라벨이 붙어 있음(경로 목록과 무관)"
   rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_LABELS =~ /고위험/ && $CI_MERGE_REQUEST_LABELS =~ /(^|,)셀프승인(,|$)/'
+      when: on_success          # 셀프승인 라벨 = 자동 통과(위 high-risk-gate 와 같은 결정)
+      allow_failure: false
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_LABELS =~ /고위험/'
       when: manual
       allow_failure: false

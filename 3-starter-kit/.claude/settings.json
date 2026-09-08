@@ -124,5 +124,25 @@
         ]
       }
     ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true,
+    "excludedCommands": [
+      "docker *",
+      "docker-compose *",
+      "glab *",
+      "gh *",
+      "git *",
+      "ssh *"
+    ],
+    "network": {
+      "allowedDomains": [
+        "gitlab.bns.co.kr",
+        "registry.npmjs.org",
+        "*.npmjs.org",
+        "*.npmjs.com"
+      ]
+    }
   }
 }
