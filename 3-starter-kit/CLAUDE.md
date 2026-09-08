@@ -95,8 +95,7 @@
   - 미리보기에서 산출물 **방향이 바뀌는 수정**이 나오면 요지를 관련 카드에 댓글 한 줄(소소한 문구 손질 제외).
 - **★모델·effort 소프트 플로어 — 스킬 공통**: frontmatter `model:`·`effort:`는 세션 모델을 못 바꾼다(조직 allowlist 밖이면 무시 — 경량 모델+high effort는 여전히 경량).
   - 깊은 판단·머지·골격 스킬(`/design` `/scaffold` `/done` `/overhaul`)은 세션이 경량 모델(haiku급)이면 **시작 전에 멈추고** "`/model`로 올린 뒤 다시 그 명령"을 안내하라.
-  - ★**effort 도 같다 — `effort:` 는 «최소»가 아니라 «덮어쓰기»다**(공식: "Overrides the session effort level"). `high` 를 박으면 기본값이 high 인 세션엔 무효고, 어려운 카드라 `xhigh` 로 올려 둔 세션은 **도로 끌어내린다.**
-  - 그래서 판단이 무거운 스킬(`/dev` `/fix` `/done` `/scaffold` `/adr` `/change` `/ui` `/overhaul`)은 **세션 effort 가 `medium` 이하면 시작 전에 멈추고** "`/effort high` 로 올린 뒤 다시 그 명령"을 안내하라(배정 근거 = `_reference/skill-tiers.md`).
+  - ★**effort 는 스킬 머리말 핀이 정한다 — AI 는 판정하지 않는다.** `effort:` 도 «최소»가 아니라 «덮어쓰기»다(공식: "Overrides the session effort level" · 값은 `low`~`xhigh`·`max`, 스킬이 도는 동안만). 배정표 = `_reference/skill-tiers.md`(전수 재검토·설계·골격 `max` / 개발·수정·머지·판단 `xhigh`). 세션값이 필요하면 **`echo $CLAUDE_EFFORT`** 로 읽어라 — 짐작 금지(2026-09-08 실측: 값을 안 읽고 «낮다»고 짐작해 high 세션의 `/dev` 를 헛되이 세웠다 · 리뷰 수준을 «가볍게·보통»이라 적었더니 실호출 70건 중 40건이 low·medium 이었다).
 - **★게이트·확인 질문은 텍스트 선택지로 — 선택 폼(AskUserQuestion) 금지**: 이 환경은 폼을 못 읽는다(파일럿 2026-07-29 실측). 번호 선택지를 **응답 본문에 적고** 답을 기다려라.
 - **전제조건 먼저.** 필요한 게 없거나 미정의면(소유표 공란·설계 미완 등) **감으로 진행하거나 조용히 실패하지 마라** — 빠진 것을 말하고, 채우는 스킬·담당자를 `▶ 다음`으로 짚고, 채워지면 원래 작업으로 잇는다.
 - **긴 도구 출력·로그·JSON은 통째로 읽지 마라** — head/tail+에러 grep·`jq` 필드 추출로 자르고, 반복 조회는 판정기 스크립트로(`pipeline-verdict` 패턴). 요약 보고엔 원문 위치(경로·명령)를 병기해 재조회 가능하게.

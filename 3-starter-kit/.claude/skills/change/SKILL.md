@@ -1,5 +1,6 @@
 ---
 name: change
+effort: xhigh # 배정표 = _reference/skill-tiers.md
 description: 요구사항 변경(추가·수정·삭제)의 영향을 분석해 카드를 정리. 기획 변경이 생겼을 때 사용.
 disable-model-invocation: true
 argument-hint: "[변경 요약 또는 바뀐 docs 파일]"

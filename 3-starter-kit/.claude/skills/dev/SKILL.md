@@ -1,5 +1,6 @@
 ---
 name: dev
+effort: xhigh # 배정표 = _reference/skill-tiers.md
 description: 기능 개발 전체 파이프라인 — 스펙 확인부터 구현·검증까지. 반나절 이상 걸리는 기능에 사용.
 disable-model-invocation: true
 argument-hint: "[이슈번호]"

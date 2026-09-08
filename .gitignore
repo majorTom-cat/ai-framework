@@ -3,6 +3,7 @@
 # 단 루트 .claude/skills(킷 세션 전용 스킬 — /reorg 등)는 추적한다(예외 패턴 2줄)
 /.claude/*
 !/.claude/skills/
+!/.claude/workflows/
 
 # 로컬 개인값·비밀 (커밋 금지)
 CLAUDE.local.md

@@ -3,6 +3,8 @@
   "permissions": {
     "defaultMode": "acceptEdits",
     "allow": [
+      "Workflow(merge-review)",
+      "Workflow(audit-sweep)",
       "Bash(git worktree *)",
       "Bash(git branch *)",
       "PowerShell(npm run *)",

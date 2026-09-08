@@ -87,6 +87,8 @@
 
 **뒤집힐 조건**: `/metrics` 실증 → 하향 후보표 적용. 팀 요금제 통일 확인 → model 핀 재검토.
 
+**개정 2026-09-08(오너 결정)**: 「상향 2개만」을 버리고 **판단이 무거운 스킬 9개 전부에 effort 핀**을 박는다 — `max`: overhaul·design·scaffold / `xhigh`: dev·fix·done·adr·change·ui. **AI 는 effort 를 판정하지 않는다**(같은 날 아침 핀을 빼고 산문 판정으로 옮겼다가 헛정지 1회, 그리고 `/done` 리뷰 수준이 AI 판정에 맡겨진 채 실호출 70건 중 40건이 low·medium 이었던 실측). design 의 「max 는 게이트 대화가 느려져 기각」은 「전체를 재설계하는 스킬에 xhigh 는 낮다」로 뒤집힘. 근거 문서: platform.claude.com effort 가이드(Opus 5: high→xhigh→max) · code.claude.com skills frontmatter(`effort` 값 `low`~`max`, override). 경위 = `3-starter-kit/_reference/skill-tiers.md`.
+
 ---
 
 ## 함정·교훈 (프레임워크 기여자용)

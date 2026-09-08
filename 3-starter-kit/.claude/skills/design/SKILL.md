@@ -1,7 +1,7 @@
 ---
 name: design
+effort: max # 배정표 = _reference/skill-tiers.md
 model: opus # 조직 allowlist에 없으면 무시되고 세션 모델 유지(공식 fail-soft) — CLAUDE.md '모델·effort 소프트 플로어'가 백스톱
-effort: xhigh
 description: 요구사항 문서를 읽어 기술 설계를 제안한다 — 스택·DB(ERD)·모듈 분할 + 공통(shared) 함수·컴포넌트·UI 추출. 공통 개발자가 골격 Day 0에, 요구사항 첫 슬라이스가 올라온 뒤 실행(요구가 더 오면 재실행).
 disable-model-invocation: true
 argument-hint: "(인자 없음 — docs/03_Requirement 등 요구사항을 읽는다)"
