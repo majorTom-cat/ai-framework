@@ -31,7 +31,7 @@
 
 ## 머지 등급 — 대부분 셀프, 고위험은 AI 경고 리뷰 후 본인 통과
 - **기본 = 셀프 머지**: CI가 초록불이면 사람 승인 없이 머지한다. 이게 표준 흐름이다 — 전담 승인자는 없다.
-  - **★킷 기본 상태(스캐폴드 전)에선 초록불이 셀프 머지 근거가 못 된다** — 실제로 막는 잡은 소수다(차단/`allow_failure` 잡 목록 정본 = `.gitlab-ci.yml`, 수동 승인 = `high-risk-gate`·`high-risk-label-gate` 경로/라벨 두 입구).
+  - **★킷 기본 상태(스캐폴드 전)에선 초록불이 셀프 머지 근거가 못 된다** — 실제로 막는 잡은 소수다(**차단형 = `self-tests`·`secret-scan`·`filename-nfc-check`·`migration-immutable` / `tamper-check`·`density-check`·`ai-connectivity` 는 경고 — 2026-09-09 실측. 목록 정본 = `.gitlab-ci.yml`, 수동 승인 = `high-risk-gate`·`high-risk-label-gate` 경로/라벨 두 입구).
     `/scaffold`가 `test`·`boundaries`를 활성화하기 전까지는 **사람이 diff를 직접 확인**한다(활성화하며 이 줄을 실제 잡 목록 서술로 고쳐라).
   - **★게이트는 고위험 정의보다 넓게 걸린다** — `CLAUDE.md`·`.claude/**`·게이트 스크립트 등 **방어선 자신을 바꾸는 변경**에도 발동한다(정본은 `.gitlab-ci.yml`의 `changes:` 목록).
 - **★고위험 카드 = 경고 레인**: CI 통과에 더해 **AI 경고 리뷰 + 증적 3종**을 남기고 **`셀프승인` 라벨로 게이트를 통과시켜 머지한다**(라벨이 파이프라인 생성 전에 붙어 있으면 게이트 잡은 ▶ 없이 자동 통과 — 2026-09-08. 동료 레인만 수동 잡).
@@ -82,6 +82,7 @@
 - shared 승격 기준: **2개 이상 모듈이 실제로 쓰거나, 둘째 사용처 카드가 확정됐을 때.** 하나뿐이면 자기 모듈에 둔다 (첫 승격은 "둘째 필요가 생긴 순간"에 일어난다 — 그 전에 미리 만들지 마라)
 
 ## 작업 절차 (스킬로만)
+- ★**`/code-review ultra` 는 쓰지 마라 — 별도 과금이다**(2026-09-08 오너 결정). 리뷰·전수 감사는 저장 워크플로 `.claude/workflows/` 의 `merge-review`·`audit-sweep` 로, 없으면 `/code-review xhigh`.
 - **일은 스킬로 진행한다.** 상태를 바꾸는 작업(코드·카드·머지·문서·스키마)은 반드시 스킬로 진입한다.
   사용자가 자연어로 시키면 — 조회·안내·등록·검사(`/start` `/todo` `/log` `/card` `/inspect`)는 네가 그 스킬을 **즉시 실행**하고,
   실행 절차(`/dev` `/fix` `/done` `/module` `/docs` `/change` `/ui` `/metrics`, 공통 개발자의 `/design` `/scaffold`

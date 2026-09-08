@@ -24,6 +24,7 @@
 ---
 
 ## DD-02 — 권한·규칙은 커밋된 파일로 배포한다 (AI는 settings.json을 못 고침) · 2026-07-22
+> **개정 2026-09-08**: 팀 권한 파일은 여전히 사람이 커밋한다. 다만 ⑴**개인 설정 전용 값**(`~/.claude/settings.json` 의 `sandbox.network.allowLocalBinding` — 공식적으로 프로젝트 설정에 못 넣는다)은 커밋된 SessionStart 훅 `.claude/hooks/ensure-user-settings.cjs` 가 자동 삽입하고 ⑵**AI 의 Bash 는 샌드박스 안에서 자동 허용**된다(`settings.json` `sandbox` — 밖 = `docker`·`docker-compose`·`glab`·`gh`·`git`·`ssh`). ⚠️2026-09-09 감사 지적: ⑴은 사람의 홈 설정을 코드가 고치는 구조이고 그 코드가 들어오는 MR 경로도 자동이었다 — 그래서 같은 날 `.claude/**` 를 게이트 manual 로 되돌렸다.
 
 **결정**: 팀 권한(`.claude/settings.json`)·규칙(`.claude/rules`)·스킬은 **repo에 커밋** → 팀원은 **clone만으로 자동 적용**(각자 설정할 것 0). 권한 변경은 **사람(유지보수자)의 1회 편집**이고, 그 뒤 clone으로 전파된다.
 
@@ -60,6 +61,7 @@
 ---
 
 ## DD-04 — 바깥 산출물은 "남기기 전 미리보기 → 사용자 OK" (전 스킬 공통) · 2026-07-23
+> **완화 이력**(이 DD 가 예고한 «마찰 실증 → 완화» 가 실제로 일어난 자리): 2026-08-28 판별 기준 «여기서 아니오가 나올 수 있나»(킷 CLAUDE.md '작업 절차') · 2026-09-08 `/dev` 묶음 게이트에서 **사용자 본인이 쓴 카드는 ①④만**(`dev/단계상세.md` §4) · 2026-09-08 `/fix` 에 `/goal` 무인 진행 허용(`fix/SKILL.md`).
 
 **결정**: GitLab·repo에 남는 모든 산출물(카드 등록·댓글·멘션·라벨·MR 생성·auto-merge·머지·docs 배치·ADR·시안 발행)은 **만들기 직전 "무엇을 어디에 남길지" 요약을 보여주고 사용자 OK 후에만 실행**한다. 규칙 정본 = **CLAUDE.md '작업 절차' 절의 공통 규칙 1줄**(개별 스킬에 중복 기술하지 않음 — 단 문구가 모순되던 `/card`는 교체, 최다 빈도인 `/done`·`/ui`엔 포인터 1줄).
 
@@ -77,7 +79,7 @@
 
 ---
 
-## DD-05 — 스킬별 model·effort: 상향 2개만, 하향은 실증 후 · 2026-07-23
+## DD-05 — 스킬별 model·effort: 상향 2개만, 하향은 실증 후 · 2026-07-23 **(대체됨 → 개정 2026-08-08·2026-09-08)**
 > ⚠️**대체됨(2026-08-08 · 2026-09-08)** — 아래 «model 핀 금지»는 더 이상 사실이 아니다: 08-08 에 fail-soft 확인 후 `design`·`scaffold` 에 `model: opus` 를 박았고, 09-08 오너 결정으로 effort 핀이 9개(overhaul·design·scaffold=max / dev·fix·done·adr·change·ui=xhigh)로 늘었다. **현재 배정표 정본 = `3-starter-kit/_reference/skill-tiers.md`.** 아래 본문은 당시 판단 근거로 보존한다.
 
 **결정**: `/design` = `effort: xhigh` · `/scaffold` = `effort: high`만 킷에 박는다(저빈도·고파급 — 상향은 부작용 없음. design이 xhigh인 이유 = 가장 파급 큰 결정·프로젝트당 1~3회, max는 게이트 대화가 느려져 기각). **model 핀은 어떤 스킬에도 박지 않는다** — `model:` 필드는 "최소"가 아니라 "고정"이라 sonnet을 박으면 상위 모델 사용자가 끌려 내려오고, opus를 박으면 요금제(Pro 등)에서 미보장. 대신 **소프트 플로어**: 두 스킬 지시문에 "세션이 경량 모델(haiku급)이면 시작 전 멈추고 `/model` 상향 안내" 1줄(강제가 아니라 게이트 — 프레임워크 방식과 일치).
