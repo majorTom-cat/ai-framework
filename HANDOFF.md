@@ -3,7 +3,17 @@
 > 🟢 **프레임워크 구축은 완료돼 bnsone에 push됐다. 이제 프로젝트 실행은 `E:\bnsone` 에서 `claude` 켜고 `/start`.**
 > (bnsone = CLAUDE.md·스킬 자동 로드 → 실행 단계엔 이게 맞다. second-brain = 메모리·archive 전용)
 > **이 `E:\ai-framework` 파일은 프레임워크(가이드·킷) 자체를 고칠 때만** 다시 본다 — 그 맥락은 아래에 다 있다.
-> 최종 업데이트: 2026-08-27
+> 최종 업데이트: 2026-09-09
+> ⚠️ **이 이력 로그는 2026-08-27 이후 갱신이 멈췄다** — `/handoff` 스킬이 이 파일을 갱신 대상에서 뺐기 때문이다(2026-08-26). 그 사이 상태는 `CLAUDE.local.md`(gitignore, 이 맥에만)와 `git log` 에만 있어 **다른 PC 에서는 읽을 수 없다.**
+
+## 🔴 현재 상태 (2026-09-09) — 08-27 이후 요약
+
+- **2026-09-08 오너 결정 8건**(전부 킷 반영): ①effort 는 AI 판정 금지, 스킬 frontmatter 핀(overhaul·design·scaffold=max / dev·fix·done·adr·change·ui=xhigh — 배정표 `_reference/skill-tiers.md`) ②`/done` 리뷰 = 저장 워크플로 `merge-review`(폴백 `/code-review xhigh`), `ultra` 금지(유료) ③저장 워크플로 원본 = `3-starter-kit/.claude/workflows/`, 킷 루트는 사본 ④`/fix` 에 `/goal` 허용 ⑤고위험 게이트 = `셀프승인` 라벨이 파이프라인 생성 전에 있으면 자동 통과 ⑥AI Bash 는 샌드박스 자동 허용 ⑦개인 설정 `allowLocalBinding` 은 SessionStart 훅이 삽입 ⑧`/dev` 묶음 게이트는 본인이 쓴 카드에서 ①④만.
+- **2026-09-09 오너 결정 «위험한 것만 묻기»**: ⑤를 전 경로에 걸었더니 «MR 에서 사람이 반드시 서는 지점 = 0» 이 됐다(전면 감사 실측). 게이트를 두 갈래로 쪼갰다 — 되돌리기 쉬운 경로는 라벨로 자동 통과, **되돌리기 어려운 경로(`CLAUDE.md`·`.gitlab-ci.yml`·`.gitlab/**`·`.claude/**`·`.husky/**`·`.gitattributes`·`k8s/**`)와 `고위험` 라벨 MR 은 항상 manual.**
+- **2026-09-09 전면 감사**(`/overhaul` 3갈래 21묶음 · 확정 410건 · 인용 불일치 탈락 1건 · 안 읽힌 파일 0): 상 31 · 중 162 · 하 217. 수리 내역과 남은 것은 `3-starter-kit/docs/friction.md` 의 09-09 줄.
+- **상세 경위는 `docs/friction.md`(킷) 와 `git log`** — 이 절은 «다른 PC 가 읽을 최소한»이다.
+
+---
 
 ---
 

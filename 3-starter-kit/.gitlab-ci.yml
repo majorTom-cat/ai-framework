@@ -392,9 +392,20 @@ high-risk-gate:
         - .gitattributes                  # 줄바꿈 규칙 — 깨지면 게이트 .sh 가 조용히 안 돈다
         # ★게이트 스크립트만 명시한다 — `scripts/**/*` 전체를 걸면 스파이크·작업 코드까지
         #   매번 수동 승인이 걸려 승인이 도장찍기가 된다(파일럿 실측). `changes:`는 제외를 지원하지 않으니 열거가 유일한 방법.
-        - scripts/check-boundaries.cjs    # 모듈 경계 검사 = CI 게이트 실물
-        - scripts/check-density.sh        # 밀도 검사 = CI 게이트 실물
+        # ★2026-09-09: 이름 규약 글로브로 바꿨다 — 훅(`check-push.sh` HITS)은 `scripts/(check|test|notify|extract)-*`
+        #   전부를 잡는데 CI 는 3개만 열거해, 킷 스크립트 10개 중 7개(자기테스트 4개 포함)를 무르게 하는 MR 이
+        #   게이트 없이 머지됐다. 훅 주석이 선언한 «CI 와 1:1» 이 킷 자신에서 거짓이었다(2026-09-09 감사).
+        - scripts/check-*.sh
+        - scripts/check-*.cjs
+        - scripts/test-*.sh
+        - scripts/test-*.cjs
+        - scripts/notify-*.sh
+        - scripts/notify-*.cjs
+        - scripts/extract-*.sh
+        - scripts/extract-*.cjs
+        - scripts/pipeline-verdict.cjs    # 머지 판정 근거 — 느슨해지면 «종결초록» 오판으로 머지된다
         - scripts/gen-module.cjs          # 모듈 생성기 = 새 모듈의 골격을 정한다
+        - test/*.test.js                  # 경계 검사기 회귀 테스트
         # ↑ 스택 무관 고위험 경로. /scaffold가 스택 확정 후 인증·라우팅·설정 경로(라우팅 파일은 스택마다 위치가 다르다)를 여기 추가한다.
         #   경로로 못 잡는 고위험(모듈 내부 인증·결제 로직 등)은 `고위험` 라벨 + /done이 사람 승인으로 막는다 — 라벨이 정본.
       when: on_success

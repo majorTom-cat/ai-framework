@@ -78,6 +78,7 @@
 ---
 
 ## DD-05 — 스킬별 model·effort: 상향 2개만, 하향은 실증 후 · 2026-07-23
+> ⚠️**대체됨(2026-08-08 · 2026-09-08)** — 아래 «model 핀 금지»는 더 이상 사실이 아니다: 08-08 에 fail-soft 확인 후 `design`·`scaffold` 에 `model: opus` 를 박았고, 09-08 오너 결정으로 effort 핀이 9개(overhaul·design·scaffold=max / dev·fix·done·adr·change·ui=xhigh)로 늘었다. **현재 배정표 정본 = `3-starter-kit/_reference/skill-tiers.md`.** 아래 본문은 당시 판단 근거로 보존한다.
 
 **결정**: `/design` = `effort: xhigh` · `/scaffold` = `effort: high`만 킷에 박는다(저빈도·고파급 — 상향은 부작용 없음. design이 xhigh인 이유 = 가장 파급 큰 결정·프로젝트당 1~3회, max는 게이트 대화가 느려져 기각). **model 핀은 어떤 스킬에도 박지 않는다** — `model:` 필드는 "최소"가 아니라 "고정"이라 sonnet을 박으면 상위 모델 사용자가 끌려 내려오고, opus를 박으면 요금제(Pro 등)에서 미보장. 대신 **소프트 플로어**: 두 스킬 지시문에 "세션이 경량 모델(haiku급)이면 시작 전 멈추고 `/model` 상향 안내" 1줄(강제가 아니라 게이트 — 프레임워크 방식과 일치).
 
