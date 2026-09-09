@@ -66,10 +66,13 @@ OUT="$(run)"
 ck "F1 살아남는 절" "살아남는 마지막 절 : ## 앞절" "$OUT"
 ck "F2 잘리는 절" "여기부터 안 읽힘 : ## 뒷절" "$OUT"
 
-echo "── G. 경고형이다(종료 코드 0) — 지금 넘는 스킬이 있어도 파이프라인을 막지 않는다"
+echo "── G. 차단형이다(2026-09-09 저녁3) — 넘으면 종료 코드 1, 전부 이내면 0"
 reset; { printf '# 큰 스킬\n'; i=0; while [ $i -lt 400 ]; do printf 'abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmno\n'; i=$((i+1)); done; } | mkskill big2
 SKILL_ROOT="$TMP" bash "$CHK" >/dev/null 2>&1
-if [ "$?" = 0 ]; then OK=$((OK+1)); else FAIL=$((FAIL+1)); echo "  ⛔ G1 종료 코드가 0이 아니다"; fi
+if [ "$?" = 1 ]; then OK=$((OK+1)); else FAIL=$((FAIL+1)); echo "  ⛔ G1 한도를 넘었는데 종료 코드가 1이 아니다 — 경고형으로 되돌아갔다"; fi
+reset; printf '# 작은 스킬\n짧다.\n' | mkskill small2
+SKILL_ROOT="$TMP" bash "$CHK" >/dev/null 2>&1
+if [ "$?" = 0 ]; then OK=$((OK+1)); else FAIL=$((FAIL+1)); echo "  ⛔ G2 한도 이내인데 종료 코드가 0이 아니다"; fi
 
 echo "────────  $OK OK / $FAIL FAIL"
 [ "$FAIL" = 0 ] || exit 1
