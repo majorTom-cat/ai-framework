@@ -37,17 +37,30 @@ CHECKER=$(mkfixture checker scripts/check-density.sh)  # 검사기 자신 → as
 SHARED=$(mkfixture shared src/shared/db.ts)          # 공용 코드 → ask
 REPO="$CLEAN"
 
-t() { # $1=ASK|SILENT  $2=기대 사유 조각(ASK일 때, - 면 무시)  $3=명령   ※$REPO 저장소에서 실행
+# $1=ASK(확인 창)|NOTE(창 없는 알림)|SILENT  $2=기대 사유 조각(- 면 무시)  $3=명령   ※$REPO 저장소에서 실행
+# ★★**«창»과 «알림»을 반드시 갈라서 봐라.** 예전 이 함수는 사유 조각만 grep 해서, 훅의 `permissionDecision:ask`
+#   를 `additionalContext`(창 없는 알림)로 바꿔도 **56/56 초록**이 났다(2026-09-10 실측). 잣대가 판정 종류를
+#   안 보면 「창을 없앴나」도 「창이 사라졌나」도 시험이 증명하지 못한다.
+t() {
   OUT=$(cd "$REPO" && printf '{"tool_input":{"command":"%s"}}' "$3" | bash "$HOOK" 2>/dev/null); RC=$?
   if [ "$RC" -ne 0 ]; then echo "FAIL(exit $RC): $3"; fail=$((fail+1)); return; fi
   case "$OUT" in *'"permissionDecision":"allow"'*|*'"permissionDecision":"deny"'*)
-    echo "FAIL(철칙 위반 — ask 아님): $3"; fail=$((fail+1)); return;; esac
+    echo "FAIL(철칙 위반 — allow·deny 금지): $3"; fail=$((fail+1)); return;; esac
   if [ "$1" = SILENT ]; then
     [ -z "$OUT" ] && { pass=$((pass+1)); return; }
     echo "FAIL(뜨면 안 되는데 뜸): $3 → $OUT"; fail=$((fail+1)); return
   fi
-  if printf '%s' "$OUT" | grep -q "$2"; then pass=$((pass+1)); else
-    echo "FAIL(안 뜸/딴 판정 — 기대 '$2'): $3 → ${OUT:-무음}"; fail=$((fail+1)); fi
+  if [ "$1" = ASK ]; then
+    printf '%s' "$OUT" | grep -q '"permissionDecision":"ask"' || {
+      echo "FAIL(확인 창이 떠야 하는데 안 뜸): $3 → ${OUT:-무음}"; fail=$((fail+1)); return; }
+  else
+    printf '%s' "$OUT" | grep -q '"additionalContext"' || {
+      echo "FAIL(창 없는 알림이어야 하는데 아님): $3 → ${OUT:-무음}"; fail=$((fail+1)); return; }
+    case "$OUT" in *'"permissionDecision"'*)
+      echo "FAIL(알림이어야 하는데 확인 창을 냈다): $3 → $OUT"; fail=$((fail+1)); return;; esac
+  fi
+  if [ "$2" = - ] || printf '%s' "$OUT" | grep -q "$2"; then pass=$((pass+1)); else
+    echo "FAIL(사유 문구 다름 — 기대 '$2'): $3 → ${OUT:-무음}"; fail=$((fail+1)); fi
 }
 
 echo "── A. 훅 우회 감지 (--no-verify)"
@@ -115,15 +128,17 @@ OUT=$(printf '' | bash "$HOOK" 2>/dev/null); RC=$?
 OUT=$(printf 'not json' | bash "$HOOK" 2>/dev/null); RC=$?
 { [ -z "$OUT" ] && [ "$RC" -eq 0 ]; } && pass=$((pass+1)) || { echo "FAIL(비 JSON)"; fail=$((fail+1)); }
 
-echo "── H. 공통 영역 감지 — 양성·음성 양쪽"
+echo "── H. 공통 영역 감지 — 양성·음성 양쪽 (2026-09-10부터 «알림», 확인 창 아님)"
+# ★ask 가 아니라 NOTE 인 이유: 공통 영역 push 는 revert 커밋 하나로 되돌아간다 —
+#   기준은 「위험한가」가 아니라 「되돌릴 수 있나」다(오너 결정). 되돌릴 수 없는 force 는 아래처럼 여전히 ASK.
 REPO="$COMMON"
-t ASK '공통 영역' 'git push origin work'
-t ASK '공통 영역' 'git push -n origin work'                 # dry-run 이어도 알린다
-t ASK 'force push 감지' 'git push -f origin work'           # force 가 공통영역보다 우선
+t NOTE '공통 영역' 'git push origin work'
+t NOTE '공통 영역' 'git push -n origin work'                # dry-run 이어도 알린다
+t ASK 'force push 감지' 'git push -f origin work'           # force 가 공통영역보다 우선 — 이건 확인 창
 REPO="$CHECKER"
-t ASK '공통 영역' 'git push origin work'                    # 검사기 자신 — 게이트를 느슨하게 하는 변경도 알린다
+t NOTE '공통 영역' 'git push origin work'                   # 검사기 자신 — 게이트를 느슨하게 하는 변경도 알린다
 REPO="$SHARED"
-t ASK '공통 영역' 'git push origin work'                    # 공용 코드
+t NOTE '공통 영역' 'git push origin work'                   # 공용 코드
 REPO="$CLEAN"
 t SILENT - 'git push origin work'                           # 공통 영역이 아니면 조용
 
@@ -131,8 +146,8 @@ echo "── I. push 대상이 «지금 폴더»가 아닐 때 (2026-09-09 — �
 # ★킷 동기는 워크트리에서 `git -C <경로> push` 로 올린다 — 예전 훅은 언제나 현재 폴더만 diff 해서
 #   공통영역 저장소를 -C 로 올리면 무음, 깨끗한 저장소를 -C 로 올리면 오탐 ask 였다.
 REPO="$CLEAN"
-t ASK '공통 영역' "git -C $COMMON push origin work"          # 대상이 공통영역 → 현재 폴더가 깨끗해도 알린다
-t ASK '공통 영역' "cd $COMMON && git push origin work"       # cd 형태도 같다
+t NOTE '공통 영역' "git -C $COMMON push origin work"         # 대상이 공통영역 → 현재 폴더가 깨끗해도 알린다
+t NOTE '공통 영역' "cd $COMMON && git push origin work"      # cd 형태도 같다
 REPO="$COMMON"
 t SILENT - "git -C $CLEAN push origin work"                  # 대상이 깨끗 → 현재 폴더가 공통영역이어도 조용(오탐 금지)
 

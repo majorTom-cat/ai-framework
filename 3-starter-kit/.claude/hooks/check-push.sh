@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# 위험 명령 앞단 훅 (PreToolUse:Bash|PowerShell) — **ask만 낸다. allow도 deny도 내지 않는다.**
+# 위험 명령 앞단 훅 (PreToolUse:Bash|PowerShell) — **ask 아니면 알림만 낸다. allow도 deny도 내지 않는다.**
 # 보는 것 4가지: ①검수요청 카드 자기닫기(glab issue close) ②git 훅 우회(--no-verify·commit -n·core.hooksPath)
-#   ③force push(-f/--force*/+refspec) ④공통 영역 push.
+#   ③force push(-f/--force*/+refspec) — 여기까지가 **ask**(되돌릴 수 없다) / ④공통 영역 push — **알림만**(revert 하나로 되돌아간다).
+# ★ask 를 더할지 말지의 기준은 「위험한가」가 아니라 **「revert 커밋 하나로 원상복구되나」**다(2026-09-09 오너 결정).
+#   「아니오」가 아니면 ask 를 만들지 마라 — 사람은 매번 엔터를 누를 뿐이라 창이 늘수록 ①②③까지 도장찍기가 된다.
 # 경위(2026-07-30 하루 4구멍 실측): ①좁은 매칭 = 따옴표 체이닝에서 침묵(무확인 push) ②넓은 매칭+allow =
 #   "git…push 글자가 든 아무 명령"(rm -rf·curl|bash 체이닝 포함)까지 권한창 없이 자동 승인 ③넓은 매칭+deny = 오탐 차단
 #   ④ask 전용+넓은 매칭 = 확인창 폭주(1 push에 8회). → 역할 분리가 답:
@@ -129,7 +131,12 @@ N=$(printf '%s\n' "$HITS" | grep -c .)
 #   훅 출력 전체가 무효가 된다(= 판정이 통째로 사라진다).
 FILES=$(printf '%s\n' "$HITS" | head -5 | tr '\n' ' ' | sed 's/\\/\\\\/g; s/"/\\"/g')
 [ "$N" -gt 5 ] && FILES="${FILES}외 $((N-5))건 "
-printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"⚠️ 공통 영역 변경이 포함된 push: %s— 팀 채팅에 공지했으면 승인하세요. (Show 등급: 공지는 알림이지 허락이 아님)"}}\n' "$FILES"
+# ★2026-09-10 오너 결정 — 기준은 「위험한가」가 아니라 「되돌릴 수 있나」다.
+#   공통 영역 push 는 revert 커밋 하나로 원상복구된다. 사람이 ▶ 로 서는 것은 `k8s/**` 와 `고위험` 라벨 MR 뿐이다.
+#   그런데도 창을 띄우면 «매번 엔터를 누를 뿐이라 사실상 의미가 없다»(오너 지적 3회). 이 문구 자신이
+#   「공지는 알림이지 허락이 아님」이라 적어 놓고 «허락»을 물었다. ⇒ 알림은 알림으로 낸다(창 없이 문맥에만).
+#   ⚠️되돌릴 수 없는 것(force push · 훅 우회 · `검수요청` 카드 닫기)은 위에서 여전히 ask 다 — 그쪽은 건드리지 마라.
+printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"[알림·확인창 아님] 이 push 에 공통 영역이 들어 있다: %s— 팀 채팅 공지가 아직이면 지금 하고, 보고에 «공지함»을 한 줄 남겨라."}}\n' "$FILES"
 exit 0
 # 알려진 한계(의도적 미해결): HEAD 아닌 refspec(git push origin other:main)은 HEAD 기준으로 오판할 수 있다.
 #   커밋 메시지 등 인용문 "안"의 --no-verify·-n 문구는 오탐 ask가 뜰 수 있다(ask라 작업을 막지는 않는다 — 승인하면 진행).

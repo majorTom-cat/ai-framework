@@ -14,7 +14,7 @@
 **결론(정착)**: 훅은 **ask 하나만** 낸다. allow도 deny도 내지 않는다.
 - 일반 push 마찰 0 = `settings.json` allow (명령 **접두** 기준 — 문자열만 포함한 명령엔 오탐 없음)
 - force push 차단 = `settings.json` deny (`-f`·`--force`·`--force-with-lease`·`git -C` 변형 — 26줄. 단 **접두 규칙이라 체이닝 `git status && git push -f`는 못 막음** → 아래 훅 ask가 덮는다)
-- 공통 영역 감지 = 훅의 ask
+- 공통 영역 감지 = 훅의 **알림**(`additionalContext` — 확인 창 아님). ★2026-09-10 에 ask 에서 내렸다: 기준은 「위험한가」가 아니라 **「revert 커밋 하나로 되돌아가나」**이고(오너 결정), 공통 영역 push 는 되돌아간다. 되돌릴 수 없는 것(force·훅 우회·`검수요청` 카드 닫기)만 ask 로 남았다. ⚠️같이 고친 것: **회귀 시험이 «창»과 «알림»을 구분하지 못했다** — 사유 문구만 grep 해서 ask 를 알림으로 바꿔도 56/56 초록이었다. `t()` 에 판정 종류 검사를 넣었고, 기대를 뒤집으면 3건이 FAIL 하는 것으로 잣대를 증명했다.
 - **2026-08-07 훅 확장(검증 7건 후속)**: force 플래그 체이닝(`&&`·묶음 `-fu`·여러 줄)·`git -c`/`--git-dir`/`--work-tree` 전역옵션 변형 → **ask** / `glab issue close`로 검수요청 카드를 닫으려 하면 라벨 조회 후 **ask**(검수요청→완료는 사람만). 시뮬 34케이스 검증 — 한계: ask는 승인하면 실행되고, 한 명령에 위험 둘이면 먼저 걸린 하나만 알린다.
 - **2026-08-11 훅 확장(외부 차용) + 같은 날 fresh 리뷰 2인의 수리**: git 훅 우회(`--no-verify`·`commit -n`(=no-verify. push의 `-n`은 dry-run이라 제외)·`core.hooksPath`·`HUSKY=0`) → **ask**. husky로 까는 팀 git 훅(Day 4)이 플래그 하나로 조용히 꺼지는 구멍을 막는다. ECC(affaan-m/ECC)의 `block-no-verify.js`에서 차용하되 원본의 exit 2 하드 차단은 이 훅의 철칙(ask만)대로 낮췄다.
   **★1차 구현이 fresh-context 리뷰 2인에게 Blocker 1·Important 8을 맞았다 — 전부 수리 후 채택**(자기 설계 케이스로 20/20 통과했던 것이 실제로는 뚫려 있었다 = 자기 검증의 한계 재확인, G-11 계열):
