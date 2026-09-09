@@ -1,7 +1,7 @@
 export const meta = {
   name: 'merge-review',
   description: '머지 전 diff 리뷰 — 렌즈 4개 병렬 + 발견마다 반박 3표, 살아남은 것만 보고',
-  whenToUse: '/done 4단계에서. args: { base: "origin/main", card: "#123", acceptance: "수용 기준 원문", externalSurface: true|false }',
+  whenToUse: '/done 4단계에서. args: { base: "origin/main", card: "#123", acceptance: "수용 기준 원문", externalSurface: true|false, level: "medium"|"high"|"xhigh" }',
   phases: [
     { title: 'Find', detail: '정확성 · 과잉설계 · 수용기준 대조 (+보안: 외부 입력 표면이 있을 때만) 렌즈를 fresh context 로 병렬' },
     { title: 'Verify', detail: '발견마다 반박 전용 검토자 3명 — 둘 이상이 «틀렸다»면 탈락' },
@@ -13,6 +13,11 @@ const a = args || {}
 const base = a.base || 'origin/main'
 const card = a.card || '(카드 미지정)'
 const acceptance = a.acceptance || ''
+// 리뷰 수준 = 카드가 정한다(짐작 금지 — 호출하는 /done 4단계가 diff 로 골라 넘긴다).
+// 기본 high. 반박표는 «인용이 실재하나»를 보는 일이라 한 단 낮춰도 판정이 흔들리지 않는다(토큰 절반).
+const LEVELS = ['medium', 'high', 'xhigh']
+const level = LEVELS.includes(a.level) ? a.level : 'high'
+const refuteLevel = LEVELS[Math.max(0, LEVELS.indexOf(level) - 1)]
 const DIFF = `대상 = \`git diff ${base}...HEAD\` 와 미커밋 변경 \`git diff\`. 먼저 그 명령으로 diff 를 직접 읽고, 필요하면 파일을 열어 주변 코드를 확인하라. 기억으로 답하지 마라.`
 
 // ── 스키마 ──────────────────────────────────────────────────────────────
@@ -60,9 +65,9 @@ if (a.externalSurface) {
 
 // ── Find ────────────────────────────────────────────────────────────────
 phase('Find')
-log(`merge-review: ${card} · base ${base} · 렌즈 ${LENSES.map(l => l.key).join(', ')}`)
+log(`merge-review: ${card} · base ${base} · 수준 ${level}(반박 ${refuteLevel}) · 렌즈 ${LENSES.map(l => l.key).join(', ')}`)
 const found = await parallel(LENSES.map(l => () =>
-  agent(`fresh-context 코드 리뷰어. 이 diff 를 쓴 사람이 아니다 — 자기 결과를 옹호할 이유가 없다.\n${l.prompt}`, { label: `find:${l.key}`, phase: 'Find', schema: FINDINGS, effort: 'xhigh' })
+  agent(`fresh-context 코드 리뷰어. 이 diff 를 쓴 사람이 아니다 — 자기 결과를 옹호할 이유가 없다.\n${l.prompt}`, { label: `find:${l.key}`, phase: 'Find', schema: FINDINGS, effort: level })
     .then(r => r ? { lens: l.key, ...r } : null)))
 
 const finders = found.filter(Boolean)
@@ -89,7 +94,7 @@ const ANGLES = [
 const verified = await parallel(candidates.map(c => () =>
   parallel(ANGLES.map((angle, i) => () =>
     agent(`반박 전용 검토자. 아래 리뷰 발견을 «틀렸다»고 증명하려 해 봐라. 관점: ${angle}.\n확실하지 않으면 refuted=true 로 답하라 — 의심스러운 발견은 사람에게 보내지 않는다.\n\n발견: ${JSON.stringify(c)}\n\n${DIFF}`,
-      { label: `refute:${c.file.split('/').pop()}:${c.line}#${i + 1}`, phase: 'Verify', schema: VERDICT, effort: 'xhigh' })))
+      { label: `refute:${c.file.split('/').pop()}:${c.line}#${i + 1}`, phase: 'Verify', schema: VERDICT, effort: refuteLevel })))
     .then(votes => {
       const v = votes.filter(Boolean)
       const survived = v.filter(x => !x.refuted).length >= 2

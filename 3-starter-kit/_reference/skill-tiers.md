@@ -18,9 +18,21 @@
 | 등급 | 스킬 | 근거 |
 |---|---|---|
 | `effort: max` (+`model: opus` design·scaffold) | overhaul · design · scaffold | 전수 재검토·되돌리기 가장 어려운 결정·골격. 저빈도라 토큰은 문제되지 않는다. 공식: 「max when a task justifies unconstrained token spending」 |
-| `effort: xhigh` | dev · fix · done · adr · change · ui | 코딩·머지·판단 작업. 공식: 「step up to xhigh for demanding coding and agentic work」. `/done` 안의 리뷰 수준도 xhigh 고정(`/code-review ultra` 는 유료라 금지) |
+| `effort: xhigh` | dev · fix · adr · change · ui | 코딩·판단 작업. 공식: 「step up to xhigh for demanding coding and agentic work」 |
+| `effort: high` | done | ★2026-09-10 오너 결정으로 xhigh 에서 내렸다 — **머지 절차 자체는 판단 밀도가 낮고**(카드 확인·CI·라벨·머지), 무거운 건 그 안의 리뷰 한 대목뿐이다. **그 리뷰 수준은 카드가 정한다**(아래 절) |
 | `effort: low` | log · assign-module | 조회 요약·표 갱신 — 판단 밀도 낮음. **기본값보다 내리는 핀**(비용 절감) |
 | (핀 없음 = 세션 값) | module · docs · inspect · card · setup-gitlab · metrics · start · todo | 게이트가 백스톱이거나 절차·조회형. **todo는 low 금지** — 고위험 승인 대행 경로가 있다 |
+
+## ★리뷰 수준은 «스킬»이 아니라 «카드»가 정한다 (2026-09-10 오너 결정)
+오너 = 「done이 xhigh라서 너무 오래걸리고 토큰 많이써. high로 낮추고, 카드 수준에 맞게 돌리도록해, 그래서 러프한 수정이면 러프하게 리뷰하도록 해」. **9-08 의 「AI 는 effort 를 판정하지 않는다」는 그대로 유효하다** — 판정을 AI 부사(「가볍게」·「보통」)에 맡기면 전부 low 로 굳는 것이 실측됐다. 그래서 **부사가 아니라 diff 로** 정한다(`git diff --name-only {base}...HEAD` 한 번이면 답이 나온다):
+
+| 조건(위에서부터 먼저 맞는 것) | 수준 |
+|---|---|
+| `고위험` 라벨이 붙었거나 diff 에 `k8s/**`·인증·권한·결제·마이그레이션 파일이 있다 | `xhigh` |
+| 바뀐 파일이 **전부 `*.md`** 다 | `medium` |
+| 그 밖(코드가 바뀌었다) | **`high`** ← 기본 |
+
+`merge-review` 워크플로는 이 값을 `args.level` 로 받는다. **반박표는 한 단 낮춰 돈다**(`refuteLevel`) — 반박은 「인용이 그 줄에 실재하나」를 확인하는 일이라 수준을 낮춰도 판정이 흔들리지 않고, 발견 1건당 3표라 토큰이 가장 많이 드는 자리다. ★**이 표를 고칠 땐 `done/SKILL.md` 4단계와 `merge-review.js` 를 같은 커밋에서** — 셋 중 하나만 고치면 나머지가 정본 행세를 한다.
 
 ## 병렬·독립성은 여기 아니라 본문 조건으로
 **스킬 본문에서는** "에이전트 N명" 같은 수 지정을 하지 않는다 — 환경(한도·러너)에 따라 못 지킨다. 대신 **성립 조건**을 본문에 박는다(이미 있음): /done "리뷰는 fresh context 필수", 고위험 "작성자 아닌 눈"+증적 3종, /ui "시안 2~3안". **수를 고정해야 하는 곳은 저장 워크플로**(`.claude/workflows/*.js` — 스크립트가 렌즈·반박 표 수를 결정적으로 정한다: `merge-review`·`audit-sweep`, 2026-09-08 신설). 워크플로가 꺼진 환경(Pro 기본값·`disableWorkflows`)에서는 본문의 성립 조건으로 되돌아간다.
