@@ -13,10 +13,11 @@ HOOK="$(cd "$(dirname "$0")/.." && pwd)/.claude/hooks/session-guard.sh"
 pass=0; fail=0
 command -v git >/dev/null 2>&1 || { echo "⛔ git 이 없다 — 이 회귀 테스트는 git 이 있어야 성립한다"; exit 1; }
 TMPROOT=$(mktemp -d); trap 'rm -rf "$TMPROOT"' EXIT
+[ -d "$TMPROOT" ] && touch "$TMPROOT/.w" 2>/dev/null || { echo "⛔ 임시 폴더를 못 만들거나 못 쓴다: $TMPROOT"; echo "   울타리(샌드박스) 안에서는 TMPDIR 이 막힐 수 있다 — 이 시험은 여기서 돌리지 마라."; exit 1; }
 TAB=$(printf '\t')
 
 mkrepo() { # $1=이름 → repo 경로
-  R="$TMPROOT/$1"; mkdir -p "$R/.claude"; ( cd "$R"
+  R="$TMPROOT/$1"; mkdir -p "$R/.claude"; ( cd "$R" || exit 1
     git init -q -b main . && git config user.email t@example.com && git config user.name t
     echo x > README.md && git add -A && git commit -qm base ) >/dev/null 2>&1
   printf '%s' "$R"

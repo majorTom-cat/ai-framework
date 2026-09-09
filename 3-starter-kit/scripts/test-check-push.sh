@@ -18,8 +18,9 @@ pass=0; fail=0
 #   (CI 이미지에 git 이 없어 초록으로 보이던 실측이 있다).
 command -v git >/dev/null 2>&1 || { echo "⛔ git 이 없다 — 이 회귀 테스트(공통영역 감지)는 git 이 있어야 성립한다"; exit 1; }
 TMPROOT=$(mktemp -d); trap 'rm -rf "$TMPROOT"' EXIT
+[ -d "$TMPROOT" ] && touch "$TMPROOT/.w" 2>/dev/null || { echo "⛔ 임시 폴더를 못 만들거나 못 쓴다: $TMPROOT"; echo "   울타리(샌드박스) 안에서는 TMPDIR 이 막힐 수 있다 — 이 시험은 여기서 돌리지 마라."; exit 1; }
 mkfixture() { # $1=저장소 이름  $2=work 브랜치에서 바꿀 파일 경로
-  R="$TMPROOT/$1"; mkdir -p "$R"; ( cd "$R"
+  R="$TMPROOT/$1"; mkdir -p "$R"; ( cd "$R" || exit 1
     git init -q -b main . && git config user.email t@example.com && git config user.name t
     git config core.hooksPath "$R/.nohooks"
     echo base > README.md && git add -A && git commit -qm base

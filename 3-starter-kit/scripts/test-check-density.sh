@@ -12,6 +12,7 @@ pass=0; fail=0
 command -v git >/dev/null 2>&1 || { echo "⛔ git 이 없다 — base 비교(건드린 줄만 막기)가 성립하지 않는다"; exit 1; }
 
 TMPROOT=$(mktemp -d); trap 'rm -rf "$TMPROOT"' EXIT
+[ -d "$TMPROOT" ] && touch "$TMPROOT/.w" 2>/dev/null || { echo "⛔ 임시 폴더를 못 만들거나 못 쓴다: $TMPROOT"; echo "   울타리(샌드박스) 안에서는 TMPDIR 이 막힐 수 있다 — 이 시험은 여기서 돌리지 마라."; exit 1; }
 R="$TMPROOT/repo"; mkdir -p "$R/.claude/skills/x" "$R/.claude/rules"
 ( cd "$R" && git init -q -b main . && git config user.email t@example.com && git config user.name t ) >/dev/null 2>&1
 

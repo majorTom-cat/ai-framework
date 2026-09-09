@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Workflow(merge-review)",
+      "Workflow(audit-sweep)",
+      "Bash(git *)",
+      "Bash(npm run *)",
+      "Bash(npm test*)",
+      "Bash(npm install)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(python3 *)",
+      "Bash(bash scripts/*)",
+      "Bash(glab *)",
+      "Bash(docker compose *)",
+      "Bash(curl *)",
+      "Bash(cd *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(grep *)",
+      "Bash(rg *)",
+      "Bash(find *)",
+      "Bash(wc *)",
+      "Bash(echo *)",
+      "Bash(sed *)",
+      "Bash(awk *)",
+      "Bash(jq *)",
+      "Bash(sort *)",
+      "Bash(uniq *)",
+      "Bash(diff *)",
+      "Bash(mkdir *)",
+      "Bash(touch *)",
+      "Bash(basename *)",
+      "Bash(dirname *)",
+      "Bash(date *)"
+    ],
+    "deny": [
+      "Bash(git push * --force*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * -f*)",
+      "Bash(git push +*)",
+      "Bash(git push * +*)",
+      "Bash(git -C * push -f*)",
+      "Bash(git -C * push --force*)",
+      "Bash(git -C * push * -f*)",
+      "Bash(git -C * push * --force*)",
+      "Bash(git -C * push +*)",
+      "Bash(git -C * push * +*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean *)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true,
+    "excludedCommands": [
+      "docker *",
+      "docker-compose *",
+      "glab *",
+      "gh *",
+      "git *",
+      "ssh *",
+      "npm *",
+      "npx *",
+      "node *",
+      "bash *",
+      "python3 *"
+    ],
+    "filesystem": {
+      "allowWrite": [
+        "/private/tmp/claude-501",
+        "/tmp/claude-501",
+        "/var/folders",
+        "/private/var/folders"
+      ]
+    },
+    "network": {
+      "allowedDomains": [
+        "gitlab.bns.co.kr",
+        "registry.npmjs.org",
+        "*.npmjs.org",
+        "*.npmjs.com"
+      ]
+    }
+  }
+}
