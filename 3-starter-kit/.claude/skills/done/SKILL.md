@@ -29,7 +29,7 @@ allowed-tools: Workflow Read Edit Write Glob Grep Bash(git *) Bash(glab *) Bash(
    — ★**먼저 DB·외부 의존 기동 확인**(/dev 6단계와 동일 — 내려가 있으면 실패가 코드 결함처럼 보인다. 명령은 CLAUDE.md '실행·테스트').
    — ★**`needs`·`rules:changes`·배포 잡을 건드렸으면 `함정.md` §5를 지금 읽어라** — lint 통과가 안전의 근거가 못 되는 유형이다(실사고 8회).
    ★**테스트 변조 자가 점검**: 이번 diff가 *소스와 테스트(또는 CI 임계값)를 동시에* 고쳤다면, 테스트를 통과시키려고 테스트를 약하게 만든 게 아닌지 한 줄로 확인·소명하라(green은 스스로 무력화 가능하다). 실패하는 테스트를 삭제·skip으로 넘긴 흔적이 있으면 되돌린다.
-4. **리뷰 = 저장 워크플로 `/merge-review`**(Workflow 도구, 이름 `merge-review`, args `{base, card, externalSurface}` — 렌즈 3개 병렬(+ `externalSurface` 가 참이면 보안 렌즈 1개 더) + 발견마다 반박 3표, 살아남은 것만 보고). 워크플로가 꺼진 환경이면 **`/code-review xhigh`** — 어느 쪽이든 fresh context(자기 결과 리뷰는 편향). ★**수준은 xhigh 고정, 낮추지 마라**(경위 = `단계상세.md` §9) · **`/code-review ultra` 는 유료(사용량 크레딧)라 금지.** Important 이상 발견은 고치고 **테스트 단계부터** 다시.
+4. **리뷰 = 저장 워크플로 `/merge-review`**(Workflow 도구, 이름 `merge-review`, args `{base, card, externalSurface}` — 렌즈 3개 병렬(+ `externalSurface` 가 참이면 보안 렌즈 1개 더) + 발견마다 반박 3표, 살아남은 것만 보고). 워크플로가 꺼진 환경이면 **`/code-review xhigh`** — 어느 쪽이든 fresh context(자기 결과 리뷰는 편향). ★**수준은 xhigh 고정, 낮추지 마라**(경위 = `단계상세.md` §9) · **`/code-review ultra` 는 유료(사용량 크레딧)라 금지.** ★**끝나면 «몇 분·읽은 파일 수(`checked_files`)·발견 수»를 카드 증적에 한 줄로 남겨라** — 이 값이 안 쌓여서 「리뷰가 오래 걸린다」를 체감으로만 다툰다(2026-09-09). Important 이상 발견은 고치고 **테스트 단계부터** 다시.
    diff가 **새 외부 입력 표면을 추가**했으면(신규 엔드포인트·업로드·인증·비밀값) `/security-review` 도 실행 — 매 카드 상시가 아니다(필드 수정 정도는 code-review가 커버. CI 스캔 잡이 있으면 백스톱).
    리뷰 렌즈에 **과잉설계**도 포함(하나뿐인 구현의 추상화·stdlib 재발명·불필요한 신규 의존성) — 발견은 "위치·뭘 지우나·뭘로 대체" 1줄식.
    발견·수리 요약을 카드 댓글 1줄로 남겨라 (증적)
