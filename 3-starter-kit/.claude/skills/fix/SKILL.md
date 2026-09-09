@@ -7,8 +7,11 @@ argument-hint: "[이슈번호]"
 allowed-tools: Bash(glab *) Bash(git *) Bash(npm *) Read Edit Write Glob Grep
 ---
 
-이슈 내용 (자동 조회됨):
-!`glab issue view "$0" 2>&1 | head -40`
+이슈 내용 (자동 조회됨 — 앞 40줄. 41줄째부터는 안 보인다):
+!`glab issue view "$0" 2>&1 | sed -n '1,40p;41s/.*/⚠️ 여기서 잘렸다 — 아래 «남은 항목»을 근거로 삼고, 필요하면 전문을 다시 읽어라/p'`
+
+남은 항목 (자동 조회됨 — 체크 안 된 줄만. 잘림 없음):
+!`glab issue view "$0" 2>&1 | sed -n 's/^ *- \[ \] /□ /p'`
 
 최근 댓글 (반려 사유·추가 지시는 여기 있다):
 !`glab issue view "$0" --comments 2>&1 | tail -40`
