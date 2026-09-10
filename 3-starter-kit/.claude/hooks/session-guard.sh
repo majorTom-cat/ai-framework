@@ -133,8 +133,18 @@ CMD=$(printf '%s' "$INPUT" | sed -nE 's/.*"command"[[:space:]]*:[[:space:]]*"((\
 [ -z "$CMD" ] && CMD=$(printf '%s' "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\(.*\)/\1/p')
 [ -z "$CMD" ] && exit 0
 
+# ★따옴표 «안»은 데이터다 — 2026-09-10 오너 사진: 배포처 세션의 «옛 받아오기 문구 찾기»
+#   `grep -rn "…\|git pull origin main…"` 가 «HEAD 이동»으로 읽혀 거짓 창을 세웠다(재생으로 확정).
+#   grep 의 대안 기호 `\|` 가 아래 명령 경계 글자 `|` 와 같아서다. 그래서 판정용 사본(SCAN)에서 인용 내용을 비운다.
+#   ⚠️단 셸에 넘기는 인용(`bash -c "…"`·`sh -c`·`zsh -c`·`eval`)은 «명령»이라 비우지 않는다 — 거기 숨긴 checkout 을 놓치면 안 된다.
+#   CMD 는 JSON 이스케이프 상태라 큰따옴표는 `\"` 로 온다. 큰따옴표를 먼저 비워야 그 안의 `'`(it's 류)에 안 걸린다.
+SCAN="$CMD"
+if ! printf '%s' "$CMD" | grep -Eq '(^|[^[:alnum:]_])((ba|z)?sh[[:space:]]+-[a-z]*c|eval)([[:space:]]|$)'; then
+  SCAN=$(printf '%s' "$CMD" | sed -E -e 's/\\"([^\\]|\\[^"])*\\"/""/g' -e "s/'[^']*'/''/g")
+fi
+
 # HEAD 를 옮기는 git 명령인가 (명령 경계 기준 — check-push.sh 와 같은 이유로 \n·\r·\t 포함)
-printf '%s' "$CMD" | grep -Eiq '(^|[;&|(]|\\n|\\r|\\t)[[:space:]]*git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?(checkout|switch|pull|reset|merge|rebase|restore)([[:space:]]|$|"|\\)' || exit 0
+printf '%s' "$SCAN" | grep -Eiq '(^|[;&|(]|\\n|\\r|\\t)[[:space:]]*git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?(checkout|switch|pull|reset|merge|rebase|restore)([[:space:]]|$|"|\\)' || exit 0
 # ★`restore` 는 2026-09-10 에 넣었다 — `git checkout -- <경로>` 와 «완전히 같은 일»(저장 안 된 변경 버리기)인데
 #   목록에 없어 통째로 무음이었다. 자기시험이 잡았다(그 전엔 35 OK 로 초록이었다).
 

@@ -6,7 +6,8 @@
 # ★격리 저장소에서 돌린다 — 현재 체크아웃 상태에 좌우되면 브랜치마다 결과가 달라진다
 #   (test-check-push.sh 가 그걸로 브랜치 42/47 vs main 47/47 을 낸 실측이 있다).
 set -u
-HOOK="$(cd "$(dirname "$0")/.." && pwd)/.claude/hooks/session-guard.sh"
+# 시험할 훅을 바꾸려면(유효성 증명용 — 옛 판에서 새 절이 FAIL 하는지): SESSION_GUARD_HOOK=/경로 bash scripts/test-session-guard.sh
+HOOK="${SESSION_GUARD_HOOK:-$(cd "$(dirname "$0")/.." && pwd)/.claude/hooks/session-guard.sh}"
 # ★훅 파일 자체가 없으면 전 케이스가 exit 127 로 무더기 FAIL 이 된다 — "검사가 깨졌다"로 오독된다.
 #   미배포는 테스트 실패가 아니라 배포 문제다. 그렇게 말하고 끝낸다.
 [ -f "$HOOK" ] || { echo "⛔ 훅이 없다: $HOOK"; echo "   이 저장소엔 session-guard 훅이 아직 배포되지 않았다 — 테스트 실패가 아니라 미배포다."; echo "   킷의 .claude/hooks/session-guard.sh 를 이 저장소에 복사한 뒤 다시 돌려라."; exit 1; }
@@ -268,6 +269,17 @@ if [ -d "$CU" ]; then
 else
   echo "  ⚠️ 따라잡기 픽스처를 못 만들었다 — L절을 못 돌렸다(실패로 센다)"; fail=$((fail+1))
 fi
+
+echo "── M. 따옴표 «안»의 git 은 명령이 아니다 (2026-09-10 — 오너 사진: 문구 찾기 grep 이 «HEAD 이동» 창을 세웠다)"
+# ★옛 훅에서는 SILENT 칸이 FAIL 한다. ASK 칸은 «비웠더니 진짜 명령까지 놓쳤나»를 본다 — 약해지지 않았다는 증거다.
+printf '%s\t%s\t%s\t%s\n' "$GHOST" "main" "2026-01-01 00:00" "$OTHER" > "$MINE/.claude/.session-lock"
+t SILENT - 'grep -rn \"pull 자체\\|git pull origin main\\`\\|\\`git pull\\` 후\\|git pull &&\" CLAUDE.md .claude _reference'   # 오너 사진의 명령 그대로
+t SILENT - 'echo \"x && git checkout main\"'
+t SILENT - "git log --grep='a | git reset --hard'"
+t SILENT - 'git commit -m \"git checkout -- x 를 고쳤다\"'
+t ASK '이 클론을 다른 세션이' 'grep -c \"x\" f \&\& git checkout main'          # 인용 «뒤»의 진짜 명령은 그대로 잡는다
+t ASK '이 클론을 다른 세션이' 'bash -c \"git status \&\& git checkout main\"'   # 셸에 넘긴 인용은 명령이다
+rm -f "$MINE/.claude/.session-lock"
 
 kill "$GHOST" 2>/dev/null; kill "${SESS:-}" 2>/dev/null
 echo "──────── $pass OK / $fail FAIL"
