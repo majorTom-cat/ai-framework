@@ -7,7 +7,9 @@
 # ★차단형이다(exit 1) — 경고만 내는 검사기는 방어선이 아니다(2026-09-09 실측: exit 0 검사기가
 #   한도 초과 스킬을 통과시켰다).
 set -u
-ROOT=$(cd "$(dirname "$0")/.." && pwd)
+# ★ASKS_ROOT 는 자기시험용 픽스처 뿌리다(check-skill-size.sh 의 SKILL_ROOT 와 같은 관례) —
+#   없으면 이 스크립트가 놓인 repo 루트를 본다.
+ROOT="${ASKS_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 TABLE="$ROOT/_reference/asks.md"
 HOOKS="$ROOT/.claude/hooks"
 

@@ -188,6 +188,23 @@ skill-size:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       changes: [".claude/skills/**/*", scripts/check-skill-size.sh, scripts/test-check-skill-size.sh]
 
+# 확인 창 전수 검사 — ★차단한다(allow_failure 없음). 정본 목록 = `_reference/asks.md`
+# 왜 차단인가: 훅이 내는 `ask` 는 **자동 모드보다 위라 모드가 못 건너뛴다** — 한 줄이 모든 세션·모든
+#   모드에 정지 하나를 영구히 세운다. 그런데 2026-09-10 까지 «창이 몇 개인지» 아무도 안 셌고,
+#   오너가 창을 찍어 보낼 때마다 하나씩 고쳤다(오너 「주먹구구식」). 표를 정본으로 두고 기계가 대조한다.
+# ★검사기 자체가 맞는지 먼저 본다 — self-tests 잡은 `changes: scripts/**` 라 **훅만 고친 MR 에서는
+#   안 돈다**. 그 MR 에서 검사기가 깨져 있으면 무음으로 통과한다.
+ask-check:
+  stage: test
+  image: alpine:3
+  script:
+    - apk add --no-cache bash >/dev/null
+    - bash scripts/test-check-asks.sh
+    - bash scripts/check-asks.sh
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: [".claude/hooks/**/*", _reference/asks.md, scripts/check-asks.sh, scripts/test-check-asks.sh]
+
 # 검사기 자신의 회귀 테스트 — ★차단한다(allow_failure 없음).
 # 왜 차단인가: 검사기가 깨지면 그 검사기가 지키던 것 전부가 **무음으로 통과**한다. 이 repo 가 반복해서
 #   밟은 실패 유형이 정확히 그것이다(CI 이미지에 git 이 없어 훅 검사가 통째로 무음 → 초록 집계).
