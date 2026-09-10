@@ -11,6 +11,7 @@
 #   ② PreToolUse   : **다른 폴더로 cd 해서**(또는 `git -C` 로) HEAD를 옮기는 명령(checkout/switch/pull/reset/merge/rebase)을 알린다.
 #      남의 폴더에 cd 로 들어가는 세션은 그 폴더에서 SessionStart 를 겪지 않는다 — 재발 건이 정확히 이 경로다.
 #      훅은 **세션의 project dir 것만 로드**되므로, 남의 repo 훅은 그 세션을 막지 못한다. 그래서 ②는 내 쪽에 있어야 한다.
+#   ③ SessionStart : 본 클론이 main 이고 깨끗하면 **main 최신으로 따라잡는다**(아래 catchup — 2026-09-10 신설).
 #
 # 규약: PreToolUse 는 **ask 아니면 무음**(check-push.sh 와 동일 — allow·deny 금지, 비정상 종료 금지).
 #       SessionStart 는 평문 한 줄(컨텍스트로 들어간다).
@@ -62,16 +63,50 @@ live_others() { # $1=lock 경로  $2=내 pid
 # ── repo 루트 찾기(아니면 빈 문자열) ──
 repo_root() { git -C "${1:-.}" rev-parse --show-toplevel 2>/dev/null; }
 
+# ── ③ 본 클론 main 따라잡기 (SessionStart) ──
+# 왜: 세션은 «켠 폴더»의 CLAUDE.md·스킬·훅을 읽는다. 본 클론이 main 을 안 따라가면 main 에 들어간 수리가
+#   새 세션에 안 닿아 **고친 결함이 되살아난다**(2026-09-10 bnsone 본 클론 50커밋 뒤처짐 — 그날의 /handoff 가 안 보였다).
+#   규칙(CLAUDE.md «main 따라잡기는 AI 가 한다»)만으로는 안 됐다 — 여러 세션이 사람에게 수동 pull 을 권했다.
+# 조건은 ② 의 «앞으로 감기» 면제와 **같다**(추적 변경 0 · 스테이지 0 · 미푸시 0) + **main 체크아웃일 때만**
+#   (작업 브랜치·워크트리는 건드리지 않는다). `--ff-only` 라 갈라졌으면 아무것도 안 하고 멈춘다.
+#   못 따라잡으면 **이유를 한 줄로 말한다** — 조용한 실패가 이 틈을 만들었다.
+# ⚠️한계: CLAUDE.md 는 이 훅보다 먼저 읽혔을 수 있다 — 그 세션은 한 판 늦다(스킬·훅은 부를 때 읽혀 바로 새 판).
+catchup() { # $1=repo 루트
+  local R="$1" br behind ahead why=""
+  br=$(git -C "$R" symbolic-ref --quiet --short HEAD 2>/dev/null) || return 0
+  [ "$br" = "main" ] || return 0
+  git -C "$R" remote get-url origin >/dev/null 2>&1 || return 0
+  # 네트워크가 막혀도(VPN 꺼짐 등) 세션 시작을 붙잡지 않는다 — 비밀번호·로그인 창을 띄우지 않고, 느리면 끊는다.
+  if ! GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=5" \
+       git -C "$R" -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=10 fetch -q origin main >/dev/null 2>&1; then
+    echo "⚠️ 본 클론 따라잡기: origin 을 못 받아왔다(네트워크·VPN?) — main 이 뒤처져 있을 수 있다. 사용자에게 한 줄로 알려라."
+    return 0
+  fi
+  behind=$(git -C "$R" rev-list --count HEAD..origin/main 2>/dev/null) || return 0
+  [ "${behind:-0}" = "0" ] && return 0
+  ahead=$(git -C "$R" rev-list --count origin/main..HEAD 2>/dev/null)
+  git -C "$R" diff --quiet 2>/dev/null || why="저장 안 된 변경이 있다"
+  git -C "$R" diff --cached --quiet 2>/dev/null || why="스테이지된 변경이 있다"
+  [ "${ahead:-x}" = "0" ] || why="main 에 미푸시 커밋이 있다"
+  if [ -z "$why" ] && git -C "$R" merge -q --ff-only origin/main >/dev/null 2>&1; then
+    echo "📥 본 클론을 main 최신으로 따라잡았다(${behind}커밋) — 스킬·훅은 새 판이 적용된다. 이 세션의 CLAUDE.md 는 옛 판일 수 있다."
+  else
+    echo "⚠️ 본 클론이 main 보다 ${behind}커밋 뒤처졌는데 못 따라잡았다 — ${why:-앞으로 감기 실패(갈라졌거나 다른 git 작업이 잠금 중)}. 사용자에게 한 줄로 알려라."
+  fi
+}
+
 MODE="${1:-check}"
 MYPID=$(my_pid) || MYPID=""
 
-# ══════════════════ ① SessionStart — 등록 + 점유 경고 ══════════════════
+# ══════════════════ ① SessionStart — 등록 + 점유 경고 (+ ③ 따라잡기) ══════════════════
 if [ "$MODE" = "register" ]; then
+  ROOT=$(repo_root "${CLAUDE_PROJECT_DIR:-.}")
+  # ★따라잡기는 등록보다 «먼저», pid 와 무관하게 — pid 를 못 찾는 세션도 옛 규칙을 읽으면 안 된다.
+  [ -n "$ROOT" ] && command -v git >/dev/null 2>&1 && catchup "$ROOT"
   if [ -z "$MYPID" ]; then
     echo "⚠️ 세션 pid를 찾지 못해 워킹트리 점유 등록을 건너뛴다 — 이 세션은 다른 세션에게 보이지 않는다(session-guard 한계 ㉡)."
     exit 0
   fi
-  ROOT=$(repo_root "${CLAUDE_PROJECT_DIR:-.}") || exit 0
   [ -z "$ROOT" ] && exit 0
   LOCK="$ROOT/$LOCKREL"
   mkdir -p "$(dirname "$LOCK")" 2>/dev/null || exit 0

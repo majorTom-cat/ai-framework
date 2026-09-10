@@ -241,6 +241,34 @@ else
   echo "  ⚠️ 앞으로 감기 픽스처를 못 만들었다 — K절을 못 돌렸다(실패로 센다)"; fail=$((fail+1))
 fi
 
+echo "── L. 세션 시작에 본 클론을 main 최신으로 따라잡는다 (2026-09-10 — 본 클론 50커밋 뒤처짐)"
+# 왜: 세션은 켠 폴더의 규칙을 읽는다. 본 클론이 뒤처지면 main 에 들어간 수리가 새 세션에 안 닿는다.
+# ★옛 훅(따라잡기 없음)에서는 L1·L2·L3 이 FAIL 한다 — 초록만 보고 넘어가지 마라.
+reg() { CLAUDE_PROJECT_DIR="$1" bash "$HOOK" register 2>/dev/null; }
+up_ahead() { ( cd "$UP" || exit 1; echo "$1" >> README.md && git add -A && git commit -qm "$1" ) >/dev/null 2>&1; }
+CU="$TMPROOT/cu"; git clone -q "$UP" "$CU" >/dev/null 2>&1
+if [ -d "$CU" ]; then
+  mkdir -p "$CU/.claude"
+  up_ahead l1; OUT=$(reg "$CU")
+  { [ "$(git -C "$CU" rev-parse HEAD)" = "$(git -C "$UP" rev-parse HEAD)" ] && printf '%s' "$OUT" | grep -q '따라잡았다'; } \
+    && pass=$((pass+1)) || { echo "FAIL(L1 깨끗한 main 인데 안 따라잡음): ${OUT:-무음}"; fail=$((fail+1)); }
+  up_ahead l2; echo dirty >> "$CU/README.md"                      # 추적 변경 → 건드리지 않고 이유를 말한다
+  H0=$(git -C "$CU" rev-parse HEAD); OUT=$(reg "$CU")
+  { [ "$(git -C "$CU" rev-parse HEAD)" = "$H0" ] && printf '%s' "$OUT" | grep -q '저장 안 된 변경'; } \
+    && pass=$((pass+1)) || { echo "FAIL(L2 더러운 트리를 감았거나 이유가 없다): ${OUT:-무음}"; fail=$((fail+1)); }
+  git -C "$CU" checkout -q -- README.md
+  ( cd "$CU" || exit 1; echo mine > mine.txt && git add mine.txt && git commit -qm mine ) >/dev/null 2>&1   # 미푸시 커밋
+  H0=$(git -C "$CU" rev-parse HEAD); OUT=$(reg "$CU")
+  { [ "$(git -C "$CU" rev-parse HEAD)" = "$H0" ] && printf '%s' "$OUT" | grep -q '미푸시'; } \
+    && pass=$((pass+1)) || { echo "FAIL(L3 미푸시 커밋 위로 감았거나 이유가 없다): ${OUT:-무음}"; fail=$((fail+1)); }
+  git -C "$CU" checkout -q -b feat/l                               # 작업 브랜치 → 아무것도 안 하고 말도 안 한다
+  up_ahead l3; H0=$(git -C "$CU" rev-parse HEAD); OUT=$(reg "$CU")
+  { [ "$(git -C "$CU" rev-parse HEAD)" = "$H0" ] && [ -z "$OUT" ]; } \
+    && pass=$((pass+1)) || { echo "FAIL(L4 작업 브랜치를 건드렸거나 떠든다): ${OUT:-무음}"; fail=$((fail+1)); }
+else
+  echo "  ⚠️ 따라잡기 픽스처를 못 만들었다 — L절을 못 돌렸다(실패로 센다)"; fail=$((fail+1))
+fi
+
 kill "$GHOST" 2>/dev/null; kill "${SESS:-}" 2>/dev/null
 echo "──────── $pass OK / $fail FAIL"
 [ "$fail" -eq 0 ] || exit 1

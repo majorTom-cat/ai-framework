@@ -27,7 +27,8 @@ allowed-tools: Bash(glab *) Bash(git *) Bash(grep *) Bash(node scripts/pipeline-
 
 **0. 스펙 변경 감지 (선택지 제시 전)**: `git fetch origin -q` 후 `git log origin/main --oneline -10 -- docs/` 로 최근 docs 커밋을 훑어라.
   - **내 열린 카드가 가리키는 정본 경로**(카드 본문의 docs 참조)와 겹치는 변경이 있으면 브리핑 **맨 위에 ⚠️ 경고**: "카드 #N의 근거 문서가 바뀜({커밋 한 줄}) — 착수·진행 전 변경 절 확인, 기획 변경이면 `/change`".
-  - (기획자는 카드 없이 웹에서 문서를 고칠 수 있다[길 A] — 이 스캔이 그 조용한 변경을 다음 세션 시작에 잡는 백스톱이다. fetch만 하고 pull·checkout은 하지 마라 — 조회형 스킬이다.)
+  - (기획자는 카드 없이 웹에서 문서를 고칠 수 있다[길 A] — 이 스캔이 그 조용한 변경을 다음 세션 시작에 잡는 백스톱이다. pull·checkout은 하지 마라 — 조회형 스킬이다.)
+  - **본 클론 뒤처짐 한 줄**: 세션 시작 훅이 남긴 «따라잡았다 / 못 따라잡았다» 줄을 브리핑 맨 위에 옮겨라. 그 줄이 없는데 main 체크아웃이면 `git rev-list --count HEAD..origin/main` 을 재서 0 이 아니면 「본 클론 N커밋 뒤처짐 — 못 따라잡음」으로 적어라(따라잡기 조건 = CLAUDE.md 세션 규칙).
   - **+ 열린 MR 중 docs 변경 확인**: `glab mr list` 에 docs/만 바꾸는 열린 MR이 있으면 ⚠️ "기획자 문서 변경이 main에 아직 안 들어옴(!N) — Merge 확인 필요" 경고(기획자가 웹 편집 후 Merge를 안 누르고 이탈하면 이 조회에만 걸린다).
 
 **0-b. 내 발행 카드 응답 대기 스캔**: `glab api "projects/:id/issues?state=opened&author_username=<me>&per_page=100"` 로 내 발행 카드를 뽑아, **타인이 남긴 마지막 활동**(notes 최신 + 본문 체크박스) 뒤에 내 응답이 없으면 브리핑에 올린다. **내가 낸 카드인데 담당자가 남이면 To-Do 에 안 뜬다**(체크박스 변경은 알림 자체가 없다).
