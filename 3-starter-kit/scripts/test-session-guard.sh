@@ -270,6 +270,46 @@ else
   echo "  ⚠️ 따라잡기 픽스처를 못 만들었다 — L절을 못 돌렸다(실패로 센다)"; fail=$((fail+1))
 fi
 
+echo "── L2. 따라잡기 실패는 «빨리», «맞는 이유로» 말한다 (2026-09-10 리뷰 — 75초 붙잡힘 · 틀린 이유 셋 · 워크트리)"
+# ★옛 판(마감 없음·이유 한 가지·워크트리 안 가림)에서는 L5~L9 가 FAIL 한다.
+fresh() { git clone -q "$UP" "$TMPROOT/$1" >/dev/null 2>&1; mkdir -p "$TMPROOT/$1/.claude"; printf '%s' "$TMPROOT/$1"; }
+# L5 응답 없는 원격 — 마감 안에 놓아주고 «응답하지 않는다»고 말한다(ext:: 로 «연결은 되는데 말이 없는» 원격을 흉내낸다)
+HG=$(fresh hang)
+git -C "$HG" config protocol.ext.allow always
+git -C "$HG" remote set-url origin 'ext::sleep 20'     # ★ext:: 는 셸이 아니다 — 따옴표를 안 푼다(`sh -c "…"` 는 즉사해 시험이 헛돈다)
+S0=$(date +%s); OUT=$(SESSION_GUARD_FETCH_SECS=2 CLAUDE_PROJECT_DIR="$HG" bash "$HOOK" register 2>/dev/null); S1=$(date +%s)
+{ [ $((S1 - S0)) -le 8 ] && printf '%s' "$OUT" | grep -q '응답하지 않는다'; } \
+  && pass=$((pass+1)) || { echo "FAIL(L5 응답 없는 원격이 $((S1 - S0))초 붙잡았거나 이유가 틀림): ${OUT:-무음}"; fail=$((fail+1)); }
+# L6 잠금 경합 — 다른 세션의 fetch 가 잠깐 잠갔다 풀면 한 번 더 받아 따라잡는다
+RA=$(fresh race); up_ahead l6
+: > "$RA/.git/refs/remotes/origin/main.lock"
+( sleep 1; rm -f "$RA/.git/refs/remotes/origin/main.lock" ) & RMPID=$!
+OUT=$(reg "$RA"); wait "$RMPID" 2>/dev/null
+printf '%s' "$OUT" | grep -q '따라잡았다' && pass=$((pass+1)) || { echo "FAIL(L6 잠금이 풀렸는데 못 따라잡음): ${OUT:-무음}"; fail=$((fail+1)); }
+# L6b 잠금이 안 풀리면 «네트워크·VPN» 이 아니라 «잠금»이라고 말한다
+up_ahead l6b; : > "$RA/.git/refs/remotes/origin/main.lock"
+OUT=$(reg "$RA"); rm -f "$RA/.git/refs/remotes/origin/main.lock"
+printf '%s' "$OUT" | grep -q '잠금' && pass=$((pass+1)) || { echo "FAIL(L6b 남은 잠금을 다른 이유로 말함): ${OUT:-무음}"; fail=$((fail+1)); }
+# L7 원격에 main 이 없다
+NM=$(fresh nomain); TR="$TMPROOT/trunkonly"; mkdir -p "$TR"
+( cd "$TR" || exit 1; git init -q -b trunk . && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m t ) >/dev/null 2>&1
+git -C "$NM" remote set-url origin "$TR"
+OUT=$(reg "$NM")
+printf '%s' "$OUT" | grep -q 'main 이 없다' && pass=$((pass+1)) || { echo "FAIL(L7 원격에 main 이 없는데 다른 이유): ${OUT:-무음}"; fail=$((fail+1)); }
+# L8 추적 안 하는 파일이 받아올 파일과 겹친다
+UT=$(fresh untr)
+( cd "$UP" || exit 1; echo new > overlap.txt && git add overlap.txt && git commit -qm overlap ) >/dev/null 2>&1
+echo mine > "$UT/overlap.txt"
+H0=$(git -C "$UT" rev-parse HEAD); OUT=$(reg "$UT")
+{ [ "$(git -C "$UT" rev-parse HEAD)" = "$H0" ] && printf '%s' "$OUT" | grep -q '추적 안 하는 파일'; } \
+  && pass=$((pass+1)) || { echo "FAIL(L8 겹치는 미추적 파일을 다른 이유로 말함): ${OUT:-무음}"; fail=$((fail+1)); }
+# L9 연결 워크트리에 main 이 있어도 건드리지 않는다 — «본 클론»만 감는다
+WB=$(fresh wtbase); git -C "$WB" checkout -q -b other >/dev/null 2>&1
+git -C "$WB" worktree add -q "$TMPROOT/wtmain" main >/dev/null 2>&1; mkdir -p "$TMPROOT/wtmain/.claude"
+up_ahead l9; H0=$(git -C "$TMPROOT/wtmain" rev-parse HEAD 2>/dev/null); OUT=$(reg "$TMPROOT/wtmain")
+{ [ -n "$H0" ] && [ "$(git -C "$TMPROOT/wtmain" rev-parse HEAD)" = "$H0" ] && [ -z "$OUT" ]; } \
+  && pass=$((pass+1)) || { echo "FAIL(L9 워크트리를 감았거나 떠든다): ${OUT:-무음}"; fail=$((fail+1)); }
+
 echo "── M. 따옴표 «안»의 git 은 명령이 아니다 (2026-09-10 — 오너 사진: 문구 찾기 grep 이 «HEAD 이동» 창을 세웠다)"
 # ★옛 훅에서는 SILENT 칸이 FAIL 한다. ASK 칸은 «비웠더니 진짜 명령까지 놓쳤나»를 본다 — 약해지지 않았다는 증거다.
 printf '%s\t%s\t%s\t%s\n' "$GHOST" "main" "2026-01-01 00:00" "$OTHER" > "$MINE/.claude/.session-lock"

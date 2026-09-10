@@ -71,28 +71,67 @@ repo_root() { git -C "${1:-.}" rev-parse --show-toplevel 2>/dev/null; }
 #   (작업 브랜치·워크트리는 건드리지 않는다). `--ff-only` 라 갈라졌으면 아무것도 안 하고 멈춘다.
 #   못 따라잡으면 **이유를 한 줄로 말한다** — 조용한 실패가 이 틈을 만들었다.
 # ⚠️한계: CLAUDE.md 는 이 훅보다 먼저 읽혔을 수 있다 — 그 세션은 한 판 늦다(스킬·훅은 부를 때 읽혀 바로 새 판).
+# 도는 때: 세션을 켤 때 «와» 압축(compact) 뒤마다 — SessionStart 두 매처가 다 register 를 부른다(세션 도중에도 감을 수 있다 — 조건 셋이라 안전하다).
+#
+# fetch 에 «마감»을 건다 — http.lowSpeed* 는 «연결» 단계를 못 끊는다(2026-09-10 리뷰 재현: 주소는 풀리는데 TCP 응답이
+#   없는 https 원격이 세션 시작을 75초 붙잡았다. ssh 는 ConnectTimeout 으로 5초에 끝났다). mac 에는 timeout 이 없어
+#   백그라운드로 돌리고 마감에 끊는다. 마감 = 124. ★출력은 /dev/null·파일로 돌린다 — 끊은 뒤 남는 자식 프로세스가
+#   훅의 출력 통로를 붙잡으면 하네스가 그만큼 기다린다.
+fetch_once() { # $1=루트  $2=마감(초)  $3=stderr 파일
+  GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=5" \
+    git -C "$1" -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=10 fetch -q origin main </dev/null >/dev/null 2>"$3" &
+  local pid=$! i=0
+  while kill -0 "$pid" 2>/dev/null; do
+    if [ "$i" -ge $(( $2 * 2 )) ]; then kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; return 124; fi
+    sleep 0.5; i=$((i + 1))
+  done
+  wait "$pid"
+}
+
 catchup() { # $1=repo 루트
-  local R="$1" br behind ahead why=""
+  local R="$1" br behind ahead why="" gd gc err rc lim
   br=$(git -C "$R" symbolic-ref --quiet --short HEAD 2>/dev/null) || return 0
   [ "$br" = "main" ] || return 0
+  # 연결 워크트리는 건드리지 않는다 — «본 클론»만 감는다(2026-09-10 리뷰: 워크트리에 main 이 있으면 그걸 감고 «본 클론»이라 말했다).
+  gd=$(git -C "$R" rev-parse --git-dir 2>/dev/null); gc=$(git -C "$R" rev-parse --git-common-dir 2>/dev/null)
+  [ -n "$gd" ] && [ "$gd" != "$gc" ] && return 0
   git -C "$R" remote get-url origin >/dev/null 2>&1 || return 0
-  # 네트워크가 막혀도(VPN 꺼짐 등) 세션 시작을 붙잡지 않는다 — 비밀번호·로그인 창을 띄우지 않고, 느리면 끊는다.
-  if ! GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=5" \
-       git -C "$R" -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=10 fetch -q origin main >/dev/null 2>&1; then
-    echo "⚠️ 본 클론 따라잡기: origin 을 못 받아왔다(네트워크·VPN?) — main 이 뒤처져 있을 수 있다. 사용자에게 한 줄로 알려라."
+  err=$(mktemp 2>/dev/null) || err=/dev/null
+  lim="${SESSION_GUARD_FETCH_SECS:-8}"
+  fetch_once "$R" "$lim" "$err"; rc=$?
+  # 잠금 경합(두 세션이 동시에 시작)은 한 번 더 받는다 — 다른 쪽 fetch 는 금방 끝난다(2026-09-10 리뷰 재현 5/5:
+  #   한쪽이 «네트워크·VPN?» 을 찍었는데 실제로는 다른 쪽이 이미 따라잡고 있었다).
+  if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ] && grep -qi 'lock' "$err" 2>/dev/null; then
+    sleep 2; fetch_once "$R" "$lim" "$err"; rc=$?
+  fi
+  if [ "$rc" -ne 0 ]; then
+    # ★이유는 «맞아야» 한다 — 틀린 이유는 사람을 엉뚱한 데로 보낸다(VPN 을 켜 봐도 안 풀린다).
+    if [ "$rc" -eq 124 ]; then why="origin 이 ${lim}초 안에 응답하지 않는다(네트워크·VPN?)"
+    elif grep -qi "couldn't find remote ref" "$err" 2>/dev/null; then why="origin 에 main 이 없다"
+    elif grep -qi 'lock' "$err" 2>/dev/null; then why="잠금이 안 풀린다(다른 git 작업 중이거나 남은 .lock 파일)"
+    else why="origin 을 못 받아왔다(네트워크·VPN?)"; fi
+    [ "$err" != /dev/null ] && rm -f "$err"
+    echo "⚠️ 본 클론 따라잡기 실패 — ${why}. main 이 뒤처져 있을 수 있다. 사용자에게 한 줄로 알려라(/todo 가 다시 본다)."
     return 0
   fi
-  behind=$(git -C "$R" rev-list --count HEAD..origin/main 2>/dev/null) || return 0
-  [ "${behind:-0}" = "0" ] && return 0
+  behind=$(git -C "$R" rev-list --count HEAD..origin/main 2>/dev/null) || behind=0
+  if [ "${behind:-0}" = "0" ]; then [ "$err" != /dev/null ] && rm -f "$err"; return 0; fi
   ahead=$(git -C "$R" rev-list --count origin/main..HEAD 2>/dev/null)
   git -C "$R" diff --quiet 2>/dev/null || why="저장 안 된 변경이 있다"
   git -C "$R" diff --cached --quiet 2>/dev/null || why="스테이지된 변경이 있다"
   [ "${ahead:-x}" = "0" ] || why="main 에 미푸시 커밋이 있다"
-  if [ -z "$why" ] && git -C "$R" merge -q --ff-only origin/main >/dev/null 2>&1; then
-    echo "📥 본 클론을 main 최신으로 따라잡았다(${behind}커밋) — 스킬·훅은 새 판이 적용된다. 이 세션의 CLAUDE.md 는 옛 판일 수 있다."
-  else
-    echo "⚠️ 본 클론이 main 보다 ${behind}커밋 뒤처졌는데 못 따라잡았다 — ${why:-앞으로 감기 실패(갈라졌거나 다른 git 작업이 잠금 중)}. 사용자에게 한 줄로 알려라."
+  if [ -z "$why" ]; then
+    if git -C "$R" merge -q --ff-only origin/main >/dev/null 2>"$err"; then
+      [ "$err" != /dev/null ] && rm -f "$err"
+      echo "📥 본 클론을 main 최신으로 따라잡았다(${behind}커밋) — 스킬·훅은 새 판이 적용된다. 이 세션의 CLAUDE.md 는 옛 판일 수 있다."
+      return 0
+    fi
+    if grep -qi 'untracked working tree files would be overwritten' "$err" 2>/dev/null; then why="추적 안 하는 파일이 받아올 파일과 겹친다"
+    elif grep -qi 'lock' "$err" 2>/dev/null; then why="다른 git 작업이 잠금 중이다"
+    else why="앞으로 감기가 거부됐다"; fi
   fi
+  [ "$err" != /dev/null ] && rm -f "$err"
+  echo "⚠️ 본 클론이 main 보다 ${behind}커밋 뒤처졌는데 못 따라잡았다 — ${why}. 사용자에게 한 줄로 알려라."
 }
 
 MODE="${1:-check}"
