@@ -36,4 +36,31 @@ if [ "$BLANK" -ne 0 ]; then
   exit 1
 fi
 
+# ★★★2026-09-10 — 여기까지가 «`.claude/hooks/` 안의 창»이다. 그런데 **창은 거기에만 있는 게 아니다.**
+#   설정 파일(`settings.json`·`settings.local.json`)의 `hooks` 항목에는 **명령이 통째로 인라인**으로 들어갈 수
+#   있고, 거기 적힌 `permissionDecision:ask` 도 똑같이 모든 세션을 세운다. 위 대조는 그 창을 **한 개도 못 본다.**
+#   실측: 오너가 「automode 인데 또 떴다」며 보낸 창의 정체가 바로 그것이었다 — bnsone 작업 폴더의
+#   `settings.local.json` 에 인라인 훅 하나가 `git status --porcelain`(추적 안 하는 파일까지 센다)로 물어
+#   `?? .agents/` 두 줄 때문에 «건드리지도 않는 파일»을 이유로 창을 세우고 있었다.
+#   ⇒ 「전수 표」라고 적어 놓고 전수가 아니었다. **세는 곳을 늘린다.**
+LOCAL_HITS=""
+for f in "$ROOT/.claude/settings.json" "$ROOT/.claude/settings.local.json" "$HOME/.claude/settings.json"; do
+  [ -f "$f" ] || continue
+  # ★잣대가 «실물 줄 모양»과 달라 0이 나온 것을 그 자리에서 잡았다(2026-09-10):
+  #   설정 파일 안의 훅 명령은 **JSON 문자열**이라 따옴표가 `\"` 로 이스케이프된다 —
+  #   `permissionDecision"` 로 찾으면 실물에서 **한 건도 안 걸린다.** `\\?` 로 둘 다 받는다.
+  n=$(grep -Eo 'permissionDecision\\?"[[:space:]]*:[[:space:]]*\\?"ask' "$f" 2>/dev/null | grep -c . || true)
+  [ "$n" -gt 0 ] && LOCAL_HITS="${LOCAL_HITS}${f}: ${n}개
+"
+done
+if [ -n "$LOCAL_HITS" ]; then
+  echo "⛔ 설정 파일 «안에» 직접 적힌 확인 창이 있다 — 전수 표가 못 보는 자리다"
+  printf '%s' "$LOCAL_HITS" | sed 's/^/   /'
+  echo "   훅 파일(.claude/hooks/**)로 옮기고 _reference/asks.md 표에 줄을 더하거나, 기준에 안 맞으면 지워라."
+  echo "   기준 = revert 커밋 하나로 원상복구되나? «예»면 창을 세우지 마라."
+  echo "   ★이 창들도 «자동 모드보다 위»라 모드로는 못 건너뛴다 — 목록에 없으면 아무도 못 찾는다."
+  exit 1
+fi
+
 echo "확인 창 OK — 훅 $ACTUAL 개가 전수 표와 일치하고, 전부 «되돌릴 수 있나» 판정이 있다"
+echo "  (설정 파일 안의 인라인 창도 함께 봤다 — 0개)"

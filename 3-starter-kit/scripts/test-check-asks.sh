@@ -21,8 +21,10 @@ hooks() { # $1 = 창 개수 — 훅이 낼 수 있는 ask 를 그 수만큼 만�
 table() { # stdin = 표 본문
   mkdir -p "$TMP/_reference"; cat > "$TMP/_reference/asks.md"
 }
-run() { ASKS_ROOT="$TMP" bash "$CHK" 2>&1; }
-code() { ASKS_ROOT="$TMP" bash "$CHK" >/dev/null 2>&1; echo $?; }
+# ★HOME 도 픽스처로 돌린다 — 검사기가 `$HOME/.claude/settings.json` 까지 보므로,
+#   안 돌리면 «시험 결과가 그 맥의 개인 설정에 따라 달라진다»(재현 안 되는 시험은 시험이 아니다).
+run() { ASKS_ROOT="$TMP" HOME="$TMP" bash "$CHK" 2>&1; }
+code() { ASKS_ROOT="$TMP" HOME="$TMP" bash "$CHK" >/dev/null 2>&1; echo $?; }
 
 ck() { # $1=설명 $2=기대문구 $3=출력
   if printf '%s' "$3" | grep -q "$2"; then OK=$((OK+1))
@@ -77,6 +79,24 @@ ckcode "E2 종료코드 1" 1 "$(code)"
 printf '%s' "$GOOD" | table; rm -rf "$TMP/.claude"
 ck     "E3 훅 폴더 부재를 말한다" "훅 폴더가 없다" "$(run)"
 ckcode "E4 종료코드 1" 1 "$(code)"
+
+echo "── G. ★설정 파일 «안»에 숨은 창도 잡는다 (2026-09-10 — 오너가 받던 거짓 창이 거기 있었다)"
+hooks 3; printf '%s' "$GOOD" | table
+mkdir -p "$TMP/.claude"
+# ★픽스처는 «실물 모양»이어야 한다 — 설정 파일 안의 훅 명령은 JSON 문자열이라
+#   따옴표가 \" 로 이스케이프된다. 처음엔 이스케이프 없는 모양으로 써서 시험이 통과해 버렸고,
+#   그 잣대는 정작 실물 파일에서 0을 냈다(2026-09-10 — 그 자리에서 잡았다).
+cat > "$TMP/.claude/settings.local.json" <<'JSON'
+{ "hooks": { "PreToolUse": [ { "hooks": [
+  { "command": "printf '{\"hookSpecificOutput\":{\"permissionDecision\":\"ask\"}}'" }
+] } ] } }
+JSON
+OUT="$(run)"
+ck     "G1 설정 파일 안의 창을 말한다" "설정 파일 «안에» 직접 적힌 확인 창이 있다" "$OUT"
+ck     "G2 어느 파일인지 지목한다" "settings.local.json" "$OUT"
+ckcode "G3 차단한다" 1 "$(code)"
+rm -f "$TMP/.claude/settings.local.json"
+ckcode "G4 없애면 다시 통과" 0 "$(code)"
 
 echo "── F. 이 repo 실물에서도 통과한다 (픽스처만 맞추고 실물이 어긋나면 의미가 없다)"
 REAL="$(cd "$HERE/.." && pwd)"
