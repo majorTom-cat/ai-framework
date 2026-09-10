@@ -82,7 +82,9 @@ fetch_once() { # $1=루트  $2=마감(초)  $3=stderr 파일
     git -C "$1" -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=10 fetch -q origin main </dev/null >/dev/null 2>"$3" &
   local pid=$! i=0
   while kill -0 "$pid" 2>/dev/null; do
-    if [ "$i" -ge $(( $2 * 2 )) ]; then kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; return 124; fi
+    # ★자식(git remote-https·remote-ext)부터 끊는다 — 부모만 끊으면 보조 프로세스가 부모 없이 30초 넘게 남는다(2026-09-10 리뷰).
+    #   pkill 이 없는 환경이면 조용히 넘어간다(손자까지는 못 끊는다 — 출력은 이미 /dev/null·파일이라 훅을 붙잡지는 않는다).
+    if [ "$i" -ge $(( $2 * 2 )) ]; then pkill -P "$pid" 2>/dev/null; kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; return 124; fi
     sleep 0.5; i=$((i + 1))
   done
   wait "$pid"
@@ -98,17 +100,18 @@ catchup() { # $1=repo 루트
   git -C "$R" remote get-url origin >/dev/null 2>&1 || return 0
   err=$(mktemp 2>/dev/null) || err=/dev/null
   lim="${SESSION_GUARD_FETCH_SECS:-8}"
+  case "$lim" in ''|*[!0-9]*) lim=8;; esac   # 숫자가 아니면 set -u 가 register 를 통째로 멈춘다(점유 등록이 조용히 빠진다 — 2026-09-10 리뷰)
   fetch_once "$R" "$lim" "$err"; rc=$?
   # 잠금 경합(두 세션이 동시에 시작)은 한 번 더 받는다 — 다른 쪽 fetch 는 금방 끝난다(2026-09-10 리뷰 재현 5/5:
   #   한쪽이 «네트워크·VPN?» 을 찍었는데 실제로는 다른 쪽이 이미 따라잡고 있었다).
-  if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ] && grep -qi 'lock' "$err" 2>/dev/null; then
+  if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ] && grep -qiE 'cannot lock|unable to (create|lock)|\.lock' "$err" 2>/dev/null; then
     sleep 2; fetch_once "$R" "$lim" "$err"; rc=$?
   fi
   if [ "$rc" -ne 0 ]; then
     # ★이유는 «맞아야» 한다 — 틀린 이유는 사람을 엉뚱한 데로 보낸다(VPN 을 켜 봐도 안 풀린다).
     if [ "$rc" -eq 124 ]; then why="origin 이 ${lim}초 안에 응답하지 않는다(네트워크·VPN?)"
     elif grep -qi "couldn't find remote ref" "$err" 2>/dev/null; then why="origin 에 main 이 없다"
-    elif grep -qi 'lock' "$err" 2>/dev/null; then why="잠금이 안 풀린다(다른 git 작업 중이거나 남은 .lock 파일)"
+    elif grep -qiE 'cannot lock|unable to (create|lock)|\.lock' "$err" 2>/dev/null; then why="잠금이 안 풀린다(다른 git 작업 중이거나 남은 .lock 파일)"
     else why="origin 을 못 받아왔다(네트워크·VPN?)"; fi
     [ "$err" != /dev/null ] && rm -f "$err"
     echo "⚠️ 본 클론 따라잡기 실패 — ${why}. main 이 뒤처져 있을 수 있다. 사용자에게 한 줄로 알려라(/todo 가 다시 본다)."
@@ -127,7 +130,7 @@ catchup() { # $1=repo 루트
       return 0
     fi
     if grep -qi 'untracked working tree files would be overwritten' "$err" 2>/dev/null; then why="추적 안 하는 파일이 받아올 파일과 겹친다"
-    elif grep -qi 'lock' "$err" 2>/dev/null; then why="다른 git 작업이 잠금 중이다"
+    elif grep -qiE 'cannot lock|unable to (create|lock)|\.lock' "$err" 2>/dev/null; then why="다른 git 작업이 잠금 중이다"
     else why="앞으로 감기가 거부됐다"; fi
   fi
   [ "$err" != /dev/null ] && rm -f "$err"
@@ -177,9 +180,15 @@ CMD=$(printf '%s' "$INPUT" | sed -nE 's/.*"command"[[:space:]]*:[[:space:]]*"((\
 #   grep 의 대안 기호 `\|` 가 아래 명령 경계 글자 `|` 와 같아서다. 그래서 판정용 사본(SCAN)에서 인용 내용을 비운다.
 #   ⚠️단 셸에 넘기는 인용(`bash -c "…"`·`sh -c`·`zsh -c`·`eval`)은 «명령»이라 비우지 않는다 — 거기 숨긴 checkout 을 놓치면 안 된다.
 #   CMD 는 JSON 이스케이프 상태라 큰따옴표는 `\"` 로 온다. 큰따옴표를 먼저 비워야 그 안의 `'`(it's 류)에 안 걸린다.
+# ★★2026-09-10 리뷰(check-push 에 넣은 같은 수리가 진짜 위험 명령 11건을 놓쳐 되돌렸다): 비우기는 «단순한 경우»에만 한다.
+#   아래 표지가 하나라도 있으면 비우지 않고 옛 판 그대로 본다 — 거짓 창을 감수한다(놓치는 것보다 낫다):
+#   `$(`·따옴표 없는 백틱(큰따옴표 안에서도 셸이 실행한다) · 작은따옴표(큰따옴표 비우기가 그 경계를 넘는다) ·
+#   `git` 바로 뒤의 인용 · 인용을 명령으로 돌리는 것(sh/bash/zsh -c·-e · eval · ssh · xargs · su · watch ·
+#   powershell·pwsh -Command · cmd /c · python·node·perl·ruby).
+RISK='\$\(|(^|[^\\])`|'"'"'|git[[:space:]]+\\"|(^|[^[:alnum:]_])(eval|ssh|xargs|su|watch|powershell|pwsh|cmd|python3?|node|perl|ruby)([[:space:]]|$)|[[:space:]]-[A-Za-z]*[ce]([[:space:]]|$)|-Command'
 SCAN="$CMD"
-if ! printf '%s' "$CMD" | grep -Eq '(^|[^[:alnum:]_])((ba|z)?sh[[:space:]]+-[a-z]*c|eval)([[:space:]]|$)'; then
-  SCAN=$(printf '%s' "$CMD" | sed -E -e 's/\\"([^\\]|\\[^"])*\\"/""/g' -e "s/'[^']*'/''/g")
+if ! printf '%s' "$CMD" | grep -Eq "$RISK"; then
+  SCAN=$(printf '%s' "$CMD" | sed -E -e 's/\\"([^\\]|\\[^"])*\\"/""/g')
 fi
 
 # HEAD 를 옮기는 git 명령인가 (명령 경계 기준 — check-push.sh 와 같은 이유로 \n·\r·\t 포함)

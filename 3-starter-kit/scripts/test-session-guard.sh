@@ -290,6 +290,11 @@ printf '%s' "$OUT" | grep -q '따라잡았다' && pass=$((pass+1)) || { echo "FA
 up_ahead l6b; : > "$RA/.git/refs/remotes/origin/main.lock"
 OUT=$(reg "$RA"); rm -f "$RA/.git/refs/remotes/origin/main.lock"
 printf '%s' "$OUT" | grep -q '잠금' && pass=$((pass+1)) || { echo "FAIL(L6b 남은 잠금을 다른 이유로 말함): ${OUT:-무음}"; fail=$((fail+1)); }
+# L10 마감 값이 숫자가 아니어도 등록은 끝까지 간다(set -u 로 멈추면 점유 등록이 조용히 빠진다 — 2026-09-10 리뷰)
+rm -f "$RA/.claude/.session-lock"
+OUT=$(SESSION_GUARD_FETCH_SECS=abc CLAUDE_PROJECT_DIR="$RA" bash "$HOOK" register 2>/dev/null); RC=$?
+{ [ "$RC" -eq 0 ] && grep -q "^$SESS$TAB" "$RA/.claude/.session-lock" 2>/dev/null; } \
+  && pass=$((pass+1)) || { echo "FAIL(L10 숫자 아닌 마감 값에 등록이 멈춤: rc=$RC)"; fail=$((fail+1)); }
 # L7 원격에 main 이 없다
 NM=$(fresh nomain); TR="$TMPROOT/trunkonly"; mkdir -p "$TR"
 ( cd "$TR" || exit 1; git init -q -b trunk . && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m t ) >/dev/null 2>&1
@@ -315,7 +320,13 @@ echo "── M. 따옴표 «안»의 git 은 명령이 아니다 (2026-09-10 —
 printf '%s\t%s\t%s\t%s\n' "$GHOST" "main" "2026-01-01 00:00" "$OTHER" > "$MINE/.claude/.session-lock"
 t SILENT - 'grep -rn \"pull 자체\\|git pull origin main\\`\\|\\`git pull\\` 후\\|git pull &&\" CLAUDE.md .claude _reference'   # 오너 사진의 명령 그대로
 t SILENT - 'echo \"x && git checkout main\"'
-t SILENT - "git log --grep='a | git reset --hard'"
+t ASK '이 클론을 다른 세션이' "git log --grep='a | git reset --hard'"   # 작은따옴표가 있으면 보수적으로 안 비운다 — 거짓 창 감수
+# ★★2026-09-10 리뷰(check-push 의 같은 수리가 진짜 위험 명령 11건을 놓쳤다): 아래는 «비우면 놓치는» 모양 — 옛 판처럼 잡아야 한다.
+t ASK '이 클론을 다른 세션이' 'OUT=\"$(git checkout main 2>\&1)\"'                   # ⓐ 큰따옴표 안 $( ) 는 셸이 실행한다
+t ASK '이 클론을 다른 세션이' 'echo \"r: $(git checkout main)\"'
+t ASK '이 클론을 다른 세션이' "grep -c '\\\"' a \&\& git checkout main \&\& grep -c '\\\"' b"   # ⓑ 작은따옴표 경계
+t ASK '이 클론을 다른 세션이' 'powershell -Command \"git status; git checkout main\"'   # ⓓ 셸 목록 밖이던 것
+t ASK '이 클론을 다른 세션이' 'cmd /c \"git status \&\& git checkout main\"'
 t SILENT - 'git commit -m \"git checkout -- x 를 고쳤다\"'
 t ASK '이 클론을 다른 세션이' 'grep -c \"x\" f \&\& git checkout main'          # 인용 «뒤»의 진짜 명령은 그대로 잡는다
 t ASK '이 클론을 다른 세션이' 'bash -c \"git status \&\& git checkout main\"'   # 셸에 넘긴 인용은 명령이다

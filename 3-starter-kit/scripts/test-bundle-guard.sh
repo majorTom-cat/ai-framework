@@ -11,7 +11,7 @@ T=$(mktemp -d) || { echo "⛔ 임시 폴더를 못 만든다 — 검증 불능";
 trap 'rm -rf "$T"' EXIT
 mkdir -p "$T/home/.claude" "$T/proj/.claude"
 # 허용 목록을 격리한다 — 실제 사용자 설정에 좌우되면 기계마다 결과가 달라진다.
-printf '%s\n' '{"permissions":{"allow":["Bash(git *)","Bash(grep *)","Bash(head *)","Bash(jq *)","Bash(wc *)","Bash(bash scripts/*)","Bash(glab *)"]}}' > "$T/proj/.claude/settings.json"
+printf '%s\n' '{"permissions":{"allow":["Bash(git *)","Bash(grep *)","Bash(head *)","Bash(jq *)","Bash(wc *)","Bash(bash scripts/*)","Bash(glab *)","Bash(docker compose *)"]}}' > "$T/proj/.claude/settings.json"
 pass=0; fail=0
 
 # ★보내는 쪽은 EPIPE 를 삼킨다 — 입력을 안 읽고 끝나는 훅(유효성 증명용 가짜)에서 오류 더미가 결과를 가린다.
@@ -76,6 +76,15 @@ OUT=$(printf '' | node "$HOOK" 2>/dev/null); RC=$?
 { [ -z "$OUT" ] && [ "$RC" -eq 0 ]; } && pass=$((pass+1)) || { echo "FAIL(빈 입력)"; fail=$((fail+1)); }
 OUT=$(printf 'not json' | node "$HOOK" 2>/dev/null); RC=$?
 { [ -z "$OUT" ] && [ "$RC" -eq 0 ]; } && pass=$((pass+1)) || { echo "FAIL(비 JSON)"; fail=$((fail+1)); }
+
+echo "── H. 2026-09-10 리뷰 수리 — 허용은 «줄» 단위 · 큰따옴표 안 \$( ) · 줄 끝 주석 · EXIT 꼬리 변형"
+# ★옛 판에서는 이 절이 전부 FAIL 한다(첫 낱말 판정·따옴표 짝 깨짐·주석 속 ; ·EXIT 모양 한 가지).
+t DENY 'bash' 'git log | bash'                                     # bash 는 `bash scripts/*` 만 허용이다
+t DENY 'docker' 'git log | docker ps'                              # docker 는 `docker compose *` 만
+t PASS - "$(printf "git commit -m \"\$(cat <<'EOF'\nit\"s odd\nEOF\n)\"")"   # heredoc 본문의 따옴표 홀수
+t PASS - 'git status # a; b'                                       # 줄 끝 주석 속 ;
+t PASS - "bash scripts/x.sh; echo 'EXIT='\$?"
+t PASS - 'bash scripts/x.sh; echo "exit: $?"'
 
 echo "── G. 스킬이 열릴 때 도는 명령(!\`…\`)은 되돌리면 안 된다 — 되돌리면 스킬 자체가 안 열린다"
 # ★실물 스킬 파일에서 줄을 뽑아 이 저장소의 실제 허용 목록으로 돌린다 — 새 스킬 줄이 생겨도 자동으로 검사된다.
