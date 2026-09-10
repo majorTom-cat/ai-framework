@@ -216,7 +216,8 @@ self-tests:
   variables:
     GIT_DEPTH: 0
   script:
-    - apk add --no-cache bash git >/dev/null
+    # ★python3 — `scripts/*.py` 를 도는 자기테스트가 있다. 없으면 그 시험이 «검사기가 틀렸다»처럼 떨어진다(2026-09-10 배포처 CI 실측).
+    - apk add --no-cache bash git python3 >/dev/null
     - |
       RC=0
       for t in scripts/test-*.sh; do

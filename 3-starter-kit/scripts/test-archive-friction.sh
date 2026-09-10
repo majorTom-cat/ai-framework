@@ -10,16 +10,32 @@ TMP="$(mktemp -d)" || { echo "⛔ 임시 폴더를 못 만들었다(울타리?) 
 trap 'rm -rf "$TMP"' EXIT
 OK=0; FAIL=0
 
+# ★의존 명령 부재는 «건너뜀»이 아니라 **실패**다 — 이 repo 가 반복해서 밟은 실패 유형이 정확히
+#   「도구가 없어 검사가 통째로 무음이 되고 초록으로 집계」다(CI 이미지에 git 이 없어 훅 검사가 무음이던 건).
+#   2026-09-10 실측: bnsone `self-tests` 잡 이미지(node:24-slim)에 python3 가 없어 이 시험이 **7케이스
+#   전부 «기대와 다름»으로 떨어졌는데, 로그 어디에도 «python3 가 없다»는 말이 없었다** — 원인을
+#   「검사기가 틀렸다」로 오독하게 만든다. 그래서 여기서 먼저 이름을 대고 죽는다.
+command -v python3 >/dev/null 2>&1 || {
+  echo "⛔ python3 가 없다 — archive-friction.py 는 python 스크립트다."
+  echo "   «도구가 없어서 안 돌았다»를 초록으로 넘기지 않는다. CI 라면 그 잡의 이미지에 python3 를 깔아라"
+  echo "   (킷 self-tests = alpine: \`apk add python3\` · 배포처 self-tests = node:24-slim: \`apt-get install -y python3\`)."
+  exit 1
+}
+
 ck() { # $1=설명 $2=기대 $3=실제
   if [ "$2" = "$3" ]; then OK=$((OK+1))
-  else FAIL=$((FAIL+1)); echo "  ⛔ $1"; echo "     기대: $2"; echo "     실제: $3"; fi
+  else
+    FAIL=$((FAIL+1)); echo "  ⛔ $1"; echo "     기대: $2"; echo "     실제: $3"
+    # ★도구가 뭐라고 했는지 함께 찍는다 — 안 찍으면 «기대와 다름»만 남아 원인이 사라진다(2026-09-10 CI 실측)
+    [ -s "$TMP/last.out" ] && { echo "     도구 출력:"; sed 's/^/       /' "$TMP/last.out" | head -4; }
+  fi
 }
 # ★`cut -c` 는 macOS 에서 바이트라 한글이 잘린다 — 문구 포함 여부로 본다(단위 함정: 한글 1자 = 3바이트)
 has_first_kept() { grep -A1 '^## 최근에 끝난 것' "$TMP/f.md" | tail -1 | grep -q "$1" && echo yes || echo no; }
 n_entries()  { grep -cE '^[0-9]{4}-' "$1" || true; }
 
 mk() { : > "$TMP/f.md"; rm -f "$TMP/a.md"; printf '# 머리\n\n> 규약 한 줄\n\n' > "$TMP/f.md"; cat >> "$TMP/f.md"; }
-run() { python3 "$TOOL" "$TMP/f.md" "$TMP/a.md" "${1:-2}" ${2:-} 2>&1; }
+run() { python3 "$TOOL" "$TMP/f.md" "$TMP/a.md" "${1:-2}" ${2:-} > "$TMP/last.out" 2>&1; cat "$TMP/last.out"; }
 
 echo "── A. «오래된 것이 위» 파일은 뒤집는다 — 최신 닫힘이 남는다"
 mk <<'E'
