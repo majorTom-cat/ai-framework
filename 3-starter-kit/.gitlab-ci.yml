@@ -217,7 +217,8 @@ self-tests:
     GIT_DEPTH: 0
   script:
     # ★python3 — `scripts/*.py` 를 도는 자기테스트가 있다. 없으면 그 시험이 «검사기가 틀렸다»처럼 떨어진다(2026-09-10 배포처 CI 실측).
-    - apk add --no-cache bash git python3 >/dev/null
+    # ★nodejs — `test-bundle-guard.sh` 가 `.cjs` 훅을 돈다. 없으면 «검증 불능»으로 떨어진다(합격으로 치지 않는다).
+    - apk add --no-cache bash git python3 nodejs >/dev/null
     - |
       RC=0
       for t in scripts/test-*.sh; do
