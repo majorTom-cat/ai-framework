@@ -155,6 +155,19 @@ t ASK '이 클론을 다른 세션이' "git -C $MINE pull origin main"
 t ASK '이 클론을 다른 세션이' "git reset --hard origin/main"
 t SILENT - "git log --oneline -5"                              # HEAD 를 안 옮긴다
 t SILENT - "git status"                                        # 〃
+echo "── H. «HEAD 이동»과 «파일 되돌리기»를 가른다 (2026-09-10 — 오너가 찍어 보낸 창의 문구가 틀렸다)"
+# `git checkout -- <경로>` 는 HEAD 를 **안 옮긴다**. 그런데도 「HEAD를 옮기려 한다」로 물었다.
+# 틀린 문구는 창을 도장찍기로 만든다 — 그래서 «묻느냐»만이 아니라 «무엇이라 묻느냐»를 검사한다.
+printf 'x\n' > "$MINE/mutant.cjs"; git -C "$MINE" add mutant.cjs >/dev/null 2>&1
+git -C "$MINE" -c user.email=t@t -c user.name=t commit -qm "fixture" >/dev/null 2>&1
+printf '%s\t%s\t%s\t%s\n' "$GHOST" "feature/x" "2026-01-01 00:00" "$OTHER" > "$MINE/.claude/.session-lock"
+printf 'MUTANT\n' > "$MINE/mutant.cjs"                          # 버릴 것이 «있는» 상태
+t ASK '저장 안 된 변경' "cd $MINE \&\& git checkout -- mutant.cjs"
+t ASK '저장 안 된 변경' "git -C $MINE restore mutant.cjs"
+t ASK '저장 안 된 변경' "cd $MINE \&\& git checkout mutant.cjs"  # `--` 없이 경로만
+git -C "$MINE" checkout -- mutant.cjs 2>/dev/null                # 되돌려 «버릴 것이 없는» 상태로
+t SILENT - "cd $MINE \&\& git checkout -- mutant.cjs"            # 무해 = 아예 안 묻는다
+t ASK 'HEAD를 옮기려' "cd $MINE \&\& git checkout main"          # 브랜치 이동은 여전히 옛 문구
 # 점유가 사라지면(죽은 항목만) 다시 조용해진다 — 정상 작업에 침묵이 게이트의 1순위다
 printf '%s\t%s\t%s\t%s\n' "999997" "dead/z" "2020-01-01 00:00" "$OTHER" > "$MINE/.claude/.session-lock"
 t SILENT - "cd $MINE \&\& git checkout main"

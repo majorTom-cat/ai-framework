@@ -99,7 +99,9 @@ CMD=$(printf '%s' "$INPUT" | sed -nE 's/.*"command"[[:space:]]*:[[:space:]]*"((\
 [ -z "$CMD" ] && exit 0
 
 # HEAD 를 옮기는 git 명령인가 (명령 경계 기준 — check-push.sh 와 같은 이유로 \n·\r·\t 포함)
-printf '%s' "$CMD" | grep -Eiq '(^|[;&|(]|\\n|\\r|\\t)[[:space:]]*git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?(checkout|switch|pull|reset|merge|rebase)([[:space:]]|$|"|\\)' || exit 0
+printf '%s' "$CMD" | grep -Eiq '(^|[;&|(]|\\n|\\r|\\t)[[:space:]]*git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?(checkout|switch|pull|reset|merge|rebase|restore)([[:space:]]|$|"|\\)' || exit 0
+# ★`restore` 는 2026-09-10 에 넣었다 — `git checkout -- <경로>` 와 «완전히 같은 일»(저장 안 된 변경 버리기)인데
+#   목록에 없어 통째로 무음이었다. 자기시험이 잡았다(그 전엔 35 OK 로 초록이었다).
 
 # 대상 디렉터리: `git -C <경로>` 가 있으면 **그것이 우선**, 없으면 `cd <경로>`, 그것도 없으면 현재 폴더(=내 project dir → 남의 것 아님)
 # ★순서 주의: `cd A && git -C B checkout` 은 HEAD 가 **B** 에서 움직인다. cd 를 먼저 보면 A 를 보고 B 를 놓친다(2026-08-27 리뷰 지적).
@@ -107,7 +109,7 @@ TARGET=$(printf '%s' "$CMD" | sed -nE 's/.*git[[:space:]]+-C[[:space:]]+"?([^"[:
 # ★cd 폴백은 **그 git 명령 앞쪽**에서 찾는다 — 뒤에 붙은 cd 까지 세면 판정이 뒤집힌다:
 #   `cd 남의폴더 && git checkout main && cd 내폴더` 가 '내 repo'로 읽혀 무음이 됐다(2026-08-27 리뷰 지적).
 if [ -z "$TARGET" ]; then
-  HEAD_CMD=$(printf '%s' "$CMD" | sed -E 's/(git[[:space:]]+(checkout|switch|pull|reset|merge|rebase)([[:space:]]|$)).*/\1/')
+  HEAD_CMD=$(printf '%s' "$CMD" | sed -E 's/(git[[:space:]]+(checkout|switch|pull|reset|merge|rebase|restore)([[:space:]]|$)).*/\1/')
   TARGET=$(printf '%s' "$HEAD_CMD" | sed -nE 's/.*(^|[;&|(]|\\n)[[:space:]]*cd[[:space:]]+"?([^"[:space:];&|]+)"?.*/\2/p' | tail -1)
 fi
 MYROOT=$(repo_root "${CLAUDE_PROJECT_DIR:-.}")
@@ -137,7 +139,34 @@ WHO=$(printf '%s' "$OTHERS" | head -1 | awk -F'\t' '{printf "pid %s 브랜치 %s
 #   경로·브랜치명에 " 나 \ 가 있으면 JSON 이 깨지고 훅 판정이 **통째로 버려진다**(= 이 파일이 막으려던 그 무음).
 #   경고문에 정확한 글자가 필요한 게 아니므로 **위험 글자는 '로 바꿔** 흘린다(escape 보다 단순·확실).
 sanitize() { printf '%s' "$1" | tr '"\\' "''" | tr -d '\000-\037'; }
-if [ "$ROOT" = "$MYROOT" ]; then
+
+# ★2026-09-10 — «HEAD 이동»과 «파일 되돌리기»를 가른다. 둘 다 물어야 하지만 **문구가 달라야 한다.**
+#   오너가 찍어 보낸 창은 `git checkout -- scripts/foo.cjs`(돌연변이 시험)였는데 문구는 「HEAD를 옮기려 한다」였다 —
+#   그 명령은 HEAD 를 **안 옮긴다.** 틀린 문구는 창을 도장찍기로 만든다(사람이 「또 그 소리」로 읽고 누른다).
+#   되돌릴 수 있나? 파일 되돌리기도 **아니오**다(미저장 변경은 revert 로 못 되돌린다) — 그래서 ask 는 유지한다.
+RESTORE=""
+printf '%s' "$CMD" | grep -Eq 'git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?(checkout[[:space:]]+--[[:space:]]|restore[[:space:]])' && RESTORE=1
+# `--` 없이 경로만 준 형태(`git checkout scripts/foo.cjs`)도 파일 되돌리기다 — 슬래시나 확장자로 가른다.
+printf '%s' "$CMD" | grep -Eq 'git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?checkout[[:space:]]+[^-][^[:space:]]*(/|\.[A-Za-z0-9]+)([[:space:]]|$)' && RESTORE=1
+
+# ★버릴 것이 없으면 묻지 마라 — `git checkout -- <경로>` 는 그 파일이 안 바뀌었으면 아무 일도 안 한다.
+#   「되돌릴 수 있나」의 답이 «버릴 게 없다 = 잃을 것도 없다»이므로 창을 세울 이유가 없다.
+if [ -n "$RESTORE" ]; then
+  RPATHS=$(printf '%s' "$CMD" | sed -nE 's/.*git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?(checkout[[:space:]]+(--[[:space:]]+)?|restore[[:space:]]+)([^;&|]*)/\4/p' \
+           | tr ' ' '\n' | grep -E '/|\.[A-Za-z0-9]+$' | grep -v '^-' | head -5)
+  if [ -n "$RPATHS" ] && command -v git >/dev/null 2>&1; then
+    DIRTY=""
+    for f in $RPATHS; do
+      git -C "$ROOT" diff --quiet -- "$f" 2>/dev/null || DIRTY=1
+      git -C "$ROOT" diff --cached --quiet -- "$f" 2>/dev/null || DIRTY=1
+    done
+    [ -z "$DIRTY" ] && exit 0        # 바뀐 게 없다 = 무해 → 무음
+  fi
+fi
+
+if [ -n "$RESTORE" ]; then
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"⚠️ 이 파일의 «저장 안 된 변경»을 버린다(HEAD 는 안 옮긴다): %s — 이 클론을 다른 세션이 쓰는 중이다(%s). 버리는 것이 그 세션의 편집이면 **revert 로 못 되돌린다.** 돌연변이 시험처럼 «일부러 고쳤다 되돌리는» 작업은 이 클론이 아니라 워크트리·스크래치패드에서 해라(rules/verify.md 3절)."}}\n' "$(sanitize "$ROOT")" "$(sanitize "$WHO")"
+elif [ "$ROOT" = "$MYROOT" ]; then
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"⚠️ 이 클론을 다른 세션이 쓰는 중인데 HEAD를 옮기려 한다: %s — 점유 중(%s). 한쪽의 checkout이 다른 쪽 커밋을 남의 브랜치에 얹는다(2026-08-13 실사고). 별도 워크트리·클론을 쓰거나, 그 세션이 끝났는지 확인하라."}}\n' "$(sanitize "$ROOT")" "$(sanitize "$WHO")"
 else
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"⚠️ 남의 작업 폴더의 HEAD를 옮기려 한다: %s — 다른 세션이 점유 중(%s). 그 세션의 체크아웃이 발밑에서 바뀐다. 별도 워크트리나 GitLab 웹에서 하거나, 상대 세션에 먼저 확인하라."}}\n' "$(sanitize "$ROOT")" "$(sanitize "$WHO")"
