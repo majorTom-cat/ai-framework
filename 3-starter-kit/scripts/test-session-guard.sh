@@ -30,6 +30,12 @@ printf '%s\t%s\t%s\t%s\n' "$GHOST" "feature/x" "2026-01-01 00:00" "$OTHER" > "$O
 # 죽은 세션 항목도 하나 — 청소돼야 한다
 printf '%s\t%s\t%s\t%s\n' "999999" "dead/x" "2020-01-01 00:00" "$OTHER" >> "$OTHER/.claude/.session-lock"
 
+tn() { # $1=없어야 할 조각  $2=명령 — 창은 뜨되 «거짓 약속»은 없어야 한다
+  OUT=$(CLAUDE_PROJECT_DIR="$MINE" printf '{"tool_input":{"command":"%s"}}' "$2" \
+        | CLAUDE_PROJECT_DIR="$MINE" bash "$HOOK" 2>/dev/null)
+  if [ -z "$OUT" ]; then echo "FAIL(창이 안 뜸): $2"; fail=$((fail+1)); return; fi
+  if printf '%s' "$OUT" | grep -q "$1"; then echo "FAIL(거짓 약속 문구 '$1'): $2"; fail=$((fail+1)); else pass=$((pass+1)); fi
+}
 t() { # $1=ASK|SILENT  $2=기대 조각(-면 무시)  $3=명령
   OUT=$(CLAUDE_PROJECT_DIR="$MINE" printf '{"tool_input":{"command":"%s"}}' "$3" \
         | CLAUDE_PROJECT_DIR="$MINE" bash "$HOOK" 2>/dev/null); RC=$?
@@ -153,6 +159,10 @@ t ASK '이 클론을 다른 세션이' "cd $MINE \&\& git checkout main"
 t ASK '이 클론을 다른 세션이' "git checkout -b feature/z"      # cd 도 -C 도 없다 = 내 클론
 t ASK '이 클론을 다른 세션이' "git -C $MINE pull origin main"
 t ASK '이 클론을 다른 세션이' "git reset --hard origin/main"
+# ★«👤 사람이 볼 것» 문구는 사실이어야 한다(2026-09-10 !470 리뷰: 「--ff-only 로 하라고 하면 이 창이 안 뜬다」가
+#   checkout·reset 에도 떴고, 더러운 트리·미푸시에선 --ff-only 로 쳐도 다시 떴다 — 면제 조건은 셋이다).
+t ASK '셋이 다 맞아야' "cd $MINE \&\& git checkout main"
+tn '하시면 이 창이 안 뜹니다' "cd $MINE \&\& git checkout main"
 t SILENT - "git log --oneline -5"                              # HEAD 를 안 옮긴다
 t SILENT - "git status"                                        # 〃
 echo "── H. «HEAD 이동»과 «파일 되돌리기»를 가른다 (2026-09-10 — 오너가 찍어 보낸 창의 문구가 틀렸다)"

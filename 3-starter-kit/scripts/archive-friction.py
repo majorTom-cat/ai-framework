@@ -72,10 +72,26 @@ keep_c, move_c = closed_e[:KEEP], closed_e[KEEP:]
 #   돌릴 때마다 한 줄씩 쌓인다(2026-09-10 실측: 킷 friction.md 에 고아 «(없음)» 1줄이 이미 있었다).
 _cut = next((i for i, l in enumerate(head)
              if l.startswith("## 지금 살아 있는 것") or l.startswith("## 최근에 끝난 것")), None)
+salvaged = []
 if _cut is not None:
+    # ★제목 아래의 «항목이 아닌» 줄은 버리지 말고 살려 옮긴다 — 옛 판은 `head[:_cut]` 로 통째로 잘라
+    #   사람이 적어 둔 메모를 조용히 지우고 «손실 0» 을 찍었다(2026-09-10 배포처 !470 리뷰가 A/B 실행으로 잡았다).
+    #   걷는 것은 도구가 스스로 다시 쓰는 것뿐이다: 구획 제목 · «(없음)» 자리표시 · 빈 줄.
+    for l in head[_cut:]:
+        t = l.strip()
+        if not t or t == "(없음)" or l.startswith("## 지금 살아 있는 것") or l.startswith("## 최근에 끝난 것"):
+            continue
+        salvaged.append(l)
     head = head[:_cut]
 # ★이미 쌓여 버린 고아 자리표시도 걷는다 — 머리말에 «(없음)» 한 줄만 덩그러니 있을 이유가 없다.
 head = [l for l in head if l.strip() != "(없음)"]
+if salvaged:
+    while head and not head[-1].strip():
+        head.pop()
+    head += [""] + salvaged
+    print(f"⚠️ 구획 제목 아래의 «항목이 아닌» 줄 {len(salvaged)}개를 머리말 끝으로 옮겼다(지우지 않았다) — 자리가 맞는지 확인하라:")
+    for l in salvaged:
+        print("    " + l[:100])
 while head and not head[-1].strip():
     head.pop()
 body = ["", "## 지금 살아 있는 것 — 아직 안 고쳐진 줄"] + (open_e or ["(없음)"])
