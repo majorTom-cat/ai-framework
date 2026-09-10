@@ -126,24 +126,11 @@ else
 fi
 [ -z "$ROOT" ] && exit 0
 
-OTHERS=$(live_others "$ROOT/$LOCKREL" "$MYPID")
-# pid 를 못 찾았을 때(MYPID 빈 문자열) 는 pid 비교가 아무것도 못 거른다 — 내 project dir 로 등록된 항목을 빼서
-# 자기 점유를 '남의 세션'으로 오경고하지 않게 한다(2026-08-27 리뷰 지적 ㉢. 게이트의 1순위는 정상 작업에 침묵).
-if [ -z "$MYPID" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
-  OTHERS=$(printf '%s' "$OTHERS" | awk -F'\t' -v me="$CLAUDE_PROJECT_DIR" '$4 != me')
-fi
-[ -z "$OTHERS" ] && exit 0
-
-WHO=$(printf '%s' "$OTHERS" | head -1 | awk -F'\t' '{printf "pid %s 브랜치 %s 시작 %s", $1, $2, $3}')
-# ★보간되는 값도 JSON 을 깨뜨린다 — 고정 문구만 조심해선 부족하다(2026-08-27 리뷰).
-#   경로·브랜치명에 " 나 \ 가 있으면 JSON 이 깨지고 훅 판정이 **통째로 버려진다**(= 이 파일이 막으려던 그 무음).
-#   경고문에 정확한 글자가 필요한 게 아니므로 **위험 글자는 '로 바꿔** 흘린다(escape 보다 단순·확실).
-sanitize() { printf '%s' "$1" | tr '"\\' "''" | tr -d '\000-\037'; }
-
-# ★2026-09-10 — «HEAD 이동»과 «파일 되돌리기»를 가른다. 둘 다 물어야 하지만 **문구가 달라야 한다.**
-#   오너가 찍어 보낸 창은 `git checkout -- scripts/foo.cjs`(돌연변이 시험)였는데 문구는 「HEAD를 옮기려 한다」였다 —
-#   그 명령은 HEAD 를 **안 옮긴다.** 틀린 문구는 창을 도장찍기로 만든다(사람이 「또 그 소리」로 읽고 누른다).
-#   되돌릴 수 있나? 파일 되돌리기도 **아니오**다(미저장 변경은 revert 로 못 되돌린다) — 그래서 ask 는 유지한다.
+# ★2026-09-10(2차) — «파일 되돌리기» 판정을 «점유»보다 «앞»으로 옮긴다.
+#   왜: 저장 안 한 변경은 **혼자 쓰는 클론에서도** revert 로 못 되돌린다 — 이 킷이 겪은 실사고 2건
+#   (2026-08-25 #120 J절 · 2026-08-26 #149)이 정확히 그 경우다. 옛 판은 «점유가 없으면 여기서 나가서»
+#   그 둘을 못 막았고, 그래서 배포처가 `settings.local.json` **안에 인라인 훅**으로 따로 막고 있었다.
+#   그 자리는 `_reference/asks.md` 도 `check-asks.sh` 도 못 보는 곳이라 아무도 못 찾았다 — 여기로 합친다.
 RESTORE=""
 # ★`--` 가 checkout 뒤 «어디에» 있든 파일 되돌리기다 — `git checkout <브랜치> -- <경로>` 도 HEAD 를 안 옮긴다
 #   (2026-09-10 실측: 실제 명령 뭉치 재생에서 이 형태가 「HEAD 이동」으로 잘못 세어졌다).
@@ -151,26 +138,56 @@ printf '%s' "$CMD" | grep -Eq 'git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:spa
 # `--` 없이 경로만 준 형태(`git checkout scripts/foo.cjs`)도 파일 되돌리기다 — 슬래시나 확장자로 가른다.
 printf '%s' "$CMD" | grep -Eq 'git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?checkout[[:space:]]+[^-][^[:space:]]*(/|\.[A-Za-z0-9]+)([[:space:]]|$)' && RESTORE=1
 
-# ★버릴 것이 없으면 묻지 마라 — `git checkout -- <경로>` 는 그 파일이 안 바뀌었으면 아무 일도 안 한다.
-#   「되돌릴 수 있나」의 답이 «버릴 게 없다 = 잃을 것도 없다»이므로 창을 세울 이유가 없다.
-if [ -n "$RESTORE" ]; then
+if [ -n "$RESTORE" ] && command -v git >/dev/null 2>&1; then
+  # ★워크트리·스크래치패드에서는 묻지 않는다 — 거기가 «일부러 고쳤다 되돌리는» 작업의 정해진 자리다
+  #   (rules/verify.md 3절이 그렇게 하라고 시킨다. 시킨 자리에서 매번 묻는 것은 규칙과 장치가 싸우는 것이다).
+  #   2026-09-10 실측: 돌연변이 시험이 반복마다 창을 띄워 오너가 「모든 케이스 다 뜨는거같은데」라고 했다.
+  #   가려내는 법 = 연결된 워크트리는 `--git-dir` 과 `--git-common-dir` 이 «다르다».
+  GD=$(git -C "$ROOT" rev-parse --git-dir 2>/dev/null)
+  GC=$(git -C "$ROOT" rev-parse --git-common-dir 2>/dev/null)
+  [ -n "$GD" ] && [ "$GD" != "$GC" ] && exit 0
+
+  # ★버릴 것이 없으면 묻지 마라 — 그 파일이 안 바뀌었으면 이 명령은 아무 일도 안 한다.
+  #   「되돌릴 수 있나」의 답이 «버릴 게 없다 = 잃을 것도 없다»이므로 창을 세울 이유가 없다.
   RPATHS=$(printf '%s' "$CMD" | sed -nE 's/.*git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?(checkout[[:space:]]+(--[[:space:]]+)?|restore[[:space:]]+)([^;&|]*)/\4/p' \
            | tr ' ' '\n' | grep -E '/|\.[A-Za-z0-9]+$' | grep -v '^-' | head -5)
-  if [ -n "$RPATHS" ] && command -v git >/dev/null 2>&1; then
-    DIRTY=""
+  DIRTY=""
+  if [ -n "$RPATHS" ]; then
     for f in $RPATHS; do
       git -C "$ROOT" diff --quiet -- "$f" 2>/dev/null || DIRTY=1
       git -C "$ROOT" diff --cached --quiet -- "$f" 2>/dev/null || DIRTY=1
     done
-    [ -z "$DIRTY" ] && exit 0        # 바뀐 게 없다 = 무해 → 무음
+  else
+    # 경로를 못 집었다(`git restore .` 등) → 트리 전체로 본다. ★추적 안 하는 파일은 세지 않는다 —
+    #   `git status --porcelain` 은 그것까지 세어 «건드리지도 않는 파일»로 거짓 창을 만든다(2026-09-10 실측).
+    git -C "$ROOT" diff --quiet 2>/dev/null || DIRTY=1
+    git -C "$ROOT" diff --cached --quiet 2>/dev/null || DIRTY=1
   fi
+  [ -z "$DIRTY" ] && exit 0
 fi
 
+OTHERS=$(live_others "$ROOT/$LOCKREL" "$MYPID")
+# pid 를 못 찾았을 때(MYPID 빈 문자열) 는 pid 비교가 아무것도 못 거른다 — 내 project dir 로 등록된 항목을 빼서
+# 자기 점유를 '남의 세션'으로 오경고하지 않게 한다(2026-08-27 리뷰 지적 ㉢. 게이트의 1순위는 정상 작업에 침묵).
+if [ -z "$MYPID" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
+  OTHERS=$(printf '%s' "$OTHERS" | awk -F'\t' -v me="$CLAUDE_PROJECT_DIR" '$4 != me')
+fi
+# ★HEAD 이동은 «점유»가 있을 때만 묻는다. 파일 되돌리기는 위에서 이미 판정이 끝났으므로 여기서 안 나간다.
+[ -z "$OTHERS" ] && [ -z "$RESTORE" ] && exit 0
+
+WHO=$(printf '%s' "$OTHERS" | head -1 | awk -F'\t' '{printf "pid %s 브랜치 %s 시작 %s", $1, $2, $3}')
+# ★보간되는 값도 JSON 을 깨뜨린다 — 고정 문구만 조심해선 부족하다(2026-08-27 리뷰).
+#   경로·브랜치명에 " 나 \ 가 있으면 JSON 이 깨지고 훅 판정이 **통째로 버려진다**(= 이 파일이 막으려던 그 무음).
+#   경고문에 정확한 글자가 필요한 게 아니므로 **위험 글자는 '로 바꿔** 흘린다(escape 보다 단순·확실).
+sanitize() { printf '%s' "$1" | tr '"\\' "''" | tr -d '\000-\037'; }
+
 if [ -n "$RESTORE" ]; then
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"⚠️ 이 파일의 «저장 안 된 변경»을 버린다(HEAD 는 안 옮긴다): %s — 이 클론을 다른 세션이 쓰는 중이다(%s). 버리는 것이 그 세션의 편집이면 **revert 로 못 되돌린다.** 돌연변이 시험처럼 «일부러 고쳤다 되돌리는» 작업은 이 클론이 아니라 워크트리·스크래치패드에서 해라(rules/verify.md 3절)."}}\n' "$(sanitize "$ROOT")" "$(sanitize "$WHO")"
+  # ★문구는 «사실»이어야 한다 — 점유가 없으면 점유 이야기를 하지 마라(틀린 문구는 옆의 진짜 창까지 무력화한다).
+  EXTRA=""
+  [ -n "$OTHERS" ] && EXTRA=" 게다가 이 클론을 다른 세션이 쓰는 중이다($(sanitize "$WHO")) — 버리는 것이 그 세션의 편집일 수 있다."
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"⚠️ 이 파일의 «저장 안 된 변경»을 버린다(HEAD 는 안 옮긴다): %s — **revert 커밋으로 못 되돌린다**(실사고 2건: 2026-08-25 #120 J절 · 2026-08-26 #149).%s 돌연변이 시험처럼 «일부러 고쳤다 되돌리는» 작업은 워크트리·스크래치패드에서 해라 — 거기서는 이 창이 안 뜬다(rules/verify.md 3절)."}}\n' "$(sanitize "$ROOT")" "$EXTRA"
 elif [ "$ROOT" = "$MYROOT" ]; then
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"⚠️ 이 클론을 다른 세션이 쓰는 중인데 HEAD를 옮기려 한다: %s — 점유 중(%s). 한쪽의 checkout이 다른 쪽 커밋을 남의 브랜치에 얹는다(2026-08-13 실사고). 별도 워크트리·클론을 쓰거나, 그 세션이 끝났는지 확인하라."}}\n' "$(sanitize "$ROOT")" "$(sanitize "$WHO")"
 else
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"⚠️ 남의 작업 폴더의 HEAD를 옮기려 한다: %s — 다른 세션이 점유 중(%s). 그 세션의 체크아웃이 발밑에서 바뀐다. 별도 워크트리나 GitLab 웹에서 하거나, 상대 세션에 먼저 확인하라."}}\n' "$(sanitize "$ROOT")" "$(sanitize "$WHO")"
 fi
-exit 0

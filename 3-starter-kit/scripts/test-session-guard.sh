@@ -177,6 +177,38 @@ t SILENT - "cd $MINE \&\& git checkout main"
 rm -f "$MINE/.claude/.session-lock"
 t SILENT - "git checkout main"                                 # 잠금 파일 자체가 없어도 조용
 
+echo "── I. «파일 되돌리기»는 점유와 상관없이 판정한다 (2026-09-10 2차 — 배포처가 설정 파일 안에 숨겨 두고 있던 몫)"
+# 왜: 저장 안 한 변경은 «혼자 쓰는 클론»에서도 revert 로 못 되돌린다(실사고 2건). 옛 판은 점유가 없으면
+#     그냥 나가서 그 둘을 못 막았고, 그래서 배포처가 settings.local.json 안에 인라인 훅을 따로 두고 있었다.
+rm -f "$MINE/.claude/.session-lock"                              # 점유 없음 = 혼자 쓰는 클론
+printf 'MUTANT\n' > "$MINE/mutant.cjs"                           # 버릴 것이 있는 상태
+t ASK '저장 안 된 변경' "cd $MINE && git checkout -- mutant.cjs"
+t ASK '저장 안 된 변경' "cd $MINE && git restore mutant.cjs"
+# ★문구가 «사실»이어야 한다 — 점유가 없는데 점유 이야기를 하면 그 창은 거짓말이다
+OUT=$(CLAUDE_PROJECT_DIR="$MINE" printf '{"tool_input":{"command":"cd %s && git checkout -- mutant.cjs"}}' "$MINE" \
+      | CLAUDE_PROJECT_DIR="$MINE" bash "$HOOK" 2>/dev/null)
+if printf '%s' "$OUT" | grep -q '다른 세션이 쓰는 중'; then
+  echo "FAIL(점유가 없는데 점유를 말한다)"; fail=$((fail+1)); else pass=$((pass+1)); fi
+git -C "$MINE" checkout -- mutant.cjs 2>/dev/null
+t SILENT - "cd $MINE && git checkout -- mutant.cjs"              # 버릴 게 없으면 여전히 무음
+t SILENT - "cd $MINE && git checkout main"                       # 점유가 없으면 가지 이동은 무음(그대로)
+
+echo "── J. ★워크트리에서는 안 묻는다 — 규칙이 «거기서 하라»고 시킨 자리다"
+# 2026-09-10 실측: 돌연변이 시험이 반복마다 창을 띄워 오너가 「모든 케이스 다 뜨는거같은데」라고 했다.
+WT="$TMPROOT/wt"
+git -C "$MINE" worktree add -q -b wtbranch "$WT" >/dev/null 2>&1
+if [ -d "$WT" ]; then
+  printf 'MUTANT\n' > "$WT/mutant.cjs"
+  t SILENT - "cd $WT && git checkout -- mutant.cjs"
+  t SILENT - "cd $WT && git restore mutant.cjs"
+  # 같은 조건인데 본 폴더면 여전히 묻는다 — 면제가 «워크트리라서»인지 «그냥 안 물어서»인지 가른다
+  printf 'MUTANT\n' > "$MINE/mutant.cjs"
+  t ASK '저장 안 된 변경' "cd $MINE && git checkout -- mutant.cjs"
+  git -C "$MINE" checkout -- mutant.cjs 2>/dev/null
+else
+  echo "  ⚠️ 워크트리를 못 만들었다 — J절을 못 돌렸다(건너뜀이 아니라 실패로 센다)"; fail=$((fail+1))
+fi
+
 kill "$GHOST" 2>/dev/null; kill "${SESS:-}" 2>/dev/null
 echo "──────── $pass OK / $fail FAIL"
 [ "$fail" -eq 0 ] || exit 1
