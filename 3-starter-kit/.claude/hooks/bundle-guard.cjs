@@ -15,7 +15,8 @@
 //      허용 목록에 없는 단계(`cut`·`tr` …)가 끼면 뭉치 전체가 창을 띄우므로 되돌린다(2026-09-10 오너 사진 `| cut -c1-140`).
 // 따옴표·`$( )`·백틱·heredoc 본문 «안»의 `&&`·`;`·`|` 는 세지 않는다(한 명령의 인자다).
 // 규약: deny 아니면 무음. **이 훅이 스스로 죽으면 무음(통과)** — 장치 결함으로 일을 막지 않는다. 대신 회귀 시험이 지킨다.
-// 연결: 2026-09-10 현재 **킷 저장소 세션에만** 연결돼 있다(ai-framework/.claude/settings.json). 배포처 연결은 오너 결정.
+// 연결: 킷 저장소 세션(ai-framework/.claude/settings.json) + 배포처(이 폴더의 settings.json → bnsone 등) — 오너 「bnsone에 당연히 되게 해야지」(2026-09-10).
+//   matcher 는 Bash 만(PowerShell 은 연산자 규칙이 달라 이 파서로 판정하지 않는다).
 'use strict';
 const fs = require('fs');
 const path = require('path');

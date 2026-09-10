@@ -77,5 +77,20 @@ OUT=$(printf '' | node "$HOOK" 2>/dev/null); RC=$?
 OUT=$(printf 'not json' | node "$HOOK" 2>/dev/null); RC=$?
 { [ -z "$OUT" ] && [ "$RC" -eq 0 ]; } && pass=$((pass+1)) || { echo "FAIL(비 JSON)"; fail=$((fail+1)); }
 
+echo "── G. 스킬이 열릴 때 도는 명령(!\`…\`)은 되돌리면 안 된다 — 되돌리면 스킬 자체가 안 열린다"
+# ★실물 스킬 파일에서 줄을 뽑아 이 저장소의 실제 허용 목록으로 돌린다 — 새 스킬 줄이 생겨도 자동으로 검사된다.
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+N=0
+while IFS= read -r line; do
+  c=${line#\!\`}; c=${c%\`}
+  OUT=$(node -e 'process.stdout.on("error",()=>{});process.stdout.write(JSON.stringify({tool_input:{command:process.argv[1]}}))' "$c" \
+        | HOME="$T/home" CLAUDE_PROJECT_DIR="$ROOT" node "$HOOK" 2>/dev/null)
+  if [ -z "$OUT" ]; then pass=$((pass+1)); else echo "FAIL(스킬 자동 명령을 되돌림): $c"; fail=$((fail+1)); fi
+  N=$((N+1))
+done < <(grep -rh '^!`' "$ROOT/.claude/skills" 2>/dev/null)
+# ★0줄이면 «통과»가 아니라 잣대가 틀린 것이다(세는 모양이 실물과 다르면 0이 나온다 — rules/verify.md §5).
+[ "$N" -gt 0 ] || { echo "FAIL(스킬 자동 명령을 한 줄도 못 찾았다 — 잣대가 틀렸다)"; fail=$((fail+1)); }
+echo "   (스킬 자동 명령 ${N}줄 검사)"
+
 echo "──────── $pass OK / $fail FAIL"
 [ "$fail" -eq 0 ] || exit 1

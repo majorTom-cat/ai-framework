@@ -12,7 +12,7 @@ main에 잘못된 것이 머지됐을 때 쓸 절차가 어디에도 없었고, 
 
 ## A. 일반 머지 사고 (코드만 — 마이그레이션 없음)
 
-1. `git fetch && git checkout -b fix/{카드}-revert origin/main`
+1. `git fetch origin` → `git checkout -b fix/{카드}-revert origin/main`(호출을 나눠서)
 2. `git revert -m 1 --no-edit <머지커밋>`
    — **`-m 1`이 없으면 실패한다**: `error: commit … is a merge but no -m option was given` / `fatal: revert failed`(exit 128, 실측). `-m 1` = "머지된 쪽이 아니라 main 쪽 부모를 남긴다".
 3. `npm test` + 화면 확인 → MR(본문에 `관련: #카드`, `Closes` 금지) → 머지. 사고 경위와 되돌린 커밋 해시를 카드 댓글로 남긴다.

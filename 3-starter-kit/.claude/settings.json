@@ -94,6 +94,15 @@
             "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-guard.sh"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/bundle-guard.cjs"
+          }
+        ]
       }
     ],
     "SessionStart": [
