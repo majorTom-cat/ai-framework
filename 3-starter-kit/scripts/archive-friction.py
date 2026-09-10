@@ -68,8 +68,14 @@ keep_c, move_c = closed_e[:KEEP], closed_e[KEEP:]
 
 # ★구획 표시 — «어디를 봐야 하나»를 한 눈에(Anthropic 권고: 제목·태그로 구획을 나눠라).
 #   `/todo` 0-c 는 `^\d{4}-` 로 세므로 제목 줄은 집계에 안 걸린다.
-head = [l for l in head if not l.startswith("## 지금 살아 있는 것")
-        and not l.startswith("## 최근에 끝난 것")]
+# ★머리말은 «첫 구획 제목 앞»까지다 — 제목 줄만 빼면 그 아래 «(없음)» 자리표시가 머리말에 남아
+#   돌릴 때마다 한 줄씩 쌓인다(2026-09-10 실측: 킷 friction.md 에 고아 «(없음)» 1줄이 이미 있었다).
+_cut = next((i for i, l in enumerate(head)
+             if l.startswith("## 지금 살아 있는 것") or l.startswith("## 최근에 끝난 것")), None)
+if _cut is not None:
+    head = head[:_cut]
+# ★이미 쌓여 버린 고아 자리표시도 걷는다 — 머리말에 «(없음)» 한 줄만 덩그러니 있을 이유가 없다.
+head = [l for l in head if l.strip() != "(없음)"]
 while head and not head[-1].strip():
     head.pop()
 body = ["", "## 지금 살아 있는 것 — 아직 안 고쳐진 줄"] + (open_e or ["(없음)"])

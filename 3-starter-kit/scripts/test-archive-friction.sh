@@ -89,5 +89,15 @@ echo "── E. 두 번 돌려도 항목이 늘지 않는다 (보관 파일 중�
 run 1 >/dev/null
 ck "E1 보관 항목 수 그대로" "1" "$(n_entries "$TMP/a.md")"
 
+echo "── F. ★열린 줄이 하나도 없어도 «(없음)» 자리표시가 머리말에 쌓이지 않는다"
+mk <<'E'
+2026-09-09 닫힘하나 [닫힘:구기록]
+E
+run 1 >/dev/null
+run 1 >/dev/null
+run 1 >/dev/null
+ck "F1 «(없음)» 은 «지금 살아 있는 것» 아래 딱 한 줄" "1" "$(grep -c '^(없음)$' "$TMP/f.md")"
+ck "F2 구획 제목도 한 벌뿐" "1" "$(grep -c '^## 지금 살아 있는 것' "$TMP/f.md")"
+
 echo "────────  $OK OK / $FAIL FAIL"
 [ "$FAIL" = 0 ] || exit 1
