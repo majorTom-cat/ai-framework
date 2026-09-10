@@ -11,13 +11,18 @@ append 전용이면 정확히 반대로 남는다(오너 지적 2026-09-10).
 작업 파일에 남기는 것 = 머리말 + **열린 줄 전부**(최신 위) + **최근 닫힘 KEEP 줄**(최신 위).
 그 밖의 닫힌 줄은 전부 보관 파일 맨 위로 간다.
 
-사용: python3 archive-friction.py <friction.md> <보관.md> [남길_닫힘_줄수=5]
+사용: python3 archive-friction.py <friction.md> <보관.md> [남길_닫힘_줄수=5] [--oldest-first]
+      --oldest-first = 「이 파일은 오래된 것이 위」라고 «부르는 쪽이» 말해 주는 것. 추측하지 않는다.
 """
 import sys, re, os
 
-src = sys.argv[1]
-dst = sys.argv[2]
-KEEP = int(sys.argv[3]) if len(sys.argv) > 3 else 5
+_args = [a for a in sys.argv[1:] if a != "--oldest-first"]
+OLDEST_FIRST = "--oldest-first" in sys.argv[1:]   # ★옛 순서 파일을 처음 옮겨올 때만
+if len(_args) < 2:
+    print(__doc__); sys.exit(2)
+src = _args[0]
+dst = _args[1]
+KEEP = int(_args[2]) if len(_args) > 2 else 5
 
 text = open(src, encoding="utf-8").read()
 lines = text.split("\n")
@@ -39,11 +44,23 @@ stray = [l for i, l in enumerate(lines) if i >= idx[0] and not is_entry(l) and l
 #   규약이 «새 줄은 맨 위»이므로 파일 순서가 곧 최신순이다.
 def key(l):
     return l[:10]
-entries_new_first = list(entries)
-if len(entries) > 1 and entries[0][:10] < entries[-1][:10]:
-    # 옛 순서(오래된 것이 위)인 파일을 한 번 옮겨올 때만: 뒤집는다.
-    print("ℹ️ 이 파일은 «오래된 것이 위» 순서다 — 한 번만 뒤집는다(이후로는 파일 순서를 그대로 쓴다)")
-    entries_new_first = list(reversed(entries))
+# ★뒤집을지는 **추측하지 않는다 — 부르는 쪽이 말한다.**
+#   2026-09-10 에 추측이 두 번 틀렸다: ⑴«첫 줄 대 마지막 줄» 비교는 bnsone friction.md 처럼
+#   **첫 줄도 마지막 줄도 같은 날짜**면 «최신이 위»로 오판한다 ⑵이웃 쌍을 세는 방식도 **동점**이면
+#   같은 오판이 난다. 그 상태로 돌리면 **가장 오래된 닫힘 KEEP 줄이 남고 최신 닫힘이 보관으로 간다**
+#   — 하려던 것의 정반대이고, 결과만 보면 정상처럼 보인다(항목 수는 맞으니까).
+#   ⇒ 기본은 **파일 순서가 정본**(이 파일의 규약이 «새 줄은 맨 위»이므로 그것이 곧 최신순)이고,
+#     옛 순서 파일을 처음 옮겨올 때만 `--oldest-first` 를 준다. 아래 경고가 그 자리를 알려 준다.
+asc = sum(1 for a, b in zip(entries, entries[1:]) if a[:10] < b[:10])
+desc = sum(1 for a, b in zip(entries, entries[1:]) if a[:10] > b[:10])
+entries_new_first = list(reversed(entries)) if OLDEST_FIRST else list(entries)
+if OLDEST_FIRST:
+    print("ℹ️ --oldest-first: 옛 순서 파일로 보고 한 번 뒤집는다(이후로는 파일 순서를 그대로 쓴다)")
+elif asc > 0:
+    # ★«많으냐»가 아니라 «하나라도 있느냐»로 묻는다 — «최신이 맨 위»인 파일에는 날짜가 올라가는
+    #   이웃 쌍이 **하나도 없어야** 한다. «asc > desc» 로 물으면 동점(1:1)에서 조용히 지나간다.
+    print(f"⚠️ 날짜가 «올라가는» 이웃 쌍이 {asc}개 있다(내려가는 쌍 {desc}개) — 이 파일은 «최신이 맨 위»가 아니다.\n"
+          "   그대로 두면 **가장 오래된 닫힘 줄이 남는다.** 처음 옮겨오는 파일이면 `--oldest-first` 를 붙여 다시 돌려라.")
 
 open_e   = [l for l in entries_new_first if not is_closed(l)]
 closed_e = [l for l in entries_new_first if is_closed(l)]
