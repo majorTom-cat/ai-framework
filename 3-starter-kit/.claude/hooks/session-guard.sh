@@ -145,7 +145,9 @@ sanitize() { printf '%s' "$1" | tr '"\\' "''" | tr -d '\000-\037'; }
 #   그 명령은 HEAD 를 **안 옮긴다.** 틀린 문구는 창을 도장찍기로 만든다(사람이 「또 그 소리」로 읽고 누른다).
 #   되돌릴 수 있나? 파일 되돌리기도 **아니오**다(미저장 변경은 revert 로 못 되돌린다) — 그래서 ask 는 유지한다.
 RESTORE=""
-printf '%s' "$CMD" | grep -Eq 'git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?(checkout[[:space:]]+--[[:space:]]|restore[[:space:]])' && RESTORE=1
+# ★`--` 가 checkout 뒤 «어디에» 있든 파일 되돌리기다 — `git checkout <브랜치> -- <경로>` 도 HEAD 를 안 옮긴다
+#   (2026-09-10 실측: 실제 명령 뭉치 재생에서 이 형태가 「HEAD 이동」으로 잘못 세어졌다).
+printf '%s' "$CMD" | grep -Eq 'git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?(checkout[[:space:]]([^;&|]*[[:space:]])?--[[:space:]]|restore[[:space:]])' && RESTORE=1
 # `--` 없이 경로만 준 형태(`git checkout scripts/foo.cjs`)도 파일 되돌리기다 — 슬래시나 확장자로 가른다.
 printf '%s' "$CMD" | grep -Eq 'git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?checkout[[:space:]]+[^-][^[:space:]]*(/|\.[A-Za-z0-9]+)([[:space:]]|$)' && RESTORE=1
 

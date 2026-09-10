@@ -167,6 +167,9 @@ t ASK '저장 안 된 변경' "git -C $MINE restore mutant.cjs"
 t ASK '저장 안 된 변경' "cd $MINE \&\& git checkout mutant.cjs"  # `--` 없이 경로만
 git -C "$MINE" checkout -- mutant.cjs 2>/dev/null                # 되돌려 «버릴 것이 없는» 상태로
 t SILENT - "cd $MINE \&\& git checkout -- mutant.cjs"            # 무해 = 아예 안 묻는다
+printf 'MUTANT\n' > "$MINE/mutant.cjs"
+t ASK '저장 안 된 변경' "cd $MINE \&\& git checkout main -- mutant.cjs"  # 브랜치에서 «파일만» 꺼내오는 형태도 HEAD 를 안 옮긴다
+git -C "$MINE" checkout -- mutant.cjs 2>/dev/null
 t ASK 'HEAD를 옮기려' "cd $MINE \&\& git checkout main"          # 브랜치 이동은 여전히 옛 문구
 # 점유가 사라지면(죽은 항목만) 다시 조용해진다 — 정상 작업에 침묵이 게이트의 1순위다
 printf '%s\t%s\t%s\t%s\n' "999997" "dead/z" "2020-01-01 00:00" "$OTHER" > "$MINE/.claude/.session-lock"
