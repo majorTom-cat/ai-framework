@@ -209,6 +209,28 @@ else
   echo "  ⚠️ 워크트리를 못 만들었다 — J절을 못 돌렸다(건너뜀이 아니라 실패로 센다)"; fail=$((fail+1))
 fi
 
+echo "── K. «앞으로 감기»는 면제한다 (2026-09-10 3차 — 오너가 이 창을 세 번째로 찍어 보냈다)"
+# 오너 결정(2026-09-09): 추적 변경 0 · 미푸시 0 이면 사람을 시키지 말고 AI 가 당긴다.
+# 그 결정을 규칙에 적어 놓고 장치가 매번 물으면 규칙과 장치가 싸운다.
+UP=$(mkrepo up)                                                  # «원격» 역할
+( cd "$UP" && echo more >> README.md && git add -A && git commit -qm ahead ) >/dev/null 2>&1
+FFR="$TMPROOT/ff"; git clone -q "$UP" "$FFR" >/dev/null 2>&1; mkdir -p "$FFR/.claude"
+printf '%s\t%s\t%s\t%s\n' "$GHOST" "feature/x" "2026-01-01 00:00" "$OTHER" > "$FFR/.claude/.session-lock"
+( cd "$UP" && echo yet >> README.md && git add -A && git commit -qm ahead2 ) >/dev/null 2>&1
+git -C "$FFR" fetch -q origin >/dev/null 2>&1
+if [ -d "$FFR" ]; then
+  t SILENT - "cd $FFR && git merge --ff-only origin/main"        # 깨끗하고 안 앞서 있다 → 무음
+  t SILENT - "cd $FFR && git pull --ff-only origin main"         # pull 형태도 같다
+  echo dirty >> "$FFR/README.md"                                 # ★추적 변경이 생기면 다시 묻는다
+  t ASK 'HEAD를 옮기려' "cd $FFR && git merge --ff-only origin/main"
+  git -C "$FFR" checkout -- README.md 2>/dev/null
+  ( cd "$FFR" && echo mine >> README.md && git add -A && git commit -qm local ) >/dev/null 2>&1
+  t ASK 'HEAD를 옮기려' "cd $FFR && git merge --ff-only origin/main"   # ★미푸시가 있으면 다시 묻는다
+  t ASK 'HEAD를 옮기려' "cd $FFR && git merge origin/main"             # ★--ff-only 가 아니면 면제 아님
+else
+  echo "  ⚠️ 앞으로 감기 픽스처를 못 만들었다 — K절을 못 돌렸다(실패로 센다)"; fail=$((fail+1))
+fi
+
 kill "$GHOST" 2>/dev/null; kill "${SESS:-}" 2>/dev/null
 echo "──────── $pass OK / $fail FAIL"
 [ "$fail" -eq 0 ] || exit 1

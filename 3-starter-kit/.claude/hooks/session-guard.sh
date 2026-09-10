@@ -131,6 +131,25 @@ fi
 #   (2026-08-25 #120 J절 · 2026-08-26 #149)이 정확히 그 경우다. 옛 판은 «점유가 없으면 여기서 나가서»
 #   그 둘을 못 막았고, 그래서 배포처가 `settings.local.json` **안에 인라인 훅**으로 따로 막고 있었다.
 #   그 자리는 `_reference/asks.md` 도 `check-asks.sh` 도 못 보는 곳이라 아무도 못 찾았다 — 여기로 합친다.
+# ★2026-09-10(3차) — «앞으로 감기»는 면제한다. 오너 결정(2026-09-09): 추적 변경 0 · 미푸시 0 이면
+#   **사람을 시키지 말고 AI 가 스스로 당긴다.** 그 결정을 규칙에 적어 놓고 장치가 매번 물으면
+#   규칙과 장치가 싸운다(워크트리 면제와 같은 뿌리 — 오너가 그 창을 세 번째로 찍어 보냈다).
+#   잃을 것이 있나? **없다**: ①추적 변경 0 이라 버려질 편집이 없고 ②미푸시 0 이라 얹힐 커밋이 없다.
+#   `--ff-only` 는 조건이 안 맞으면 **아무 일도 안 하고 멈춘다**(되감기·덮어쓰기를 못 한다).
+#   ⚠️조건을 하나라도 못 재면 면제하지 않는다(모르는 상태를 통과시키지 않는다).
+if printf '%s' "$CMD" | grep -Eq 'git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?(merge|pull)[[:space:]]+([^;&|]*[[:space:]])?--ff-only([[:space:]]|$)' \
+   && command -v git >/dev/null 2>&1; then
+  FFCLEAN=1
+  git -C "$ROOT" diff --quiet 2>/dev/null || FFCLEAN=""
+  git -C "$ROOT" diff --cached --quiet 2>/dev/null || FFCLEAN=""
+  # 어느 ref 로 감는가 — 명령에 적힌 `<remote>/<branch>` 를 쓰고, 없으면 설정된 upstream 을 쓴다.
+  FFREF=$(printf '%s' "$CMD" | tr ' ' '\n' | grep -E '^[A-Za-z0-9._-]+/[A-Za-z0-9._/-]+$' | head -1)
+  [ -z "$FFREF" ] && FFREF=$(git -C "$ROOT" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null)
+  FFAHEAD=""
+  [ -n "$FFREF" ] && FFAHEAD=$(git -C "$ROOT" rev-list --count "$FFREF..HEAD" 2>/dev/null)
+  [ -n "$FFCLEAN" ] && [ "$FFAHEAD" = "0" ] && exit 0
+fi
+
 RESTORE=""
 # ★`--` 가 checkout 뒤 «어디에» 있든 파일 되돌리기다 — `git checkout <브랜치> -- <경로>` 도 HEAD 를 안 옮긴다
 #   (2026-09-10 실측: 실제 명령 뭉치 재생에서 이 형태가 「HEAD 이동」으로 잘못 세어졌다).
