@@ -5,8 +5,7 @@
 # 규약: 훅은 **ask 아니면 무음**만 낸다(allow·deny·비정상 종료 금지) — 이 스크립트가 그것도 함께 검사한다.
 # 인자는 JSON 안에 들어갈 **이스케이프된** 명령 문자열이다(실제 개행은 \n, 따옴표는 \").
 set -u
-# 시험할 훅을 바꾸려면(유효성 증명용 — 옛 판에서 새 절이 FAIL 하는지): CHECK_PUSH_HOOK=/경로 bash scripts/test-check-push.sh
-HOOK="${CHECK_PUSH_HOOK:-$(cd "$(dirname "$0")/.." && pwd)/.claude/hooks/check-push.sh}"
+HOOK="$(cd "$(dirname "$0")/.." && pwd)/.claude/hooks/check-push.sh"
 # ★훅 파일 자체가 없으면 전 케이스가 exit 127 로 무더기 FAIL 이 된다 — "검사가 깨졌다"로 오독된다.
 #   미배포는 테스트 실패가 아니라 배포 문제다. 그렇게 말하고 끝낸다.
 [ -f "$HOOK" ] || { echo "⛔ 훅이 없다: $HOOK"; echo "   이 저장소엔 check-push 훅이 아직 배포되지 않았다 — 테스트 실패가 아니라 미배포다."; echo "   킷의 .claude/hooks/check-push.sh 를 이 저장소에 복사한 뒤 다시 돌려라."; exit 1; }
@@ -151,16 +150,6 @@ t NOTE '공통 영역' "git -C $COMMON push origin work"         # 대상이 공
 t NOTE '공통 영역' "cd $COMMON && git push origin work"      # cd 형태도 같다
 REPO="$COMMON"
 t SILENT - "git -C $CLEAN push origin work"                  # 대상이 깨끗 → 현재 폴더가 공통영역이어도 조용(오탐 금지)
-
-echo "── J. 따옴표 «안»의 git push 는 명령이 아니다 (2026-09-10 — 문구 검색 grep 이 force push 창을 세웠다, 재생 확인)"
-# ★옛 훅에서는 SILENT 칸이 FAIL 한다. ASK 칸은 «비웠더니 진짜 force push 까지 놓쳤나»를 본다 — 보안 훅이라 약해지면 안 된다.
-REPO="$CLEAN"
-t SILENT - 'grep -rn \"옛 문구\\|git push origin main\\|git push -f\" CLAUDE.md .claude'   # 재생한 명령 그대로
-t SILENT - 'echo \"x && git push -f origin main\"'
-t SILENT - 'git commit -m \"--no-verify 를 쓰지 말라는 문구 정리\"'                          # 옛 «알려진 한계» — 인용문 안의 --no-verify
-t ASK 'force push' 'echo \"x\" && git push -f origin main'                                  # 인용 «뒤»의 진짜 명령은 그대로
-t ASK 'force push' 'bash -c \"git status && git push -f origin main\"'                      # 셸에 넘긴 인용은 명령이다
-t ASK 'force push' 'ssh srv103 \"cd /r && git push --force origin main\"'                   # 원격에서 돌려도 같은 원격을 덮어쓴다
 
 echo "──────── $pass OK / $fail FAIL"
 [ "$fail" -eq 0 ] || exit 1

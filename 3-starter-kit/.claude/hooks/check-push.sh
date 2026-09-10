@@ -20,18 +20,6 @@ INPUT=$(cat)
 CMD=$(printf '%s' "$INPUT" | sed -nE 's/.*"command"[[:space:]]*:[[:space:]]*"((\\.|[^"\\])*)".*/\1/p')
 [ -z "$CMD" ] && CMD=$(printf '%s' "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\(.*\)/\1/p')
 
-# ★따옴표 «안»은 데이터다 — 판정은 인용 내용을 비운 사본(SCAN)으로 한다(2026-09-10 재생 실측:
-#   `grep -rn "…\|git push -f" …` 가 force push 창을 세웠다 — grep 의 `\|` 가 명령 경계 `|` 와 같다.
-#   session-guard.sh 가 같은 날 같은 병으로 오너 화면에 거짓 창을 띄웠다). 아래 «알려진 한계»의
-#   «커밋 메시지 인용문 안의 --no-verify 오탐»도 이것으로 풀린다.
-# ⚠️**약해지면 안 된다** — 인용이 «명령»으로 실행되는 자리(`bash -c`·`sh -c`·`zsh -c`·`eval`·`ssh`·`xargs`·`su`·`watch`)가
-#   보이면 비우지 않는다(옛 판 그대로 본다). `ssh 서버 "cd r && git push -f"` 도 같은 원격을 덮어쓴다.
-#   CMD 는 JSON 이스케이프 상태라 큰따옴표는 `\"` 로 온다 — 큰따옴표를 먼저 비워야 그 안의 `'` 에 안 걸린다.
-SCAN="$CMD"
-if ! printf '%s' "$CMD" | grep -Eq '(^|[^[:alnum:]_])((ba|z)?sh[[:space:]]+-[a-z]*c|eval|ssh|xargs|su|watch)([[:space:]]|$)'; then
-  SCAN=$(printf '%s' "$CMD" | sed -E -e 's/\\"([^\\]|\\[^"])*\\"/""/g' -e "s/'[^']*'/''/g")
-fi
-
 # ask 출력기 — 사유문에 `"`·`\`를 쓰지 마라(JSON이 깨진다).
 emit_ask() { printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"%s"}}\n' "$1"; }
 
@@ -40,7 +28,7 @@ emit_ask() { printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permis
 # CLAUDE.md 전이표(2026-08-12 개정) = 막는 것은 '같은 사람'이 아니라 '사람이 안 본 것' — 구현자 본인 검수는 허용,
 #   확답 없는 close만 금지(확답+증적 댓글+라벨 해제). 9/9 동일계정보다 '라벨 2초 뒤 닫힘'이 사고의 실체였다.
 # 셀프완료 경로(검수요청 라벨 없음)는 그대로 통과시킨다.
-if printf '%s' "$SCAN" | grep -Eiq '(^|[;&|(]|\\n|\\r|\\t)[[:space:]]*glab[[:space:]]+issue[[:space:]]+close([[:space:]]|$|"|\\)'; then
+if printf '%s' "$CMD" | grep -Eiq '(^|[;&|(]|\\n|\\r|\\t)[[:space:]]*glab[[:space:]]+issue[[:space:]]+close([[:space:]]|$|"|\\)'; then
   # `close` 뒤의 이슈 번호(들) = 숫자만인 토큰. 플래그·그 값(`-R a/b`)이 끼어도 넘어가고, 명령 구분자
   # (;&|"·역슬래시)에서 멈춘다 — 뒷 명령의 숫자를 이슈 번호로 오인하지 않게. 최대 3건만 조회한다.
   IIDS=$(printf '%s' "$CMD" | tr 'A-Z' 'a-z' \
@@ -72,13 +60,13 @@ GEND='([[:space:];&|()<>]|$|"|\\)'                       # ★`;`·`)` 필수 �
 GPRE='(^|[;&|("]|\\n|\\r|\\t)[[:space:]]*((then|do|else)[[:space:]]+)?(env[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*=[^[:space:];&|\\]*[[:space:]]+)*'
 GITSEG="${GPRE}"'git[[:space:]]'                          # 환경변수 접두(`HUSKY=0 git …`)·제어문(`then git …`)까지 넘는다(I-2)
 GOPT='((-[Cc][[:space:]]+[^[:space:]]+|--git-dir=[^[:space:]]+|--work-tree=[^[:space:]]+|--no-pager)[[:space:]]+)*'
-if printf '%s' "$SCAN" | grep -Eiq "${GITSEG}" && printf '%s' "$SCAN" | grep -Eiq "(^|[[:space:]\"])--no-verify${GEND}"; then
+if printf '%s' "$CMD" | grep -Eiq "${GITSEG}" && printf '%s' "$CMD" | grep -Eiq "(^|[[:space:]\"])--no-verify${GEND}"; then
   BYPASS_MSG="⚠️ git 훅 우회 감지(--no-verify) — 팀 git 훅(pre-push·commit 검사)을 건너뜁니다. CLAUDE.md 금지 항목: 훅이 잘못 막으면 우회하지 말고 훅을 고치세요. 정말 진행하나요?"
-elif printf '%s' "$SCAN" | grep -Eiq 'core\.hooksPath|(^|[[:space:];&|("])HUSKY=0([[:space:]]|$)'; then
+elif printf '%s' "$CMD" | grep -Eiq 'core\.hooksPath|(^|[[:space:];&|("])HUSKY=0([[:space:]]|$)'; then
   BYPASS_MSG="⚠️ git 훅 무력화 감지(core.hooksPath / HUSKY=0) — 팀 git 훅이 통째로 꺼집니다. 조회·복원 목적이면 승인하세요."
 # commit의 -n(번들 -an·-nm 포함)도 --no-verify다. ★push의 -n은 --dry-run(무해)이라 commit 뒤에서만 본다.
 #   `git`+전역옵션 다음이 곧 `commit`일 때만 본다 — 안 그러면 `push origin feature/commit-fix -n`이 오탐이었다(M-3).
-elif printf '%s' "$SCAN" | grep -Eiq "${GITSEG}${GOPT}commit${GBODY}[[:space:]]-[a-z]{0,2}n[a-z]{0,2}${GEND}"; then
+elif printf '%s' "$CMD" | grep -Eiq "${GITSEG}${GOPT}commit${GBODY}[[:space:]]-[a-z]{0,2}n[a-z]{0,2}${GEND}"; then
   BYPASS_MSG="⚠️ git commit -n 감지 — -n은 --no-verify(팀 git 훅 건너뜀)입니다. CLAUDE.md 금지 항목: 검사는 우회가 아니라 통과가 답입니다. 정말 진행하나요?"
 fi
 
@@ -92,7 +80,7 @@ ARGS='([[:space:]]+[^[:space:];&|\\]+)*[[:space:]]+'   # push 뒤 인자들(명�
 ENDW='([[:space:]]|$|"|\\)'                            # 토큰 끝
 ENDF='([[:space:]=]|$|"|\\)'                           # 토큰 끝(`--force-with-lease=ref` 포함)
 # push 명령이 아니면 여기서 끝 — 단 ②의 훅 우회 판정(commit·config 등)은 이때 낸다.
-printf '%s' "$SCAN" | grep -Eiq "${GITP}${ENDW}" || { [ -n "$BYPASS_MSG" ] && emit_ask "$BYPASS_MSG"; exit 0; }
+printf '%s' "$CMD" | grep -Eiq "${GITP}${ENDW}" || { [ -n "$BYPASS_MSG" ] && emit_ask "$BYPASS_MSG"; exit 0; }
 
 # ★force push의 우회 경로 2종 — 둘 다 settings.json deny가 못 잡는다(deny는 명령 "접두" 기준이라
 #   체이닝 `git status && git push -f`·`git -C <path> push --force`에 침묵. 2026-08-06 실측).
@@ -100,12 +88,12 @@ printf '%s' "$SCAN" | grep -Eiq "${GITP}${ENDW}" || { [ -n "$BYPASS_MSG" ] && em
 #   (b) +refspec형: `git push origin +HEAD:main` — -f 없이도 force다.
 #   여기서도 ask만 낸다(deny 금지 — 오탐이 실제 작업을 막았던 게 2026-07-30 실패 ③).
 #   오탐 억제: (a)는 `-`로 시작하는 토큰만(`--follow-tags`·`--set-upstream`은 안 걸린다), (b)는 `+` 뒤에 공백 없는 refspec 토큰만.
-if printf '%s' "$SCAN" | grep -Eiq "${GITP}${ARGS}(-[a-z]*f[a-z]*|--force[a-z-]*)${ENDF}"; then
+if printf '%s' "$CMD" | grep -Eiq "${GITP}${ARGS}(-[a-z]*f[a-z]*|--force[a-z-]*)${ENDF}"; then
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"⚠️ force push 감지 (-f / --force / --force-with-lease) — 원격 이력을 덮어씁니다. CLAUDE.md 금지 항목입니다. main이 잘못됐으면 force가 아니라 revert 커밋으로 되돌리세요(_reference/revert 레시피)."}}\n'
   exit 0
 fi
 REFSPEC='\+[^[:space:];&|"\\]+'
-if printf '%s' "$SCAN" | grep -Eiq "${GITP}${ARGS}${REFSPEC}${ENDW}"; then
+if printf '%s' "$CMD" | grep -Eiq "${GITP}${ARGS}${REFSPEC}${ENDW}"; then
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"⚠️ +refspec force push 감지 (예: git push origin +HEAD:main) — -f 없이 원격 이력을 덮어씁니다. main이 잘못됐으면 force가 아니라 revert 커밋으로 되돌리세요."}}\n'
   exit 0
 fi
@@ -151,8 +139,7 @@ FILES=$(printf '%s\n' "$HITS" | head -5 | tr '\n' ' ' | sed 's/\\/\\\\/g; s/"/\\
 printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"[알림·확인창 아님] 이 push 에 공통 영역이 들어 있다: %s— 팀 채팅 공지가 아직이면 지금 하고, 보고에 «공지함»을 한 줄 남겨라."}}\n' "$FILES"
 exit 0
 # 알려진 한계(의도적 미해결): HEAD 아닌 refspec(git push origin other:main)은 HEAD 기준으로 오판할 수 있다.
-#   (2026-09-10 해소: 커밋 메시지 등 인용문 "안"의 --no-verify·git push 문구 오탐 — 위 SCAN. 단 셸·ssh 에 넘긴 인용은 여전히 본다.)
-#   heredoc 본문(따옴표 없이 줄로 쓴 글)의 git push 문구는 여전히 오탐 ask 가 뜰 수 있다(ask라 작업을 막지는 않는다).
+#   커밋 메시지 등 인용문 "안"의 --no-verify·-n 문구는 오탐 ask가 뜰 수 있다(ask라 작업을 막지는 않는다 — 승인하면 진행).
 #   `glab issue close 96 97`처럼 여러 번호는 앞 3건만 조회한다. `glab issue update N --state close`·웹 UI 닫기는 미탐(close 명령만 본다).
 #   훅 출력은 1건뿐 — 한 명령에 위험이 둘 섞이면(`glab issue close 97 && git push -f`) 먼저 걸린 하나만 알린다(위 순서대로).
 #   timeout 이 없는 환경(macOS 기본)에서는 라벨 조회에 시간 상한이 없다 — glab이 행에 걸리면 훅도 같이 기다린다.
