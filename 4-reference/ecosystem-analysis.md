@@ -121,7 +121,7 @@
 | --- | --- | --- |
 | **즉시 (킷 반영됨)** | `CLAUDE_CODE_GIT_BASH_PATH` 셋업 | 우리 bash 훅이 조용히 죽는 함정 차단 |
 | | 내장 명령 치트 (/rewind·/context·/simplify·/security-review·/batch) | 이미 깔려 있는 도구를 몰라서 못 쓰는 낭비 제거 |
-| **P1 (골격 구축 때 리더가 결정)** | zereight/gitlab-mcp | /todo·/done의 glab 파싱을 구조화 도구로 — 사내 인스턴스 실테스트 1회 후 |
+| **P1 (골격 구축 때 리더가 결정)** | zereight/gitlab-mcp | /todo·/done의 glab 파싱을 구조화 도구로 — 사내 인스턴스 실테스트 1회 후. ⚠️**2026-09-16 재조사로 등급이 내려갔다 — 현재 권고는 «그대로 둔다»**: 공식판은 `18.6+`·Premium/Ultimate·Duo 라 사내(`16.4.1`·무료판)에서 **불가** · 커뮤니티판은 **최소 버전 표가 없고** 도구 **261개** · 이미 `glab` 로 도는 절차(킷 기준 스킬 19개·호출 141곳)를 갈아타는 비용이 든다 |
 | | `/security-review`의 CI 이식 (MR AI 리뷰 잡과 함께) | 가이드 층(security-guidance)에 없는 스캔 층 — 공식 GitLab CI 가이드 존재 확인됨 |
 | **P2 (운영하며 필요 시)** | LSP 플러그인(스택 언어) · claude-md-management · tdd-guard · claude-mem · superpowers/compound 패턴 채굴 · GitLab 공식 MCP(티어 충족 시) | 각각 §3~4 참조 |
 | **불필요·배제** | 통짜 프레임워크(BMAD·claude-flow 등) · GitHub 지향(commit-commands·Remember·agent-handoff) · 외부 SaaS(coderabbit·aikido·42crunch — **사내 코드 유출**) · cc-sessions(정체) · doc-sync류(성숙도↓) · /schedule(클라우드) · Agent Teams(실험) | 표 각 행 참조 |
