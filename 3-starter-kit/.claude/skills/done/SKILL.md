@@ -4,7 +4,7 @@ effort: high # 배정표 = _reference/skill-tiers.md
 description: 이슈 마무리 루틴 — 머지 전 검사부터 MR 생성·카드 처리까지. 개발 완료 후 사용자가 호출.
 disable-model-invocation: true
 argument-hint: "[이슈번호]"
-allowed-tools: Workflow Read Edit Write Glob Grep Bash(git *) Bash(glab *) Bash(npm *) Bash(node scripts/pipeline-verdict.cjs*) Bash(docker compose *) Bash(taskkill *) Bash(netstat *) Bash(lsof *) Bash(kill *)
+allowed-tools: Agent Workflow Read Edit Write Glob Grep Bash(git *) Bash(glab *) Bash(npm *) Bash(node scripts/pipeline-verdict.cjs*) Bash(docker compose *) Bash(taskkill *) Bash(netstat *) Bash(lsof *) Bash(kill *)
 ---
 
 # /done — 이슈 #$0 마무리
@@ -29,7 +29,7 @@ allowed-tools: Workflow Read Edit Write Glob Grep Bash(git *) Bash(glab *) Bash(
    — ★**먼저 DB·외부 의존 기동 확인**(/dev 6단계와 동일 — 내려가 있으면 실패가 코드 결함처럼 보인다. 명령은 CLAUDE.md '실행·테스트').
    — ★**`needs`·`rules:changes`·배포 잡을 건드렸으면 `함정.md` §5를 지금 읽어라** — lint 통과가 안전의 근거가 못 되는 유형이다(실사고 8회).
    ★**테스트 변조 자가 점검**: 이번 diff가 *소스와 테스트(또는 CI 임계값)를 동시에* 고쳤다면, 테스트를 통과시키려고 테스트를 약하게 만든 게 아닌지 한 줄로 확인·소명하라(green은 스스로 무력화 가능하다). 실패하는 테스트를 삭제·skip으로 넘긴 흔적이 있으면 되돌린다.
-4. **리뷰 = 저장 워크플로 `/merge-review`**(Workflow 도구, 이름 `merge-review`, args `{base, card, externalSurface, level}` — 렌즈 3개 병렬(+ `externalSurface` 면 보안 렌즈 1개 더) + 발견마다 반박 3표, 살아남은 것만 보고). 워크플로가 꺼졌으면 **`/code-review {level}`** — 어느 쪽이든 fresh context(자기 결과 리뷰는 편향). ★**`{level}` 은 짐작 말고 diff 가 정한다**(표 = `단계상세.md` §9): `고위험`·`k8s/**`·인증·권한·결제·마이그레이션이면 `xhigh` · `*.md` 만이면 `medium` · 그 밖은 **`high`**. **`ultra` 는 유료라 금지.** ★**끝나면 «몇 분·읽은 파일 수·발견 수»를 카드 증적에 한 줄로.** Important 이상 발견은 고치고 **테스트 단계부터** 다시.
+4. **리뷰 = 기본은 «독립 리뷰어 1명(새 문맥) + 직접 실행해 재현하라»**(2026-09-16 오너 결정 · 근거와 리뷰어에게 줄 것 = `단계상세.md` §9). 저장 워크플로 `/merge-review`(렌즈 3 + 반박 3표)는 **위험 변경만** — 인증·권한·세션·비밀값 · DB 마이그레이션 · 공용 계약 · 배포 설정(`k8s/**`·CI 배포 잡). 그때 `level` 은 diff 가 정한다(`_reference/skill-tiers.md`). 리뷰어를 못 띄우면(**에이전트 0회 ≠ 발견 없음**) `/code-review high`. **`ultra` 는 유료라 금지.** ★**끝나면 방식·리뷰어 수·시간·토큰·확정 건수·결함 위치(대상/비계)를 증적에 — 모르면 «미제공».** Important 이상은 고치고 **테스트 단계부터** 다시 — **재리뷰는 카드 대상 코드가 바뀌었을 때만.**
    diff가 **새 외부 입력 표면을 추가**했으면(신규 엔드포인트·업로드·인증·비밀값) `/security-review` 도 실행 — 매 카드 상시가 아니다(필드 수정 정도는 code-review가 커버. CI 스캔 잡이 있으면 백스톱).
    리뷰 렌즈에 **과잉설계**도 포함(하나뿐인 구현의 추상화·stdlib 재발명·불필요한 신규 의존성) — 발견은 "위치·뭘 지우나·뭘로 대체" 1줄식.
    발견·수리 요약을 카드 댓글 1줄로 남겨라 (증적)
