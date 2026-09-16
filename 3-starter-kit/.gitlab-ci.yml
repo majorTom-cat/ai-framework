@@ -205,6 +205,32 @@ ask-check:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       changes: [".claude/hooks/**/*", _reference/asks.md, scripts/check-asks.sh, scripts/test-check-asks.sh]
 
+# 누적 파일(friction·CHANGELOG 류)의 «사라진 줄» 검사 — ★차단한다(allow_failure 없음).
+# 왜 차단인가: 이 검사기가 태어난 사고(2026-09-10 `!451` — 남의 마찰 줄 하나가 조용히 증발)의 원인은
+#   «규칙을 안 지킨 것»이 아니라 **사람이 판정을 넘긴 것**이다. 스크립트가 「내 사본에 없는 main 줄 30개」를
+#   찍었는데 내가 고친 줄이 29개인 것을 대조하지 않았다. 그래서 처방을 「올리기 전에 사람이 돌려라」로만
+#   두면 **방어를 사고와 같은 층(사람의 기억)에 둔 것**이라 같은 자리에서 또 무너진다.
+# ★`_reference/append-only.md` 는 「CI 는 커밋 전의 main 을 모른다」는 이유로 이 잡을 **의도적으로** 안
+#   만들었는데, 그 이유가 틀렸다 — `git show origin/main:<파일>` 이 정확히 «지금의 main» 이다.
+#   2026-09-16 실측(픽스처): merge base 기준 = exit 0(놓침) · origin/main tip 기준 = exit 1(잃은 줄 지목).
+# ★changes: 를 걸지 않는다 — 누적 파일을 안 건드린 MR 은 «검사 0건»으로 조용히 통과한다(무해).
+#   반대로 걸어 두면 판정 유무가 브랜치 상태에 따라 흔들린다(migration-immutable 과 같은 이유).
+append-only-check:
+  stage: test
+  image: python:3-alpine
+  variables:
+    # ★얕은 클론이면 대상 브랜치가 없어 «판정 불능»(exit 2)으로 죽는다.
+    GIT_DEPTH: 0
+  script:
+    - apk add --no-cache bash git >/dev/null
+    - git fetch -q origin "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
+    # ★검사기 자체가 맞는지 먼저 본다 — self-tests 잡은 `changes: scripts/**` 라 **누적 파일만 고친
+    #   MR 에서는 안 돈다**. 그 MR 에서 검사기가 깨져 있으면 무음으로 통과한다.
+    - bash scripts/test-check-append-only-git.sh
+    - bash scripts/check-append-only-git.sh "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
 # 검사기 자신의 회귀 테스트 — ★차단한다(allow_failure 없음).
 # 왜 차단인가: 검사기가 깨지면 그 검사기가 지키던 것 전부가 **무음으로 통과**한다. 이 repo 가 반복해서
 #   밟은 실패 유형이 정확히 그것이다(CI 이미지에 git 이 없어 훅 검사가 통째로 무음 → 초록 집계).

@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# 「쌓이는 파일」(friction·CHANGELOG 류)이 이 브랜치에서 항목을 잃었는지 본다 — CI 잡 `append-only-check` 가 부른다.
+#
+# 왜 CI 에서도 봐야 하나: `check-append-only.py` 는 «올리기 전에 사람이 돌려라»로만 걸려 있었다(`CLAUDE.md` 킷동기 절).
+#   그런데 그 검사기가 태어난 사고(2026-09-10 `!451`)의 원인이 **사람이 판정을 넘긴 것**이다 — 방어를 같은 층
+#   (사람의 기억)에 두면 같은 자리에서 또 무너진다. `_reference/append-only.md` 는 「CI 는 커밋 전의 main 을
+#   모른다」는 이유로 CI 잡을 «의도적으로» 안 만들었는데, **그 이유가 틀렸다**(아래).
+#
+# ★기준은 «merge base» 가 아니라 «대상 브랜치의 지금 tip» 이다 — 이 둘을 헷갈리면 검사가 통째로 헛돈다.
+#   실사고 모양 = 「내가 사본을 받아 둔 뒤, 커밋하기 전에 남이 main 에 한 줄 넣었다」. 그 줄은 merge base 에
+#   없으니 merge base 기준으로는 «잃은 것»이 아니다(조용히 통과). tip 기준이어야 잡힌다.
+#   2026-09-16 실측(픽스처): merge base 기준 = **exit 0**(놓침) · tip 기준 = **exit 1**(잃은 줄 지목).
+#   자기시험 `test-check-append-only-git.sh` 의 D·G 케이스가 이 차이를 고정한다.
+#
+# 한계(알고 쓴다): 파이프라인이 돈 «뒤» 머지 직전까지 사이에 남이 또 머지하면 그 줄은 못 본다.
+#   그래서 이 잡은 사람 절차를 대체하지 않고 **겹친다**(사람 = 올리기 전 · 기계 = MR 에서).
+#
+# 사용: bash scripts/check-append-only-git.sh [대상ref]     (기본 origin/main)
+# 종료: 0 = 잃은 항목 없음 · 1 = 잃었다 · 2 = 판정 불능(기준 ref 가 없다 — 통과로 치지 않는다)
+set -u
+
+REF="${1:-origin/main}"
+
+# 검사 대상 — 「파일:보관파일」. 보관이 없으면 콜론 뒤를 비운다. **배포처는 이 목록만 고친다.**
+PAIRS='docs/friction.md:docs/friction-보관.md
+docs/friction-보관.md:'
+
+HERE=$(cd "$(dirname "$0")" && pwd) || exit 2
+TOOL="$HERE/check-append-only.py"
+[ -f "$TOOL" ] || { echo "⛔ 판정 불능 — 검사기가 없다: $TOOL"; exit 2; }
+
+# ★기준 ref 가 없으면 «통과»가 아니라 «판정 불능»이다(rules/verify.md §1 — 준비 실패를 합격으로 읽지 마라).
+if ! git rev-parse --verify --quiet "$REF" >/dev/null; then
+  echo "⛔ 판정 불능 — 기준 ref '$REF' 를 못 찾았다 (CI 면 GIT_DEPTH: 0 과 git fetch 를 확인하라)"
+  exit 2
+fi
+
+TMP=$(mktemp -d) || exit 2
+trap 'rm -rf "$TMP"' EXIT
+
+RC=0; CHECKED=0; SKIPPED=0
+echo "기준 ref = $REF ($(git rev-parse --short "$REF"))"
+
+while IFS= read -r pair; do
+  [ -n "$pair" ] || continue
+  F="${pair%%:*}"
+  MOVED="${pair#*:}"
+
+  if [ ! -f "$F" ]; then
+    SKIPPED=$((SKIPPED + 1)); echo "· 건너뜀 — 이 트리에 없음: $F"; continue
+  fi
+  # 대상 브랜치에 아직 없는 파일 = 이 MR 이 «처음 만든» 것이라 잃을 것이 없다.
+  if ! git show "$REF:$F" > "$TMP/base" 2>/dev/null; then
+    SKIPPED=$((SKIPPED + 1)); echo "· 건너뜀 — $REF 에 아직 없음(신규): $F"; continue
+  fi
+
+  echo "════ $F"
+  CHECKED=$((CHECKED + 1))
+  if [ -n "$MOVED" ] && [ -f "$MOVED" ]; then
+    python3 "$TOOL" "$TMP/base" "$F" --moved-to "$MOVED" || RC=1
+  else
+    python3 "$TOOL" "$TMP/base" "$F" || RC=1
+  fi
+done <<EOF
+$PAIRS
+EOF
+
+# ★«몇 건 돌았나»를 반드시 찍는다 — «0건 통과»와 «실제 통과»는 다른 사건이다(rules/verify.md §1).
+echo "──── 검사 ${CHECKED}건 · 건너뜀 ${SKIPPED}건"
+if [ "$RC" = 0 ]; then
+  echo "사라진 항목 없음 — OK"
+else
+  echo "⛔ 위 파일에서 항목이 사라졌다 — 기준을 다시 받아 편집을 다시 얹어라(_reference/append-only.md)."
+fi
+exit $RC
