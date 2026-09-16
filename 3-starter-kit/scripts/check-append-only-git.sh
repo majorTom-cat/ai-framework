@@ -59,8 +59,23 @@ while IFS= read -r pair; do
     fi
     SKIPPED=$((SKIPPED + 1)); echo "· 건너뜀 — 이 트리에 없음(이 파일이 생기기 전에서 갈라진 브랜치): $F"; continue
   fi
-  # 대상 브랜치에 아직 없는 파일 = 이 MR 이 «처음 만든» 것이라 잃을 것이 없다.
+  # 대상 브랜치에 그 파일이 없다. 여기도 두 가지이고, 하나는 조용한 사고다:
+  #   ⑴이 MR 이 «처음 만든» 파일(갈라진 지점에도 없다) → 잃을 것이 없으니 통과
+  #   ⑵대상 브랜치가 그 파일을 «지웠거나 이름을 바꿨다»(갈라진 지점엔 있었다) → **판정 불능**
+  #     조용히 통과시키면 이 브랜치가 그 파일에서 줄을 지워도 검사가 한 번도 안 돈다(2026-09-16 재현).
   if ! git show "$REF:$F" > "$TMP/base" 2>/dev/null; then
+    MB=$(git merge-base HEAD "$REF" 2>/dev/null || echo "")
+    if [ -n "$MB" ] && git cat-file -e "$MB:$F" 2>/dev/null; then
+      echo "════ $F"
+      echo "⛔ 판정 불능 — 갈라진 지점엔 있는데 $REF 에는 없다(대상 브랜치가 지웠거나 이름을 바꿨다)."
+      echo "   ①먼저 $REF 최신본을 이 브랜치에 얹어라."
+      echo "   ②그래도 없으면 이 스크립트 위 PAIRS 목록을 실물에 맞춰라."
+      # ★순서를 바꾸지 마라 — «목록부터 고쳐라»가 먼저 오면 사람이 목록에서 그 파일을 빼
+      #   **게이트를 스스로 끄고**, 지운 줄이 초록으로 지나간다(배포처 #285 가 재현했다).
+      CHECKED=$((CHECKED + 1))
+      [ "$RC" = 0 ] && RC=2
+      continue
+    fi
     SKIPPED=$((SKIPPED + 1)); echo "· 건너뜀 — $REF 에 아직 없음(신규): $F"; continue
   fi
 
@@ -79,6 +94,9 @@ EOF
 echo "──── 검사 ${CHECKED}건 · 건너뜀 ${SKIPPED}건"
 if [ "$RC" = 0 ]; then
   echo "사라진 항목 없음 — OK"
+elif [ "$RC" = 2 ]; then
+  # ★«못 쟀다»를 «통과»로 찍지 않는다 — 실패의 모양과 성공의 모양이 같아지면 아무도 안 본다.
+  echo "⛔ 판정 불능 — 위 파일을 검사하지 못했다. 통과로 치지 않는다(rules/verify.md §1)."
 else
   echo "⛔ 위 파일에서 항목이 사라졌다 — 기준을 다시 받아 편집을 다시 얹어라(_reference/append-only.md)."
 fi

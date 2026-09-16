@@ -109,6 +109,25 @@ setup || { echo "⛔ 픽스처 실패"; exit 1; }
   git rm -q "docs/friction-보관.md"; git commit -q -m "통째 삭제" )   # 갈라진 지점엔 있었다
 ck "J1 누적 파일 삭제는 exit 1" "1" "$(run)"
 
+echo "── K. ★대상 브랜치가 그 파일을 «지웠다»면 판정 불능이다 — 조용히 통과시키면 안 된다"
+# 2026-09-16 재현: main 이 보관 파일을 지운 뒤라면, 내 가지가 그 파일에서 줄을 지워도
+# «신규»로 읽혀 검사가 한 번도 안 돌았다. 배포처 #285 가 같은 자리를 먼저 짚었다.
+setup || { echo "⛔ 픽스처 실패"; exit 1; }
+( cd "$R" || exit
+  printf '# 보관\n\n2026-08-01 /dev — 옛 줄 하나\n2026-08-02 /fix — 옛 줄 둘\n' > docs/friction-보관.md
+  git add docs/friction-보관.md >/dev/null; git commit -q -m "보관 파일 신설"
+  BASE=$(git rev-parse HEAD)
+  git rm -q "docs/friction-보관.md"; git commit -q -m "main 이 지웠다"
+  git update-ref refs/remotes/origin/main HEAD
+  git checkout -q -b mine "$BASE"                       # 지우기 «전»에서 갈라진 내 가지
+  printf '# 보관\n\n2026-08-02 /fix — 옛 줄 둘\n' > docs/friction-보관.md   # 거기서 한 줄 삭제
+  git add docs/friction-보관.md >/dev/null; git commit -q -m "내가 한 줄 지웠다" )
+ck "K1 대상 브랜치가 지운 파일은 exit 2(판정 불능)" "2" "$(run)"
+grep -q "최신본을 이 브랜치에 얹어라" "$TMP/out" || { FAIL=$((FAIL+1)); echo "  ⛔ K2 «최신본을 먼저 얹어라» 안내가 없다"; }
+# ★안내 «순서»까지 검사한다 — 목록 고치기가 먼저 오면 사람이 게이트를 스스로 끈다.
+awk '/최신본을 이 브랜치에 얹어라/{a=NR} /PAIRS 목록을 실물에 맞춰라/{b=NR} END{exit !(a && b && a<b)}' "$TMP/out" \
+  || { FAIL=$((FAIL+1)); echo "  ⛔ K3 안내 순서가 뒤집혔다 — «목록을 고쳐라»가 먼저 나오면 게이트를 끄는 쪽으로 사람을 민다"; }
+
 echo "── H. 보관 파일 «자신»에서 줄이 사라져도 잡는다"
 setup || { echo "⛔ 픽스처 실패"; exit 1; }
 ( cd "$R" || exit
