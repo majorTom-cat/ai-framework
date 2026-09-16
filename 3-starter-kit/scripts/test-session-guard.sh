@@ -235,7 +235,10 @@ if [ -d "$FFR" ]; then
   echo dirty >> "$FFR/README.md"                                 # ★추적 변경이 생기면 다시 묻는다
   t ASK 'HEAD를 옮기려' "cd $FFR && git merge --ff-only origin/main"
   git -C "$FFR" checkout -- README.md 2>/dev/null
-  ( cd "$FFR" && echo mine >> README.md && git add -A && git commit -qm local ) >/dev/null 2>&1
+  # ★여기도 clone 한 트리다 — 신원을 명시하지 않으면 커밋이 조용히 실패해 «미푸시 커밋» 상황이 아예 안 만들어진다
+  #   (스테이지만 남아 창은 뜨므로 시험은 «우연히» 통과한다 — 2026-09-16 bnsone CI 가 L3 에서 같은 결함을 드러냈다).
+  ( cd "$FFR" && echo mine >> README.md && git add -A \
+    && git -c user.email=t@example.com -c user.name=t commit -qm local ) >/dev/null 2>&1
   t ASK 'HEAD를 옮기려' "cd $FFR && git merge --ff-only origin/main"   # ★미푸시가 있으면 다시 묻는다
   t ASK 'HEAD를 옮기려' "cd $FFR && git merge origin/main"             # ★--ff-only 가 아니면 면제 아님
 else
@@ -258,7 +261,10 @@ if [ -d "$CU" ]; then
   { [ "$(git -C "$CU" rev-parse HEAD)" = "$H0" ] && printf '%s' "$OUT" | grep -q '저장 안 된 변경'; } \
     && pass=$((pass+1)) || { echo "FAIL(L2 더러운 트리를 감았거나 이유가 없다): ${OUT:-무음}"; fail=$((fail+1)); }
   git -C "$CU" checkout -q -- README.md
-  ( cd "$CU" || exit 1; echo mine > mine.txt && git add mine.txt && git commit -qm mine ) >/dev/null 2>&1   # 미푸시 커밋
+  # ★신원을 명시한다 — clone 한 트리는 원본의 «로컬» user.email 을 안 물려받고, CI 러너엔 전역 신원이 없다.
+  #   빠뜨리면 커밋이 조용히 실패해 «스테이지만 남고», 개발자 PC 에서는 절대 안 드러난다(2026-09-16 bnsone CI 실측).
+  ( cd "$CU" || exit 1; echo mine > mine.txt && git add mine.txt \
+    && git -c user.email=t@example.com -c user.name=t commit -qm mine ) >/dev/null 2>&1   # 미푸시 커밋
   H0=$(git -C "$CU" rev-parse HEAD); OUT=$(reg "$CU")
   { [ "$(git -C "$CU" rev-parse HEAD)" = "$H0" ] && printf '%s' "$OUT" | grep -q '미푸시'; } \
     && pass=$((pass+1)) || { echo "FAIL(L3 미푸시 커밋 위로 감았거나 이유가 없다): ${OUT:-무음}"; fail=$((fail+1)); }
