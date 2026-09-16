@@ -85,6 +85,25 @@ G "$D" commit -q --allow-empty -m "Merge branch 'kit/sync' into 'main'" -m "킷�
 ck "H1 종료코드 0(머지 본문에서 기준점을 읽었다)" "0" "$(run "$D")"
 ck "H2 기준점을 제대로 집었다" "yes" "$(grep -q "$C2" "$TMP/last.out" && echo yes || echo no)"
 
+echo "── J. ★킷 전용 도구(이 검사기와 그 시험)만 바뀐 커밋은 «안 간 것»으로 세지 않는다"
+cp "$TOOL" "$KIT/3-starter-kit/scripts/check-kit-sync.sh"   # 자기 자신을 고친 셈
+echo "# 킷 전용" >> "$KIT/3-starter-kit/scripts/test-check-kit-sync.sh" 2>/dev/null || true
+G "$KIT" add -A >/dev/null; G "$KIT" commit -qm "킷: 킷 전용 도구만 고친다"
+D=$(mkdep depJ "킷동기: $C3 — 그 앞까지")
+ck "J1 종료코드 0(킷 전용 커밋은 안 센다)" "0" "$(run "$D")"
+
+echo "── K. ★배포처는 «작업 폴더»가 아니라 서버(origin/main)를 본다"
+D="$TMP/depK"; rm -rf "$D"; mkdir -p "$D" || exit 1
+( cd "$D" && git init -q ) || exit 1
+echo x > "$D/f.txt"; G "$D" add -A >/dev/null; G "$D" commit -qm "일반"
+G "$D" commit -q --allow-empty -m "킷동기: $C1 — 낡은 작업 폴더 상태"
+G "$D" branch -f origin/main HEAD 2>/dev/null                     # 서버 쪽이 더 앞서 있다고 가정
+G "$D" commit -q --allow-empty -m "킷동기: $C2 — 서버에는 더 갔다"
+G "$D" branch -f origin/main HEAD
+G "$D" reset -q --hard HEAD~1                                     # 작업 폴더만 한 칸 뒤로
+ck "K1 서버 기준이라 프레임워크 커밋 0" "0" "$(run "$D")"
+ck "K2 어느 ref 로 쟀는지 말한다" "yes" "$(grep -q '배포처 기준 ref' "$TMP/last.out" && echo yes || echo no)"
+
 echo "── I. ★최신 표시에 해시가 없으면 그 앞 표시로 거슬러 가되, 그 사실을 말한다"
 D="$TMP/depI"; rm -rf "$D"; mkdir -p "$D" || exit 1
 ( cd "$D" && git init -q ) || exit 1

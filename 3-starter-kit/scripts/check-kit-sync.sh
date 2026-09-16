@@ -39,7 +39,16 @@ done
 # ★제목(%s)이 아니라 «본문 전체»(%B)를 봐라 — 배포처의 실제 모양은 머지 커밋이고 표시는 본문에 있다.
 # ★그리고 실물 규약은 들쭉날쭉하다 — 해시 없이 「(킷 8커밋)」처럼 적은 것이 섞인다(2026-09-16 실측).
 #   그래서 최신 표시부터 거슬러 «킷에 실재하는 해시»를 찾고, 최신 것이 아니었으면 그 사실을 말한다.
-MARKS=$(git -C "$DEP" log -n 20 --grep '^킷동기:' --format='%H' 2>/dev/null)
+# ★배포처는 «작업 폴더»가 아니라 «서버»를 봐라 — 남의 클론은 낡아 있기 마련이라 그대로 세면
+#   이미 머지된 것을 «안 갔다»고 보고한다(2026-09-16 실측: 머지 직후에 3건으로 나왔다. 실제 1건).
+#   HEAD 를 옮기지 않는 조회라 남의 세션에 영향이 없다. [[commit-is-not-deployed]]
+DEPREF="${2:-}"
+if [ -z "$DEPREF" ]; then
+  git -C "$DEP" fetch origin --quiet 2>/dev/null
+  if git -C "$DEP" rev-parse --verify -q origin/main >/dev/null; then DEPREF="origin/main"; else DEPREF="HEAD"; fi
+fi
+echo "배포처 기준 ref = $DEPREF"
+MARKS=$(git -C "$DEP" log -n 20 --grep '^킷동기:' --format='%H' "$DEPREF" 2>/dev/null)
 if [ -z "$MARKS" ]; then
   echo "⛔ 판정 불능 — 배포처에 «킷동기:» 커밋이 없다(한 번도 안 넘겼거나 규약을 안 썼다): $DEP" >&2
   exit 2
@@ -63,7 +72,11 @@ if [ "$NEWEST" -eq 0 ]; then
   echo "⚠️ 최신 «킷동기» 표시 $SKIPPED 개에 해시가 없어 그 앞 것을 기준으로 잡았다 — 실제 부채는 아래보다 적을 수 있다."
 fi
 
-LIST=$(git -C "$REPO" log --format='%h %s' "$BASE..HEAD" -- "${PATHSPEC[@]}")
+# ★킷 전용 도구는 배포처에 갈 이유가 없다 — 빼지 않으면 영원히 «안 간 커밋»으로 남아 소음이 된다.
+#   (이 검사기 자신과 그 시험. 배포처엔 킷 저장소가 없어 돌려도 «판정 불능»이다.)
+SCRIPTS_DIR="scripts"; [ -n "$PREFIX" ] && SCRIPTS_DIR="$PREFIX/scripts"
+KIT_ONLY=(":(exclude)$SCRIPTS_DIR/check-kit-sync.sh" ":(exclude)$SCRIPTS_DIR/test-check-kit-sync.sh")
+LIST=$(git -C "$REPO" log --format='%h %s' "$BASE..HEAD" -- "${PATHSPEC[@]}" "${KIT_ONLY[@]}")
 N=$(printf '%s\n' "$LIST" | grep -c . )
 
 echo "기준점 = 배포처가 마지막으로 넘긴 킷 커밋 $BASE"
