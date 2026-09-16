@@ -33,6 +33,8 @@ setup() {
   git update-ref refs/remotes/origin/main HEAD
 }
 run() { ( cd "$R" || exit 9; bash "$TOOL" "$@" > "$TMP/out" 2>&1; echo $? ); }
+# ★픽스처의 «하위 폴더»에서 돌린다 — L 케이스 전용(루트가 아닌 자리를 재현한다).
+runsub() { S="$1"; shift; ( cd "$R/$S" || exit 9; bash "$TOOL" "$@" > "$TMP/out" 2>&1; echo $? ); }
 ck() { # $1=설명 $2=기대 exit $3=실제 exit
   if [ "$2" = "$3" ]; then OK=$((OK+1))
   else FAIL=$((FAIL+1)); echo "  ⛔ $1"; echo "     기대 exit: $2 / 실제: $3"; sed 's/^/       /' "$TMP/out" | head -8; fi
@@ -136,6 +138,13 @@ setup || { echo "⛔ 픽스처 실패"; exit 1; }
   git update-ref refs/remotes/origin/main HEAD
   printf '# 보관\n\n2026-08-02 /fix — 옛 줄 둘\n' > docs/friction-보관.md )
 ck "H1 보관 파일의 삭제도 exit 1" "1" "$(run)"
+
+echo "── L. ★repo 루트가 아닌 곳에서 돌면 «판정 불능»이다 — 조용한 «0건 초록»이 되면 안 된다"
+# 2026-09-16 실측: 킷 저장소의 `3-starter-kit/` 에서 돌렸더니 파일이 실제로 있는데도 «신규»로 건너뛰고
+# 「사라진 항목 없음 — OK」를 찍었다. F(대상 파일이 아예 없는 스택 = 진짜 통과)와 겉모양이 같아 아무도 못 본다.
+setup || { echo "⛔ 픽스처 실패"; exit 1; }
+ck "L1 하위 폴더에서는 exit 2(판정 불능)" "2" "$(runsub docs)"
+grep -q "repo 루트가 아니라" "$TMP/out" || { FAIL=$((FAIL+1)); echo "  ⛔ L2 «repo 루트가 아니다» 사유가 안 찍혔다 — 사람이 원인을 못 찾는다"; }
 
 cd "$HERE" || exit 1
 echo "────────  $OK OK / $FAIL FAIL"

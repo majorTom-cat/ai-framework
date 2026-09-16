@@ -100,8 +100,8 @@
 
 | 서버 | self-hosted | 요점 |
 | --- | --- | --- |
-| **zereight/gitlab-mcp** (★1.8k, 활발 — 커뮤니티 GitLab MCP 사실상 표준) | **완전 지원** (`GITLAB_API_URL`+PAT) | 도구 170개(MR 생성/승인/머지/토론·이슈 CRUD·파이프라인). glab 텍스트 파싱보다 구조화·안정적 → /todo·/done 오류율↓ 후보. ⚠️ **170개 전부 켜면 컨텍스트 낭비 — 필요 도구셋만 활성화** |
-| GitLab 공식 MCP (인스턴스 내장, 18.6+ 베타) | 지원하나 **Premium/Ultimate + Duo 필요** | 사내 GitLab이 조건 충족하면 zereight 대체 검토 |
+| **zereight/gitlab-mcp** (★2.0k, 활발 — 커뮤니티 GitLab MCP 사실상 표준) | **지원** (`GITLAB_API_URL`+PAT · OAuth · 무료판/사내 설치 가능) | **도구 261개**(2026-09-16 재조사 · 2026-07 조사 때 170개) — MR·이슈·파이프라인·위키·릴리스·워크아이템 등. `GITLAB_TOOLSETS`·`GITLAB_TOOLS`·`GITLAB_DENIED_TOOLS_REGEX` 로 고르고 `GITLAB_PERMISSION_MODE`=`readonly`/`modify`/`full` 로 묶는다. glab 텍스트 파싱보다 구조화·안정적 → /todo·/done 오류율↓ 후보. ⚠️**받쳐 주는 최소 GitLab 버전 표가 없다** — 구버전 인스턴스는 실테스트 1회로만 확인된다. ⚠️**전부 켜면 컨텍스트 낭비** — 공개 측정들이 MCP 를 CLI 대비 토큰 **4~32배**로 보고한다(도구 정의가 호출 전부터 상주). ⚠️**사내 PAT 를 외부 npm 패키지에 넘긴다**(context7 행과 같은 결의 고지 대상) |
+| GitLab 공식 MCP (인스턴스 내장 · 18.3 실험 → **18.6+ 베타**) | 지원하나 **Premium/Ultimate + Duo 필요** | 사내 GitLab이 조건 충족하면 zereight 대체 검토. ★**조건은 `glab api version` 한 줄로 잰다**(`version`·`enterprise`) — 2026-09-16 실측 사내 인스턴스 = **16.4.1 · `enterprise:false`** 라 **두 칸 다 미달·현재 불가** |
 | postgres-mcp·sentry-mcp(self-hosted 지원)·Figma Dev Mode MCP | 각각 조건부 | 해당 인프라를 실제 쓰는 시점에만 |
 
 ---

@@ -29,6 +29,18 @@ HERE=$(cd "$(dirname "$0")" && pwd) || exit 2
 TOOL="$HERE/check-append-only.py"
 [ -f "$TOOL" ] || { echo "⛔ 판정 불능 — 검사기가 없다: $TOOL"; exit 2; }
 
+# ★repo 루트에서만 성립한다 — PAIRS 는 루트 기준 경로다. 하위 폴더에서 돌면 파일은 `-f` 로 «보이는데»
+#   `git show <ref>:<경로>` 만 빗나가 **«신규»로 오판하고 «검사 0건 · OK»** 를 찍는다. 실패의 모양이 성공과 같아진다.
+#   2026-09-16 실측: 킷 저장소의 `3-starter-kit/` 안에서 돌렸더니 friction 두 파일 모두 «신규» 건너뜀 + OK 였다.
+PREFIX=$(git rev-parse --show-prefix 2>/dev/null) || {
+  echo "⛔ 판정 불능 — git 저장소 안이 아니다."; exit 2; }
+if [ -n "$PREFIX" ]; then
+  echo "⛔ 판정 불능 — repo 루트가 아니라 '$PREFIX' 에서 돌았다(PAIRS 는 루트 기준 경로다)."
+  echo "   ①repo 루트로 옮겨 다시 돌려라."
+  echo "   ②킷처럼 이 스크립트가 하위 폴더에 놓인 곳이라면 여기서는 돌리는 것이 아니다 — 이 파일은 «배포처 repo 루트»(CI 잡 append-only-check) 전용이고, 사람이 손으로 볼 때는 `scripts/check-append-only.py` 에 두 경로를 직접 준다(_reference/append-only.md)."
+  exit 2
+fi
+
 # ★기준 ref 가 없으면 «통과»가 아니라 «판정 불능»이다(rules/verify.md §1 — 준비 실패를 합격으로 읽지 마라).
 if ! git rev-parse --verify --quiet "$REF" >/dev/null; then
   echo "⛔ 판정 불능 — 기준 ref '$REF' 를 못 찾았다 (CI 면 GIT_DEPTH: 0 과 git fetch 를 확인하라)"

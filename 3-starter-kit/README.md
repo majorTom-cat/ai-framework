@@ -54,7 +54,7 @@
 
 | 후보 | 켜는 법 (1줄) | 기본 미포함 이유 |
 | --- | --- | --- |
-| gitlab MCP (zereight/gitlab-mcp) | `claude mcp add gitlab -- npx -y @zereight/mcp-gitlab` + `GITLAB_API_URL`·PAT, **필요 도구만 활성화** | 사내 인스턴스 실테스트 1회 필요 + 도구 170개 전부 켜면 컨텍스트 낭비 |
+| gitlab MCP (zereight/gitlab-mcp) | `claude mcp add gitlab -- npx -y @zereight/mcp-gitlab` + `GITLAB_API_URL`·PAT, **`GITLAB_TOOLSETS`·`GITLAB_PERMISSION_MODE`(readonly/modify/full)로 필요 도구만** | ★**켜기 전에 `glab api version` 으로 `version`·`enterprise` 를 재라.** **공식**(인스턴스 내장) MCP 는 **18.6+ & Premium/Ultimate & Duo** 라 무료판·구버전이면 **불가**. 커뮤니티판은 무료판·사내 설치가 되지만 **받쳐 주는 최소 버전 표가 없어** 실테스트 1회는 여전히 필요하고, **도구 261개**(2026-09-16 재조사 · 2026-07 조사 때 170개) 전부 켜면 컨텍스트 낭비 — MCP 는 같은 일에 CLI 보다 토큰 **4~32배**라는 측정이 여럿이다. ★**이미 `glab` 로 도는 절차가 있으면 갈아타는 비용부터 세라**(킷 기준 스킬 19개·호출 141곳) |
 | LSP 플러그인 (예: typescript-lsp) | `/plugin install typescript-lsp@claude-plugins-official` **+ `npm i -g typescript-language-server typescript`**(플러그인은 바이너리를 동봉하지 않는다 — 빼면 첫 호출이 `ENOENT`로 죽는다. 2026-08-26 실측) | 스택 확정 후에만 유효, Windows 바이너리 언어별 확인 필요 |
 | playwright MCP | `claude mcp add playwright -s user -- npx -y @playwright/mcp@latest` | 호출 때마다 **cwd에 `.playwright-mcp/`**(스냅샷·콘솔 로그)를 만든다 — `.gitignore`(팀이 안 쓰면 개인 `~/.config/git/ignore`)에 넣지 않으면 커밋에 딸려 간다. 2026-08-26 실측 |
 | context7 MCP (라이브러리 문서) | `claude mcp add context7 -s user -- npx -y @upstash/context7-mcp` | **질의가 외부 호스트로 나간다** — 사내 프로젝트에서 켜는 것은 오너 고지 대상. 개인 범위(`-s user`)로만, 프로젝트 범위는 `.claude/settings.json`=공통 영역이라 공지 절차를 탄다 |

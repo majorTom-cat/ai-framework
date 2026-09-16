@@ -218,7 +218,7 @@
 **완료 기준:** shared/ 파일을 일부러 고쳐 **Claude Code 세션 안에서** push → 확인 창(ask)이 뜨는 걸 직접 본다(터미널에서 맨손 `git push`로는 안 뜬다 — 이 훅은 Claude Code 전용이다. 래퍼를 만들었다면 맨손 push에서도 경고가 뜨는지 함께 본다). 스냅샷 테스트에서 export 하나를 지워보고 CI가 빨간불 되는 것도.
 
 > 〔P2 — 여유 되면 첫 주에〕 **Stop 훅 자가검증:** "완료" 선언 전에 검증(배포 헬스체크·테스트)이 통과할 때까지 턴 종료 자체를 차단하는 공식 훅 — "검수요청 전 자가 확인" 규율을 기계로 승격한다. (**시크릿 스캔·변조 감지 등 킷 CI 잡은 Day 2 P1 필수** — 무료다(잡 목록 정본 = `.gitlab-ci.yml`). **AI 리뷰 CI 잡은 별도 API 결제**라 P2 선택이고, 비용 없이는 개발자 구독 `/code-review`가 그 역할을 한다.)
-> 〔P2 — 생태계 도입 후보 3종: gitlab MCP·LSP 플러그인·claude-md-management〕 켜는 법 힌트·미포함 이유·근거 = `4-reference/ecosystem-analysis.md`(프레임워크 홈 — 이 repo에는 동봉되지 않는다). 켜는 법 요약은 킷 README '도입 후보' 표에도 있다.
+> 〔P2 — 생태계 도입 후보 3종: gitlab MCP·LSP 플러그인·claude-md-management〕 ★**«후보»는 «지금 쓰는 것»이 아니다 — 킷은 이 셋 없이 돈다**(카드·MR 은 `glab` 명령으로 다룬다). 특히 **gitlab MCP 는 인스턴스 조건부**다 — 공식판은 **18.6+ · Premium/Ultimate · Duo** 가 있어야 하므로 **무료판·구버전이면 불가**(`glab api version` 의 `version`·`enterprise` 로 먼저 재라). 켜는 법 힌트·미포함 이유·근거 = `4-reference/ecosystem-analysis.md`(프레임워크 홈 — 이 repo에는 동봉되지 않는다). 켜는 법 요약은 킷 README '도입 후보' 표에도 있다.
 > 〔P3〕 **멘션 실시간화**는 브리핑(/todo)만으로 놓침이 **반복 관찰될 때만** 도입(방법 후보는 evidence 문서).
 
 ### Day 5 — 시드·리셋·ship + 파일럿 〔P1 — 레일 1회전 없이는 팀 착수 금지(§0 철칙)〕
