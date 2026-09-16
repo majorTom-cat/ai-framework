@@ -81,11 +81,33 @@ echo "── E. 기준 ref 가 없으면 «통과»가 아니라 «판정 불능
 setup || { echo "⛔ 픽스처 실패"; exit 1; }
 ck "E1 없는 ref 는 exit 2" "2" "$(run origin/없는가지)"
 
-echo "── F. 대상 파일이 하나도 없으면 통과하되 «검사 0건»을 찍는다"
+echo "── F. 대상 파일이 하나도 없는 스택이면 통과하되 «검사 0건»을 찍는다"
 setup || { echo "⛔ 픽스처 실패"; exit 1; }
-( cd "$R" || exit; git rm -q docs/friction.md; git commit -q -m "누적 파일 없는 스택" )
+( cd "$R" || exit
+  git rm -q docs/friction.md; git commit -q -m "누적 파일 없는 스택"
+  git update-ref refs/remotes/origin/main HEAD )   # 대상 브랜치에도 없다 = 이 스택은 그 파일을 안 쓴다
 ck "F1 대상 없음은 exit 0" "0" "$(run)"
 grep -q "검사 0건" "$TMP/out" || { FAIL=$((FAIL+1)); echo "  ⛔ F2 «검사 0건»을 안 찍었다 — 0건 통과와 실제 통과가 구분되지 않는다"; }
+
+echo "── I. ★보관 파일이 «생기기 전»에서 갈라진 낡은 브랜치는 통과한다"
+# 배포처에 실제로 그런 브랜치가 살아 있다(2026-09-16 bnsone 실측 2개). 무조건 ⛔ 면 통째로 막힌다.
+setup || { echo "⛔ 픽스처 실패"; exit 1; }
+( cd "$R" || exit
+  BASE=$(git rev-parse HEAD)
+  printf '# 보관\n\n2026-08-01 /dev — 옛 줄\n' > docs/friction-보관.md
+  git add docs/friction-보관.md >/dev/null; git commit -q -m "보관 파일 신설"
+  git update-ref refs/remotes/origin/main HEAD
+  git checkout -q -b old "$BASE" )               # 보관 파일이 생기기 «전»에서 갈라진 가지
+ck "I1 낡은 브랜치는 exit 0" "0" "$(run)"
+
+echo "── J. ★그러나 «있던 파일을 지운» 것은 막는다 (I 와 같은 모양인데 반대 판정)"
+setup || { echo "⛔ 픽스처 실패"; exit 1; }
+( cd "$R" || exit
+  printf '# 보관\n\n2026-08-01 /dev — 옛 줄\n' > docs/friction-보관.md
+  git add docs/friction-보관.md >/dev/null; git commit -q -m "보관 파일 신설"
+  git update-ref refs/remotes/origin/main HEAD
+  git rm -q "docs/friction-보관.md"; git commit -q -m "통째 삭제" )   # 갈라진 지점엔 있었다
+ck "J1 누적 파일 삭제는 exit 1" "1" "$(run)"
 
 echo "── H. 보관 파일 «자신»에서 줄이 사라져도 잡는다"
 setup || { echo "⛔ 픽스처 실패"; exit 1; }

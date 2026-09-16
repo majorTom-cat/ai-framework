@@ -47,7 +47,17 @@ while IFS= read -r pair; do
   MOVED="${pair#*:}"
 
   if [ ! -f "$F" ]; then
-    SKIPPED=$((SKIPPED + 1)); echo "· 건너뜀 — 이 트리에 없음: $F"; continue
+    # ★이 트리에 없는 이유가 둘이고, 하나는 통과·하나는 사고다. 갈라야 한다:
+    #   ⑴이 파일이 «생기기 전»에서 갈라진 낡은 브랜치 — 통과(배포처에 실제로 그런 브랜치가 산다)
+    #   ⑵있던 파일을 이 브랜치가 «지웠다» — 누적 파일 통째 삭제라 막아야 한다
+    #   가르는 잣대 = 갈라진 지점(merge base)에 그 파일이 있었나.
+    MB=$(git merge-base HEAD "$REF" 2>/dev/null || echo "")
+    if [ -n "$MB" ] && git cat-file -e "$MB:$F" 2>/dev/null; then
+      echo "════ $F"
+      echo "⛔ 갈라진 지점에 있던 누적 파일이 이 트리에서 통째로 사라졌다 — 지우지 말고 보관 파일로 옮겨라."
+      CHECKED=$((CHECKED + 1)); RC=1; continue
+    fi
+    SKIPPED=$((SKIPPED + 1)); echo "· 건너뜀 — 이 트리에 없음(이 파일이 생기기 전에서 갈라진 브랜치): $F"; continue
   fi
   # 대상 브랜치에 아직 없는 파일 = 이 MR 이 «처음 만든» 것이라 잃을 것이 없다.
   if ! git show "$REF:$F" > "$TMP/base" 2>/dev/null; then

@@ -35,12 +35,25 @@ before, after = args
 
 entry = re.compile(r"^\d{4}-\d{2}-\d{2}")
 def entries(p):
-    if not p or not os.path.exists(p):
-        return []
-    return [l.rstrip("\n") for l in open(p, encoding="utf-8") if entry.match(l)]
+    """항목 줄을 읽되 «글자까지 같은» 줄은 한 벌로 접는다. (접은 줄, 접힌 수) 를 돌려준다.
 
-b, a = entries(before), entries(after)
-m = entries(moved)
+    왜 접나: `archive-friction.py` 가 보관할 때 완전 동일 줄을 접는다(그 파일 seen/merged).
+      접지 않으면 보관 작업 MR 이 통째로 «줄이 사라졌다»로 막힌다(2026-09-16 배포처 #285 실측·킷 재현).
+    ★**세 쪽(기준·새 판·보관)에서 «모두» 접어야 한다.** 한쪽만 접으면 남은 여분이
+      «진짜 사라진 다른 줄»의 짝 노릇을 해 **삭제를 가린다** — 그래서 이 함수 한 곳에서 접는다.
+    """
+    if not p or not os.path.exists(p):
+        return [], 0
+    raw = [l.rstrip("\n") for l in open(p, encoding="utf-8") if entry.match(l)]
+    seen, out = set(), []
+    for l in raw:
+        if l not in seen:
+            seen.add(l); out.append(l)
+    return out, len(raw) - len(out)
+
+b, folded_b = entries(before)
+a, folded_a = entries(after)
+m, folded_m = entries(moved)
 
 pool = list(a) + list(m)          # 짝 후보 — 짝지어진 것은 빼면서 쓴다(하나에 하나)
 lost, edited = [], []
@@ -74,6 +87,9 @@ for line in b:
 msg = f"기준 {len(b)}항목 · 새 판 {len(a)}항목"
 if moved:
     msg += f" · 보관 {len(m)}항목"
+folded = folded_b + folded_a + folded_m
+if folded:      # ★접은 것을 숨기지 않는다 — 접기가 삭제를 가리지 않았는지 사람이 볼 자리다
+    msg += f"  (완전 동일 줄 {folded}개를 한 벌로 접었다)"
 print(msg)
 for kind, was, now in edited:      # ★«고친 것으로 봤다»를 눈에 보이게 — 짝이 틀렸으면 사람이 여기서 잡는다
     print(f"   {kind}: {was[:60]}…")
