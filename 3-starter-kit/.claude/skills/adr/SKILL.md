@@ -23,6 +23,7 @@ allowed-tools: Read Edit Write Glob Grep Bash(git *) Bash(glab *)
 5. **`INDEX.md`를 같은 커밋에서 갱신**(대체면 옛 항목 상태도) → 커밋 첫 줄 `#<카드> docs: ADR NNNN 요약`.
    — ★**커밋 직전 번호를 «열린 MR 까지» 재확인하라 — `origin/main` 만 보면 못 잡는다**: `git fetch -q --prune origin` 뒤 `git for-each-ref --format='%(refname)' refs/remotes/origin | xargs -I{} git ls-tree -r --name-only {} docs/adr/ | sort -u` — **모든 원격 브랜치**의 ADR 파일명을 모아 그 뒤 번호를 쓴다.
      `origin/main` 하나만 보던 옛 명령은 **아직 안 머지된 MR 이 이미 쓴 번호를 못 본다**: 절차대로 재확인했는데 열린 MR !386 이 0051 을 쓰고 있었다(2026-09-08 bnsone). 로컬 INDEX만 믿는 것도 같은 사고다 — 두 브랜치가 **INDEX의 서로 다른 줄**에 추가하면 자동 병합이 충돌 없이 통과해 번호가 중복되고 git도 CI도 못 잡는다. 같은 사고 **3회**(2026-08-19·08-25·09-08).
+   — ★**번호 «예약»은 파일로만 된다 — 인계문·메모에 «0061 로 바꾼다»만 적지 마라.** 위 조회는 파일만 보므로 그 사이 다른 세션이 그 번호를 쓴다(2026-09-17 bnsone 실측). 바꾸거나 비워 둘 번호가 있으면 **그 자리에서 파일을 만들어 브랜치로 push** 하라.
    — ★**연결할 카드가 지금 열려 있는지 확인하라** — `glab issue view <카드>`로 `state`가 `opened`인지 본다.
      닫힌 카드에 `관련:`을 걸면 그 MR은 **추적되는 카드 없이 머지**된다(bnsone 2026-08-06 실측: 전날 닫힌 #39에 MR !73). 열린 카드가 없으면 `/card`로 만들고 그 번호로 진행.
    — ★**`Closes #N` 금지 — `관련: #<카드>` 링크만**(머지 순간 자동 닫힘 — 경위·정본은 /done 7단계). ADR은 보통 구현 카드의 일부라 그 카드는 아직 열려 있어야 한다.

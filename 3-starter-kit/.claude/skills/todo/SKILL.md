@@ -49,7 +49,7 @@ allowed-tools: Bash(glab *) Bash(git *) Bash(grep *) Bash(node scripts/pipeline-
 
 **0-d. 끝난 To-Do 비우기**: `glab todo list -P 100 -F json --jq '.[] | select(.target.state != "opened") | "\(.id)\t\(.target.state)\t\(.target.title)"'` 로 **이미 닫힌 카드·머지된 MR** 항목을 뽑아 **확인 없이** `glab todo done <ID>` 로 **뽑은 ID 만 하나씩** 지우고, **지운 건수와 제목을 한 줄로 보고**한다. GitLab To-Do 는 스스로 사라지지 않는다.
   - ★**묻지 마라**(09-17 오너 결정) — 내 알림함뿐이고 열린 요청은 필터가 거른다(경위 `스캔상세.md` §3)
-  - ★★**`glab todo done --all` 을 쓰지 마라 — 위 «닫힌 것만» 필터를 따르지 않고 «열린 것까지» 전부 지운다**(2026-09-09 bnsone 실측: 닫힌 8건을 지우려다 **열린 4건이 함께 사라져** `POST projects/:id/issues/{iid}/todo` 로 복원했다). ID 나열도 **20건 안팎씩 나눠** 돌리고, **지운 뒤 재조회로 건수를 확인하라**(45건 일괄은 첫 건만 찍히고 44건이 시도조차 안 됐다).
+  - ★★**`glab todo done --all` 을 쓰지 마라 — 위 «닫힌 것만» 필터를 따르지 않고 «열린 것까지» 전부 지운다**(2026-09-09 bnsone 실측: 닫힌 8건을 지우려다 **열린 4건이 함께 사라져** `POST projects/:id/issues/{iid}/todo` 로 복원했다). **ID 는 한 호출에 하나씩**(여럿 나열은 거부된다 — 병렬 호출로) · **지운 뒤 재조회로 건수 확인.**
   - ⚠️**조회는 `glab todo list`(표)로 — `glab api todos` 는 18만 자를 문맥에 붓는다.** ★**`-P 100` 을 빼지 마라 — 기본 30개라 조용히 잘린다.**
   - **경위는 `스캔상세.md` §3.**
 
