@@ -231,6 +231,25 @@ append-only-check:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
 
+# «미룬 일»이 카드 번호 없이 문장으로만 남았나 — ★차단한다(allow_failure 없음).
+# 왜 차단인가: 2026-09-17 bnsone 1차 요구 전수 대조에서 «후속 카드로·별도 카드·범위 밖(후속)»만 적고 안 생긴 일이
+#   19건 나왔다(예고 카드 11 · 분해안 5 · 1차 기능 3). 사람 절차(/done 6단계)만 두면 같은 층에서 또 샌다.
+# 이 MR 이 «더한 줄»만 본다 — 옛 부채는 막지 않는다(주기 점검 `--all` 로 따로 본다). 빠져나갈 길 = 조각마다 `(카드 불요: 사유)`.
+# ★changes: 를 걸지 않는다 — docs 를 안 건드린 MR 은 «파일 0개»로 조용히 통과한다(무해).
+deferred-check:
+  stage: test
+  image: python:3-alpine
+  variables:
+    GIT_DEPTH: 0
+  script:
+    - apk add --no-cache bash git >/dev/null
+    - git fetch -q origin "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
+    # 검사기 자체가 맞는지 먼저 — self-tests 는 scripts/** 변경 MR 에서만 돈다(append-only-check 와 같은 이유)
+    - bash scripts/test-check-deferred.sh
+    - bash scripts/check-deferred.sh "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
 # 검사기 자신의 회귀 테스트 — ★차단한다(allow_failure 없음).
 # 왜 차단인가: 검사기가 깨지면 그 검사기가 지키던 것 전부가 **무음으로 통과**한다. 이 repo 가 반복해서
 #   밟은 실패 유형이 정확히 그것이다(CI 이미지에 git 이 없어 훅 검사가 통째로 무음 → 초록 집계).

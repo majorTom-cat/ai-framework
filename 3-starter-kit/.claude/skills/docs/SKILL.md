@@ -3,12 +3,14 @@ name: docs
 description: 기획자·디자이너에게 받은 문서(압축파일·md·시안)를 docs/ 정본 구조로 정리. 문서 수신 시 사용.
 disable-model-invocation: true
 argument-hint: "[압축파일 또는 폴더 경로 — 웹으로 이미 올라온 STEP 문서면 생략]"
-allowed-tools: Bash(unzip *) Bash(tar *) Bash(git *) Bash(glab *) Bash(mkdir *) Bash(cp *) Bash(mv *) Read Write Edit
+allowed-tools: Bash(unzip *) Bash(tar *) Bash(git *) Bash(glab *) Bash(mkdir *) Bash(cp *) Bash(mv *) Bash(bash scripts/collect-planner-questions.sh*) Read Write Edit
 ---
 
 # /docs — 받은 문서를 정본에 반영
 
 > **계약** · 입력: 압축/폴더 경로(+카드번호) 또는 웹으로 이미 올라온 STEP 문서 · 산출물: 정본 폴더 배치+파일명 정규화, digest·지도 갱신 · 검증: 제자리 배치 + 인덱스 행 갱신 (⏸ 배치 전 확인)
+
+> ★**곁 파일 `상세.md` — 5·6단계(대조·질문 묶음)에서 읽어라**
 
 > **예시**: `/docs inbox/기획_2월.zip` · `/docs "받은 문서/2월 기획"` (경로에 공백 있으면 따옴표) · `/docs` (기획자가 웹으로 올린 새 STEP 문서 반영 = 경로 A)
 
@@ -43,6 +45,7 @@ allowed-tools: Bash(unzip *) Bash(tar *) Bash(git *) Bash(glab *) Bash(mkdir *) 
      - ①양쪽 `_digest.md`에 상충·확정 기록(`{옛 문서 §절}은 {최신 문서 §절}에서 조정됨 — 그쪽이 정본`)
      - ②문서 주인(기획자) **@멘션 통보** — 허락이 아니라 알림, 내용 정리는 주인이 원할 때.
      - ★★**옛 문서 «원문»에는 아무것도 쓰지 마라 — «대체됨 표지판»도 넣지 않는다**(오너 결정, `rules/docs.md`). **기획자가 준 문서는 우리 것이 아니다.** 종전 절차는 표지판 삽입을 시켰는데 그게 그 결정과 갈려 있었다(2026-09-16 명문화).
+   - ★**ADR·기술설계 충돌 · 풀린 질문** — `상세.md` §1·§2.
    - (문서 정리·시안 등 STEP 산출물이 아니면 이 단계는 건너뛴다.)
 6. **커밋·알림**: 브랜치 `docs/{카드번호}-{간단이름}` 에서 커밋(첫 줄 `#{카드번호} docs: {요약}`) — **digest·`_STEP_INDEX` 갱신을 같은 커밋에 포함** → push → MR (**문서만 변경이면 CI 통과 후 셀프 머지 허용**) — main 직접 push 금지는 docs에도 적용된다.
    - ★**`Closes #N` 금지 — `관련: #{카드번호}` 링크만**(자동 닫힘 — 경위·정본은 /done 7단계. 문서 반영 카드는 대개 **후속(/change·/design·분해)이 남아 있다** — 자동으로 닫히면 후속이 증발한다).

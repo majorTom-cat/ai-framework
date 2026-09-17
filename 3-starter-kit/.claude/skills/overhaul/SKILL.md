@@ -1,10 +1,10 @@
 ---
 name: overhaul
 effort: max # 배정표 = _reference/skill-tiers.md
-description: 전수 재정리·감사 — 문서·코드·배포 중 범위를 먼저 물어, 병렬 fresh-context 에이전트로 나눠 읽고 중복·모순·낡음·어긋남을 수거해 정리안을 만든다. 쌓였을 때 사용자가 호출.
+description: 전수 재정리·감사 — 문서·코드·배포·요구 대조 중 범위를 먼저 물어, 병렬 fresh-context 에이전트로 나눠 읽고 중복·모순·낡음·어긋남을 수거해 정리안을 만든다. 쌓였을 때 사용자가 호출.
 argument-hint: "[문서|코드|배포 + 범위 경로·자연어 지시 (비면 0단계에서 묻는다)]"
 disable-model-invocation: true
-allowed-tools: Workflow Read Glob Grep Bash(git *) Bash(npm run boundaries*) Bash(node scripts/check-boundaries*) Bash(glab *) Bash(ssh *) Bash(kubectl get *) Bash(kubectl describe *) Bash(curl -sI *) Agent
+allowed-tools: Workflow Read Glob Grep Bash(git *) Bash(npm run boundaries*) Bash(node scripts/check-boundaries*) Bash(glab *) Bash(ssh *) Bash(kubectl get *) Bash(kubectl describe *) Bash(curl -sI *) Bash(bash scripts/check-deferred.sh*) Bash(bash scripts/collect-planner-questions.sh*) Agent
 ---
 
 # /overhaul — 전수 재정리·감사: "$ARGUMENTS"
@@ -20,9 +20,9 @@ allowed-tools: Workflow Read Glob Grep Bash(git *) Bash(npm run boundaries*) Bas
 순서대로 실행하고, **실패하면 그 단계에서 멈추고 보고**하라.
 
 0. **갈래 확인 — 먼저 묻는다**: 인자에 갈래가 없으면 **한 번만** 물어라(복수 선택 가능, 답을 받기 전엔 아무것도 읽지 마라):
-   > 어느 범위를 볼까요? **①문서**(중복·모순·낡음·자리·비대) · **②코드**(문서와 어긋난 구현·죽은 코드·중복·경계 위반) · **③배포**(매니페스트·CI·문서가 말하는 것과 서버 실물이 같은지)
-   - **②를 고르면 `코드.md`, ③이면 `배포.md`를 읽고 그 절차대로** 진행한다(둘 다면 갈래별로 순서대로, 표는 갈래별로 나눠 낸다). ①은 아래 1~5단계.
-   - ★**코드·배포 갈래는 고치지 않는다 — 산출물은 카드다**(수리는 `/fix`·`/dev`, 배포 변경은 관리자 몫). 갈래를 섞어 "감사하다 보니 고쳤다"는 이 스킬의 실패 방식이다.
+   > 어느 범위를 볼까요? **①문서**(중복·모순·낡음·자리·비대) · **②코드**(문서와 어긋난 구현·죽은 코드·중복·경계 위반) · **③배포**(매니페스트·CI·문서가 말하는 것과 서버 실물이 같은지) · **④요구**(1차 요구 ↔ 카드·코드 전수 대조 — 차수 마감 전·월 1회)
+   - **②를 고르면 `코드.md`, ③이면 `배포.md`, ④면 `요구.md`를 읽고 그 절차대로** 진행한다(둘 다면 갈래별로 순서대로, 표는 갈래별로 나눠 낸다). ①은 아래 1~5단계.
+   - ★**코드·배포·요구 갈래는 고치지 않는다 — 산출물은 카드다**(수리는 `/fix`·`/dev`, 배포 변경은 관리자 몫). 갈래를 섞어 "감사하다 보니 고쳤다"는 이 스킬의 실패 방식이다.
    - ★**그 카드는 «새 카드»가 기본이 아니다 — 먼저 그 담당자의 열린 «목록 카드»를 찾아 항목으로 넣어라.** 독립 카드는 **지금 착수할 크기**일 때만 낸다. 2026-09-01 bnsone 실측: 새 카드 6장을 제안했다가 오너가 「카드 너무 많은데 방법없을까?」로 막았고, 줄이고 보니 **새 카드는 1장이면 됐다**(나머지는 기존 목록 카드의 항목 + 남의 카드 댓글).
 
 1. **지도 먼저**: 범위의 문서를 `git ls-files`로 뽑아 **영역별로 묶는다**(예: 정본 규칙(CLAUDE.md·rules·스킬) / 가이드(docs/00_Guide) / 참조·이력(_reference·4-reference) / 운영 기록(HANDOFF·friction·메모리)). 묶음마다 **"이 영역의 정본이 무엇인지" 한 줄**을 먼저 적는다 — 정본을 모르면 낡음·모순을 판정할 수 없다.

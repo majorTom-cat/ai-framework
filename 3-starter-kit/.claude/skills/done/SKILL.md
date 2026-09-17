@@ -4,7 +4,7 @@ effort: high # 배정표 = _reference/skill-tiers.md
 description: 이슈 마무리 루틴 — 머지 전 검사부터 MR 생성·카드 처리까지. 개발 완료 후 사용자가 호출.
 disable-model-invocation: true
 argument-hint: "[이슈번호]"
-allowed-tools: Agent Workflow Read Edit Write Glob Grep Bash(git *) Bash(glab *) Bash(npm *) Bash(node scripts/pipeline-verdict.cjs*) Bash(docker compose *) Bash(taskkill *) Bash(netstat *) Bash(lsof *) Bash(kill *)
+allowed-tools: Agent Workflow Read Edit Write Glob Grep Bash(git *) Bash(glab *) Bash(npm *) Bash(node scripts/pipeline-verdict.cjs*) Bash(bash scripts/check-deferred.sh*) Bash(docker compose *) Bash(taskkill *) Bash(netstat *) Bash(lsof *) Bash(kill *)
 ---
 
 # /done — 이슈 #$0 마무리
@@ -39,7 +39,7 @@ allowed-tools: Agent Workflow Read Edit Write Glob Grep Bash(git *) Bash(glab *)
 6. **수용 기준 1:1 대조**: 카드의 수용 기준 각 항목 ↔ 구현 증거(테스트·화면)를 하나씩 짝지어 확인 —
    diff 리뷰는 *넣은 것의 결함*만 잡고 *빠뜨린 것*은 못 잡는다. 〔검수확인〕 항목이 **브라우저만으로 재연 가능한지**도 확인하고, 안 되면 카드의 "검수 방법"을 보강하라.
    구현이 docs 스펙과 달라졌다면: `_digest.md` 수정이 포함됐나 확인 + **카드에 "스펙과 달라진 점 + 이유" 댓글을 남긴다**(/dev가 준비한 차이 요약이 있으면 그것으로) + @{기획자} 멘션({기획자}는 실행 시점에 CLAUDE.md 스펙 차이 절에서 읽는다 — 아이디 박제 금지)
-   — ★**「검수 방법」에 적힌 화면·계정·양식이 실물로 성립하는지까지 확인하고, 대조 결과를 카드 본문 체크박스에 반영하라**(댓글만으론 `0/N` 으로 남아 완료 판별 불가). 절차·함정은 **`단계상세.md` §2 를 지금 읽어라.**
+   — ★**「검수 방법」에 적힌 화면·계정·양식이 실물로 성립하는지까지 확인하고, 대조 결과를 카드 본문 체크박스에 반영하라**(댓글만으론 `0/N` 으로 남아 완료 판별 불가). 절차·함정·**미룬 일·스펙 차이 대조**는 **`단계상세.md` §2 를 지금 읽어라.**
 7. ⏸ **묶음 승인 — 여기서 딱 한 번 선다** → push → `glab mr create --remove-source-branch` (설명에 "관련: #$0") → **머지**.
    **이 단계는 `단계상세.md` §3 을 열어 그대로 실행하라** — 승인 화면 5줄 서식 · 브랜치 삭제 3경로 · auto-merge 조건 · 고위험 레인이 거기 있다.
    — ★**잘려도 지킬 것**: 승인은 **한 화면 5줄·OK 하나**(표·파일 목록 금지) · **셀프승인 레인 한정**(동료 레인·빨간불이면 다시 선다) · **MR 본문에 `Closes`·`Fixes`·`Resolves` 금지**(`관련: #$0` 링크만 — 머지 순간 카드가 자동으로 닫힌다) · **`git add -A`·`add .` 금지**(경로 지목).
