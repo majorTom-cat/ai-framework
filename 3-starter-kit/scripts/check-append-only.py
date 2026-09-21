@@ -33,6 +33,16 @@ if len(args) != 2:
     sys.exit(2)
 before, after = args
 
+# ★인자는 «파일 경로»다 — git ref(`origin/main`·`HEAD`)를 주면 조용히 «기준 0항목 · EXIT 0»이 된다
+#   (`entries()` 가 없는 경로에 빈 목록을 돌려주므로 «잃은 줄 없음»과 모양이 같아진다 — 2026-09-18 배포처 #335 실측).
+#   ⇒ 못 읽는 인자는 통과가 아니라 **판정 불능(2)** 이다(rules/verify.md §1).
+for label, p in (("기준", before), ("새 판", after)) + ((("보관", moved),) if moved else ()):
+    if not os.path.isfile(p):
+        print(f"⛔ 판정 불능 — {label} 인자가 실재 파일이 아니다: {p}")
+        print("   이 스크립트는 git ref 를 안 받는다. ref 의 내용을 먼저 파일로 뽑아라:")
+        print("   git show origin/main:docs/friction.md > /tmp/base-friction.md")
+        sys.exit(2)
+
 entry = re.compile(r"^\d{4}-\d{2}-\d{2}")
 def entries(p):
     """항목 줄을 읽되 «글자까지 같은» 줄은 한 벌로 접는다. (접은 줄, 접힌 수) 를 돌려준다.

@@ -268,6 +268,16 @@ if [ -d "$CU" ]; then
   H0=$(git -C "$CU" rev-parse HEAD); OUT=$(reg "$CU")
   { [ "$(git -C "$CU" rev-parse HEAD)" = "$H0" ] && printf '%s' "$OUT" | grep -q '미푸시'; } \
     && pass=$((pass+1)) || { echo "FAIL(L3 미푸시 커밋 위로 감았거나 이유가 없다): ${OUT:-무음}"; fail=$((fail+1)); }
+  git -C "$CU" reset -q --hard HEAD~1                              # L3 이 남긴 미푸시 커밋을 치운다(L5 는 깨끗한 트리가 전제다)
+  # L5 ★따라온 커밋에 스키마가 섞였으면 «코드 생성 다시» 를 알린다(2026-09-18 #322) — 아니면 조용하다
+  ( cd "$UP" || exit 1; mkdir -p prisma/schema && echo "model A {}" >> prisma/schema/a.prisma \
+    && git add prisma && git -c user.email=t@example.com -c user.name=t commit -qm schema ) >/dev/null 2>&1
+  OUT=$(reg "$CU")
+  printf '%s' "$OUT" | grep -q '스키마 변경' \
+    && pass=$((pass+1)) || { echo "FAIL(L5 스키마가 따라왔는데 안 알림): ${OUT:-무음}"; fail=$((fail+1)); }
+  up_ahead l5b; OUT=$(reg "$CU")                                   # 스키마가 없는 커밋이면 그 줄은 없다
+  printf '%s' "$OUT" | grep -q '스키마 변경' \
+    && { echo "FAIL(L5b 스키마가 없는데 알림): $OUT"; fail=$((fail+1)); } || pass=$((pass+1))
   git -C "$CU" checkout -q -b feat/l                               # 작업 브랜치 → 아무것도 안 하고 말도 안 한다
   up_ahead l3; H0=$(git -C "$CU" rev-parse HEAD); OUT=$(reg "$CU")
   { [ "$(git -C "$CU" rev-parse HEAD)" = "$H0" ] && [ -z "$OUT" ]; } \

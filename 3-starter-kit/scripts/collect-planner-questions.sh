@@ -47,7 +47,9 @@ def open_items(f):
         lines = open(f, encoding="utf-8").read().split("\n")
     except OSError:
         return []
-    items, cur, in_q, qlevel = [], None, False, 0
+    # ★항목마다 «그 위 제목»을 함께 들고 나온다 — 불릿만 떼어 내면 「무엇에 대한 질문인지」가 사라진다
+    #   (2026-09-18 bnsone 실측: `### 소제목` 밑의 불릿들이 맥락 없이 나열됐다).
+    items, cur, in_q, qlevel, head = [], None, False, 0, ""
     for i, line in enumerate(lines, 1):
         h = re.match(r"^(#{1,6})\s", line)
         if h:
@@ -55,14 +57,16 @@ def open_items(f):
             if in_q and lvl <= qlevel:
                 in_q = False
             if not in_q and "질문" in line:
-                in_q, qlevel = True, lvl
+                in_q, qlevel, head = True, lvl, line.strip()
+            elif in_q and lvl > qlevel:
+                head = line.strip()          # 질문 절 안의 소제목
             if cur: items.append(cur); cur = None
             continue
         if not in_q:
             continue
         if line.startswith("- "):
             if cur: items.append(cur)
-            cur = [i, [line]]
+            cur = [i, [line], head]
         elif cur and (line.startswith("  ") or line.startswith("\t")):
             cur[1].append(line)
         elif cur and line.strip() == "":
@@ -77,7 +81,11 @@ if mode == "bundle":
         if not its:
             continue
         out.append(f"## {f}  ({len(its)}건)\n")
-        for n, body in its:
+        last_head = None
+        for n, body, head in its:
+            if head and head != last_head:
+                out.append("**" + head.lstrip("#").strip() + "**\n")
+                last_head = head
             out.append(f"<!-- {f}:{n} -->")
             out.extend(body)
             out.append("")
@@ -105,7 +113,7 @@ for f in digests:
             texts[o] = open(o, encoding="utf-8").read().split("\n")
         except OSError:
             pass
-    for n, body in open_items(f):
+    for n, body, _head in open_items(f):
         checked += 1
         ids = sorted(set(idrx.findall(" ".join(body))))
         if not ids:

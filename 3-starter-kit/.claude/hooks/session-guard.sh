@@ -124,9 +124,15 @@ catchup() { # $1=repo 루트
   git -C "$R" diff --cached --quiet 2>/dev/null || why="스테이지된 변경이 있다"
   [ "${ahead:-x}" = "0" ] || why="main 에 미푸시 커밋이 있다"
   if [ -z "$why" ]; then
+    was=$(git -C "$R" rev-parse HEAD 2>/dev/null)
     if git -C "$R" merge -q --ff-only origin/main >/dev/null 2>"$err"; then
       [ "$err" != /dev/null ] && rm -f "$err"
       echo "📥 본 클론을 main 최신으로 따라잡았다(${behind}커밋) — 스킬·훅은 새 판이 적용된다. 이 세션의 CLAUDE.md 는 옛 판일 수 있다."
+      # ★따라잡은 커밋에 스키마가 섞여 있으면 알린다 — 생성물(ORM 클라이언트)은 저절로 안 바뀌어
+      #   «내가 안 건드린 파일»에서 모델·필드가 없다고 깨진다(2026-09-18 배포처 #322).
+      if [ -n "$was" ] && git -C "$R" diff --name-only "$was" HEAD 2>/dev/null | grep -qE '(^|/)prisma/(schema|migrations)/'; then
+        echo "   ⚠️ 받아온 커밋에 스키마 변경이 있다 — 코드 생성(\`npx prisma generate\` 류)을 다시 돌려라(떠 있는 개발 서버도 재시작)."
+      fi
       return 0
     fi
     if grep -qi 'untracked working tree files would be overwritten' "$err" 2>/dev/null; then why="추적 안 하는 파일이 받아올 파일과 겹친다"

@@ -133,5 +133,16 @@ cat > "$TMP/after.md" <<'E'
 E
 ck "I1 앞 80자 겹침 경로에서도 진짜 삭제는 exit 1" "1" "$(run)"
 
+echo "── J. ★인자가 파일이 아니면 «판정 불능»(2)이다 — git ref 를 주면 옛 판은 조용히 통과했다(#335)"
+runraw() { python3 "$TOOL" "$@" > "$TMP/out" 2>&1; echo $?; }
+cat > "$TMP/before.md" <<'E'
+2026-09-01 /dev — 가
+E
+cp "$TMP/before.md" "$TMP/after.md"
+ck "J1 기준이 ref 면 exit 2" "2" "$(runraw origin/main "$TMP/after.md")"
+ck "J2 새 판이 없는 파일이면 exit 2" "2" "$(runraw "$TMP/before.md" "$TMP/없는파일.md")"
+ck "J3 --moved-to 가 ref 면 exit 2" "2" "$(runraw "$TMP/before.md" "$TMP/after.md" --moved-to HEAD)"
+ck "J4 셋 다 실재 파일이면 정상 판정" "0" "$(runraw "$TMP/before.md" "$TMP/after.md")"
+
 echo "────────  $OK OK / $FAIL FAIL"
 [ "$FAIL" = 0 ] || exit 1
