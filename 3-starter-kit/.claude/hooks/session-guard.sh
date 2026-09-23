@@ -131,7 +131,8 @@ catchup() { # $1=repo 루트
       # ★따라잡은 커밋에 스키마가 섞여 있으면 알린다 — 생성물(ORM 클라이언트)은 저절로 안 바뀌어
       #   «내가 안 건드린 파일»에서 모델·필드가 없다고 깨진다(2026-09-18 배포처 #322).
       if [ -n "$was" ] && git -C "$R" diff --name-only "$was" HEAD 2>/dev/null | grep -qE '(^|/)prisma/(schema|migrations)/'; then
-        echo "   ⚠️ 받아온 커밋에 스키마 변경이 있다 — 코드 생성(\`npx prisma generate\` 류)을 다시 돌려라(떠 있는 개발 서버도 재시작)."
+        echo "   ⚠️ 받아온 커밋에 스키마 변경이 있다 — ①코드 생성(\`npx prisma generate\` 류) 다시 ②로컬 dev DB 에 마이그레이션 적용(\`npx prisma migrate deploy\` 류 — 컨테이너가 자동 적용하면 생략) ③떠 있는 개발 서버 재시작."
+        echo "      ②를 빼면 재시드·타입검사가 «없는 표»(P2021 류)로 죽는다 — 코드 결함처럼 보인다(2026-09-23 배포처 #306)."
       fi
       return 0
     fi

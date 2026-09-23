@@ -273,8 +273,8 @@ if [ -d "$CU" ]; then
   ( cd "$UP" || exit 1; mkdir -p prisma/schema && echo "model A {}" >> prisma/schema/a.prisma \
     && git add prisma && git -c user.email=t@example.com -c user.name=t commit -qm schema ) >/dev/null 2>&1
   OUT=$(reg "$CU")
-  printf '%s' "$OUT" | grep -q '스키마 변경' \
-    && pass=$((pass+1)) || { echo "FAIL(L5 스키마가 따라왔는데 안 알림): ${OUT:-무음}"; fail=$((fail+1)); }
+  { printf '%s' "$OUT" | grep -q '스키마 변경' && printf '%s' "$OUT" | grep -q 'migrate deploy'; } \
+    && pass=$((pass+1)) || { echo "FAIL(L5 스키마가 따라왔는데 안 알림 또는 «DB 적용»이 빠졌다): ${OUT:-무음}"; fail=$((fail+1)); }
   up_ahead l5b; OUT=$(reg "$CU")                                   # 스키마가 없는 커밋이면 그 줄은 없다
   printf '%s' "$OUT" | grep -q '스키마 변경' \
     && { echo "FAIL(L5b 스키마가 없는데 알림): $OUT"; fail=$((fail+1)); } || pass=$((pass+1))
