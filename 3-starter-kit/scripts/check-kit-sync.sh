@@ -55,11 +55,26 @@ if [ -z "$MARKS" ]; then
 fi
 
 BASE=""; SKIPPED=0; NEWEST=1
+# ★한 동기가 킷 커밋 여러 개를 실어 오면 표시에 해시가 여러 개 박힌다(「킷동기: c77f257·a58f9fb」).
+#   **그중 가장 «새» 것이 기준점이다** — 첫 번째를 집으면 같은 MR 로 이미 넘어간 뒤 커밋들이
+#   영원히 «안 간 커밋»으로 남는다(2026-09-23 실측: 머지 직후에도 1건이 남았다).
+#   가름 = **이력 순서**(조상이면 옛것). 커밋 «시각»으로 가르면 같은 초에 찍힌 둘을 못 가른다.
 for m in $MARKS; do
+  BEST=""
   for h in $(git -C "$DEP" log -n1 --format='%B' "$m" | grep '^킷동기:' | grep -oE '[0-9a-f]{7,40}'); do
-    if git -C "$REPO" cat-file -e "${h}^{commit}" 2>/dev/null; then BASE="$h"; break; fi
+    git -C "$REPO" cat-file -e "${h}^{commit}" 2>/dev/null || continue
+    if [ -z "$BEST" ]; then BEST="$h"; continue; fi
+    if git -C "$REPO" merge-base --is-ancestor "$BEST" "$h" 2>/dev/null; then
+      BEST="$h"                                   # 지금 것이 더 새 것
+    elif git -C "$REPO" merge-base --is-ancestor "$h" "$BEST" 2>/dev/null; then
+      :                                           # 갖고 있던 것이 더 새 것
+    else                                          # 갈래가 다르다 — 그때만 시각으로
+      tb=$(git -C "$REPO" log -n1 --format='%ct' "$BEST" 2>/dev/null || echo 0)
+      th=$(git -C "$REPO" log -n1 --format='%ct' "$h" 2>/dev/null || echo 0)
+      [ "${th:-0}" -gt "${tb:-0}" ] && BEST="$h"
+    fi
   done
-  [ -n "$BASE" ] && break
+  if [ -n "$BEST" ]; then BASE="$BEST"; break; fi
   SKIPPED=$((SKIPPED+1)); NEWEST=0
 done
 

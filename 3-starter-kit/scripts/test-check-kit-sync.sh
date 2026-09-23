@@ -104,6 +104,14 @@ G "$D" reset -q --hard HEAD~1                                     # 작업 폴�
 ck "K1 서버 기준이라 프레임워크 커밋 0" "0" "$(run "$D")"
 ck "K2 어느 ref 로 쟀는지 말한다" "yes" "$(grep -q '배포처 기준 ref' "$TMP/last.out" && echo yes || echo no)"
 
+echo "── L. ★표시에 해시가 여럿이면 «가장 새» 것이 기준점이다 (한 동기가 킷 커밋 여러 개를 실어 온다)"
+# 2026-09-23 실측: MR 제목이 「킷동기: c77f257·a58f9fb」였는데 첫 해시를 집어, 머지 직후인데도 1건이 남았다.
+D=$(mkdep depL "킷동기: ${C1}·${C3} — 두 건을 한 MR 로")
+ck "L1 종료코드 0(새 쪽 $C3 를 기준으로)" "0" "$(run "$D")"
+ck "L2 기준점이 새 해시다" "yes" "$(grep -q "$C3" "$TMP/last.out" && echo yes || echo no)"
+D=$(mkdep depL2 "킷동기: ${C3}·${C1} — 순서를 뒤집어도 같다")
+ck "L3 적는 순서와 무관하다" "0" "$(run "$D")"
+
 echo "── I. ★최신 표시에 해시가 없으면 그 앞 표시로 거슬러 가되, 그 사실을 말한다"
 D="$TMP/depI"; rm -rf "$D"; mkdir -p "$D" || exit 1
 ( cd "$D" && git init -q ) || exit 1
