@@ -264,15 +264,8 @@ self-tests:
     # ★python3 — `scripts/*.py` 를 도는 자기테스트가 있다. 없으면 그 시험이 «검사기가 틀렸다»처럼 떨어진다(2026-09-10 배포처 CI 실측).
     # ★nodejs — `test-bundle-guard.sh` 가 `.cjs` 훅을 돈다. 없으면 «검증 불능»으로 떨어진다(합격으로 치지 않는다).
     - apk add --no-cache bash git python3 nodejs >/dev/null
-    - |
-      RC=0
-      for t in scripts/test-*.sh; do
-        [ -f "$t" ] || continue
-        echo "════════ $t"
-        bash "$t" || RC=1
-      done
-      [ "$RC" = 0 ] && echo "자기테스트 전부 통과" || echo "⛔ 위에서 실패한 자기테스트가 있다"
-      exit $RC
+    # 로컬 `/done` 3단계와 같은 스크립트 — 한 곳만 고치면 둘 다 바뀐다
+    - bash scripts/run-self-tests.sh
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       changes: ["scripts/**/*", ".claude/hooks/**/*"]

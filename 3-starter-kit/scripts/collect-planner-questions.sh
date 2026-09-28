@@ -20,7 +20,9 @@
 # 종료: 묶음 = 0(0건이어도 «0건»이라고 적는다) · --stale = 0 후보 없음 / 1 후보 있음 · 2 = 판정 불능
 set -u
 
-MODE=bundle; OUT=/dev/stdout
+# OUT 기본은 «비움» = 표준출력 그대로. `/dev/stdout` 을 파일처럼 열면 울타리(샌드박스) 안에서
+# 출력이 파일로 돌려져 있을 때 `Operation not permitted` 로 죽는다(2026-09-28 킷 자기시험 실측).
+MODE=bundle; OUT=""
 case "${1:-}" in
   --stale) MODE=stale ;;
   "") ;;
@@ -32,6 +34,7 @@ if [ -n "$PREFIX" ]; then
   echo "⛔ 판정 불능 — repo 루트가 아니라 '$PREFIX' 에서 돌았다. 루트로 옮겨 다시 돌려라." >&2; exit 2
 fi
 [ -d docs ] || { echo "⛔ 판정 불능 — docs/ 가 없다." >&2; exit 2; }
+if [ -n "$OUT" ]; then exec > "$OUT"; fi
 
 git -c core.quotepath=false ls-files docs | python3 -c '
 import re, sys, os, datetime
@@ -136,4 +139,4 @@ if hits:
     print("⛔ 위 후보는 원문이 «확정·해소»를 적은 줄과 식별자가 겹친다. 그 줄을 읽고 풀렸으면 digest 항목에 «해소(→ 원문 위치)»를 붙여라.")
     sys.exit(1)
 print("이미 풀렸을 후보 없음 — OK")
-' "$MODE" > "$OUT"
+' "$MODE"

@@ -75,5 +75,10 @@ echo "── E. 루트가 아니면 판정 불능"
 ( cd "$R/docs" || exit 9; bash "$TOOL" > "$TMP/out" 2>&1; echo $? > "$TMP/rc" )
 ck "E1 exit 2" "2" "$(cat "$TMP/rc")"
 
+echo "── F. 인자로 파일을 주면 묶음이 그 파일로 간다 (표준출력은 비고)"
+ck "F1 exit 0" "0" "$(run "$TMP/bundle.md")"
+if grep -qF "W-06 참조인 알림 문구" "$TMP/bundle.md" 2>/dev/null; then OK=$((OK+1)); else FAIL=$((FAIL+1)); echo "  ⛔ F2 파일에 묶음이 없다"; fi
+hasnt "F3 표준출력에는 묶음이 안 나온다" "W-06 참조인 알림 문구"
+
 echo "──── 결과: ${OK} OK / ${FAIL} FAIL"
 [ "$FAIL" = 0 ]
