@@ -11,13 +11,15 @@ allowed-tools: Bash(glab *) Bash(git *) Bash(grep *)
 # 현재 상태 (자동 조회됨)
 
 내 담당 카드 — bnsone:
-!`glab issue list --assignee=@me -R gitlab.bns.co.kr/bnsone/bnsone 2>&1 | head -25`
+!`glab issue list --assignee=@me -P 25 -R gitlab.bns.co.kr/bnsone/bnsone 2>&1`
 
 내 담당 카드 — 파일럿:
-!`glab issue list --assignee=@me -R gitlab.bns.co.kr/yskim/ai-framework-pilot 2>&1 | head -15`
+!`glab issue list --assignee=@me -P 15 -R gitlab.bns.co.kr/yskim/ai-framework-pilot 2>&1`
 
 내게 온 To-Do·멘션:
-!`glab todo list -P 100 -R gitlab.bns.co.kr/bnsone/bnsone 2>&1 | head -40`
+!`glab todo list -P 40 -R gitlab.bns.co.kr/bnsone/bnsone 2>&1`
+
+> ★**위 GitLab 조회가 `x509: OSStatus -26276` 이면 조회 실패지 «카드 없음»이 아니다 — VPN 탓도 아니다.** 스킬 머리 조회는 격리 밖 목록을 안 따라 이 맥에선 늘 떨어진다(2026-09-28 실측: 파이프를 빼도 같음). 같은 명령을 Bash 로 한 줄에 하나씩(파이프·`;` 없이) 다시 돌려라.
 
 킷 저장소 상태:
 !`git status --short --branch 2>&1 | head -10`
