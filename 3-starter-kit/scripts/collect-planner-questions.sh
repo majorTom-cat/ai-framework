@@ -10,6 +10,7 @@
 # 규칙(이 스크립트가 읽는 모양 — 바꾸면 여기도 고쳐라):
 #   · 절 = 제목(`## `·`### `)에 «질문» 이 든 절. 다음 같은 급 이상 제목에서 끝난다.
 #   · 항목 = 그 절의 맨 앞 `- ` 줄 + 그 밑의 들여쓴 줄.
+#   · 뺀다 = 그 절 안 소제목에 «소유자» 가 든 하위 절 전체(소유자 할 일 — 기획자에게 가면 질문처럼 읽힌다).
 #   · 뺀다 = 항목 첫 줄에 `해소`·`회신됨`·`확정됨`·`✅`·`~~`(취소선)이 있으면 풀린 것으로 본다(`/docs` 5단계의 «해소 표시»).
 #   · `--stale` = 안 풀린 항목의 **식별자**(`W-06`·`CM-32`·`AA3-02` 모양)가 같은 STEP 폴더의 **기획자 원문**에서
 #     «확정·해소·반영·정정·개정» 과 **같은 줄**에 나오면 «이미 풀렸을 후보»로 낸다. ⚠️후보다 — 판정은 사람·AI 가
@@ -55,20 +56,25 @@ def open_items(f):
         return []
     # ★항목마다 «그 위 제목»을 함께 들고 나온다 — 불릿만 떼어 내면 「무엇에 대한 질문인지」가 사라진다
     #   (2026-09-18 bnsone 실측: `### 소제목` 밑의 불릿들이 맥락 없이 나열됐다).
-    items, cur, in_q, qlevel, head = [], None, False, 0, ""
+    items, cur, in_q, qlevel, head, skip = [], None, False, 0, "", 0
     for i, line in enumerate(lines, 1):
         h = re.match(r"^(#{1,6})\s", line)
         if h:
             lvl = len(h.group(1))
             if in_q and lvl <= qlevel:
                 in_q = False
+            if skip and lvl <= skip:
+                skip = 0
             if not in_q and "질문" in line:
                 in_q, qlevel, head = True, lvl, line.strip()
             elif in_q and lvl > qlevel:
                 head = line.strip()          # 질문 절 안의 소제목
+                # «소유자» 소제목 = 우리 쪽 할 일이지 기획 질문이 아니다(bnsone friction 9-21 — 기획자에게 질문처럼 갔다).
+                if not skip and "소유자" in line:
+                    skip = lvl
             if cur: items.append(cur); cur = None
             continue
-        if not in_q:
+        if not in_q or skip:
             continue
         if line.startswith("- "):
             if cur: items.append(cur)
