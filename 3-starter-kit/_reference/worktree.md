@@ -4,12 +4,12 @@
 
 ## 레시피 — ★네 걸음을 다 밟아야 «따로 도는 트리»가 된다
 1. `git worktree add ../issue-13 -b feature/13-슬러그 origin/main` (본 클론의 HEAD 를 안 건드리려면 base 를 `origin/main` 으로 명시)
-2. **의존성은 그 트리에 «설치»한다 — 링크하지 마라**(아래 주의). 설치 뒤 ORM 생성물 재생성(`npx prisma generate` 류). 대략 1~2분.
+2. **의존성은 그 트리에 «설치»한다 — 링크하지 마라**(아래 주의). 설치 뒤 ORM 생성물 재생성(`node_modules/.bin/prisma generate` 류). 대략 1~2분.
    - ★`npm ci` 는 **캐시 경로를 고정해서** 줘라(`--cache ~/.npm-cache-worktree` 류) — 공유 캐시가 root 소유라 죽고, 안내가 권하는 `sudo chown` 은 AI 가 못 친다. `$TMPDIR` 은 호출마다 바뀌어 **매번 빈 캐시**가 된다. 생성 명령이 `EPERM … .cache/…` 로 죽으면 **그 명령만** 울타리를 풀어라.
 3. **전용 DB** — 세 곳을 다 바꿔야 한다:
    - `.env` 의 **포트와 접속 URL 둘 다**(둘 중 하나만 고치면 URL 쪽이 이겨서 공용 DB 를 가리킨다) — ★**이 줄을 빠뜨리면 남의 데이터를 지운다**(아래 ⚠️)
    - 컨테이너도 **다른 이름으로** 띄운다(`docker compose -p issue-13 up -d db` 류) — 안 그러면 같은 컨테이너를 공유한다
-   - 그 DB 에 **마이그레이션 적용**(`npx prisma migrate deploy` 류). 새 DB 는 비어 있다
+   - 그 DB 에 **마이그레이션 적용**(`node_modules/.bin/prisma migrate deploy` 류). 새 DB 는 비어 있다
    - 정한 포트·DB명을 `CLAUDE.local.md` 에 적어 둔다(다음 트리가 같은 번호를 안 쓰도록)
    ⚠️**왜 `.env` 가 급소인가**: 테스트 준비 단계가 흔히 «시험용 DB 를 지우고 다시 만든다»로 시작한다 — 공용 DB 를 가리킨 채 돌리면 **다른 세션의 시험용 DB 가 통째로 사라진다**(2026-09-10 실측).
 4. 그 폴더에서 `claude -n issue-13` → 끝나면 **링크를 먼저 지우고**(`rm node_modules`) `git worktree remove ../issue-13`. 순서를 바꾸면 **링크 대상(본 클론 의존성)까지 지워질 수 있다**(아래 Windows 주의).
