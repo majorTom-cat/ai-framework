@@ -470,9 +470,20 @@ high-risk-gate:
         - scripts/notify-*.cjs
         - scripts/extract-*.sh
         - scripts/extract-*.cjs
+        # ★훅은 .ts·.py 도 잡는데 CI 만 빠져 있었다 — `check-append-only.py` 를 무르게 하는 MR 이 게이트 밖이었다(2026-09-29).
+        - scripts/check-*.ts
+        - scripts/check-*.py
+        - scripts/test-*.ts
+        - scripts/test-*.py
+        - scripts/notify-*.ts
+        - scripts/notify-*.py
+        - scripts/extract-*.ts
+        - scripts/extract-*.py
+        - scripts/run-self-tests.sh       # 이름 규약 밖이지만 차단형 `self-tests` 잡이 직접 부른다 — 빈 루프로 바꾸면 전부 초록
         - scripts/pipeline-verdict.cjs    # 머지 판정 근거 — 느슨해지면 «종결초록» 오판으로 머지된다
         - scripts/gen-module.cjs          # 모듈 생성기 = 새 모듈의 골격을 정한다
         - test/*.test.js                  # 경계 검사기 회귀 테스트
+        # ⚠️이름 규약 밖 스크립트를 차단형 잡이 직접 부르게 했으면 여기와 훅 HITS 양쪽에 더하라(배포처 예: soak-int-tests.sh).
         # ↑ 스택 무관 고위험 경로. /scaffold가 스택 확정 후 인증·라우팅·설정 경로(라우팅 파일은 스택마다 위치가 다르다)를 여기 추가한다.
         #   경로로 못 잡는 고위험(모듈 내부 인증·결제 로직 등)은 `고위험` 라벨 + /done이 사람 승인으로 막는다 — 라벨이 정본.
       when: on_success

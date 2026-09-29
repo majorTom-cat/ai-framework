@@ -22,6 +22,14 @@
 """
 import sys, re, os, difflib
 
+# ★Windows cp949 콘솔·파이프에서 `⛔`·`—` 를 못 찍어 UnicodeEncodeError 로 죽었다 — 죽음도 exit 1 이라
+#   «잃은 줄 있음»과 모양이 같다(2026-09-29 배포처). 출력만 utf-8 로 돌린다(파일 읽기는 이미 utf-8 지정).
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError, OSError):
+        pass
+
 args = [a for a in sys.argv[1:]]
 moved = None
 if "--moved-to" in args:

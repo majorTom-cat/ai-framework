@@ -13,7 +13,7 @@
 
 **결론(정착)**: 훅은 **ask 하나만** 낸다. allow도 deny도 내지 않는다.
 - 일반 push 마찰 0 = `settings.json` allow (명령 **접두** 기준 — 문자열만 포함한 명령엔 오탐 없음)
-- force push 차단 = `settings.json` deny (`-f`·`--force`·`--force-with-lease`·`git -C` 변형 — 26줄. 단 **접두 규칙이라 체이닝 `git status && git push -f`는 못 막음** → 아래 훅 ask가 덮는다)
+- force push 차단 = `settings.json` deny (`-f`·`--force`(`--force-with-lease` 포함)·`+refspec`·`git -C` 변형 × Bash·PowerShell — 2026-09-29 실측 24줄. 줄 수·목록 정본 = `settings.json` deny 그 자체. 단 **접두 규칙이라 체이닝 `git status && git push -f`는 못 막음** → 아래 훅 ask가 덮는다)
 - 공통 영역 감지 = 훅의 **알림**(`additionalContext` — 확인 창 아님). ★2026-09-10 에 ask 에서 내렸다: 기준은 「위험한가」가 아니라 **「revert 커밋 하나로 되돌아가나」**이고(오너 결정), 공통 영역 push 는 되돌아간다. 되돌릴 수 없는 것(force·훅 우회·`검수요청` 카드 닫기)만 ask 로 남았다. ⚠️같이 고친 것: **회귀 시험이 «창»과 «알림»을 구분하지 못했다** — 사유 문구만 grep 해서 ask 를 알림으로 바꿔도 56/56 초록이었다. `t()` 에 판정 종류 검사를 넣었고, 기대를 뒤집으면 3건이 FAIL 하는 것으로 잣대를 증명했다.
 - **2026-08-07 훅 확장(검증 7건 후속)**: force 플래그 체이닝(`&&`·묶음 `-fu`·여러 줄)·`git -c`/`--git-dir`/`--work-tree` 전역옵션 변형 → **ask** / `glab issue close`로 검수요청 카드를 닫으려 하면 라벨 조회 후 **ask**(검수요청→완료는 사람만). 시뮬 34케이스 검증 — 한계: ask는 승인하면 실행되고, 한 명령에 위험 둘이면 먼저 걸린 하나만 알린다.
 - **2026-08-11 훅 확장(외부 차용) + 같은 날 fresh 리뷰 2인의 수리**: git 훅 우회(`--no-verify`·`commit -n`(=no-verify. push의 `-n`은 dry-run이라 제외)·`core.hooksPath`·`HUSKY=0`) → **ask**. husky로 까는 팀 git 훅(Day 4)이 플래그 하나로 조용히 꺼지는 구멍을 막는다. ECC(affaan-m/ECC)의 `block-no-verify.js`에서 차용하되 원본의 exit 2 하드 차단은 이 훅의 철칙(ask만)대로 낮췄다.
@@ -34,6 +34,7 @@
 - `git -c core.quotepath=false`(한글 경로가 8진 이스케이프로 나와 앵커 빗나감) + `diff.renames=false`(rename이 도착 경로만 남아 shared에서 빼내는 이동이 침묵).
 - 판단 불가(origin/main ref 없음·repo 밖)는 **무출력 위임** — allow를 내면 fail-open.
 - 공통 패턴에 `.claude/`(가드 자신)·`.gitlab/`·`package-lock.json`·`db/migrations/`(**스택 마이그레이션 경로로 치환** — Prisma면 `prisma/`)·CI/컨테이너 설정·게이트 스크립트·`middleware.*`/`proxy.*`(Next 16 개명) 포함, 대소문자 무시. **CI `high-risk-gate`의 `changes:` 목록과 1:1로 유지하라**(CI가 고위험이라 부르는 경로에 로컬 훅이 침묵하면 이중화의 앞단이 빈다).
+- **게이트 스크립트 = 이름 규약 `scripts/(check|test|notify|extract)-*` + 그 밖이라도 차단형 잡이 직접 부르는 것**(`run-self-tests.sh`·`pipeline-verdict.cjs`·`gen-module.cjs`·`.py`·`.ts` 판 — 2026-09-29 배포처 전수 점검: 규약 밖이라 이것들을 느슨하게 하는 MR 이 셀프 머지됐다). 규약 밖 스크립트를 차단형 잡에 걸면 **훅 HITS 와 CI `changes:` 양쪽**에 더하라. CI→훅 대칭은 `scripts/test-check-push.sh` J절이 검사한다(훅에만 있는 스택 경로는 안 본다).
 
 ## allow/ask 우선순위
 

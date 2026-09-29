@@ -89,6 +89,7 @@
 | ✅ 마무리 | `/done` | `/done 카드번호` | 🔀 머지 · 🚀 검수서버 배포 · 🦊 라벨 `검수요청` — **Close는 검수자** | 카드 마무리 / 개발자 |
 | 🔎 점검·기록 | `/inspect` | `/inspect 카드번호` | 💬 화면 검사 보고 (안 바뀜) | 검수 전(보통 `/dev`·`/done` 자동) / 개발자 |
 | | `/log` | `/log 모듈명` | 💬 변경 이력 표(누가·언제·무엇·왜) (안 바뀜) | 이력 궁금할 때 / 개발자·공통 개발자 |
+| | `/handoff` | `/handoff` | 💬 인수인계 — 한 일·남은 일·밟은 함정 정리 · 📄 `CLAUDE.local.md` 머리 절 갱신(커밋 안 됨) (GitLab엔 안 남음) | 세션 끝·새 세션 열기 전 / 개발자·공통 개발자 |
 | 🏗️ 공통 개발자 셋업/운영 | `/design` | `/design` | 📄 `docs/06` 설계(스택·ERD·모듈·shared) + ADR · 💬 2~3안(사람 결정) | 골격 Day 0 / 공통 개발자 |
 | | `/scaffold` | `/scaffold` | 📄 앱 뼈대(src·docker·CI) · 🔀 커밋 → `docker compose up`으로 뜸 | 골격 Day 1 / 공통 개발자 |
 | | `/setup-gitlab` | `/setup-gitlab` | 🦊 GitLab 설정(라벨·보드·main 보호·권한) · 📄 CLAUDE.md 값 | 골격 Day 2 / 공통 개발자 |

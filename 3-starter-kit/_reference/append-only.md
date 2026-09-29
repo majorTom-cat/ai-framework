@@ -1,6 +1,6 @@
 # 누적 파일을 통째로 갈아치우기 — 왜 사람 눈으로는 못 막나 (2026-09-10 실사고)
 
-> 자동 로드 ❌. `CLAUDE.md` 킷동기 절이 가리킨다. 검사기 = `scripts/check-append-only.py`.
+> 자동 로드 ❌. `CLAUDE.md` '작업 절차' 의 «git pull·merge 충돌» 줄(누적 파일 하위 항목)이 가리킨다. 검사기 = `scripts/check-append-only.py`.
 
 ## 무슨 일이 났나
 bnsone `!451`(마찰 전수 수리)이 **다른 세션의 마찰 줄 하나를 지웠다.** 실측(`repository/commits/<sha>/diff`): `docs/friction.md` **지운 줄 30 · 더한 줄 29** — 한 줄이 대응 없이 사라졌다(`2026-09-10 /fix(#245)` 「pull 에 남의 스키마 변경이 섞였는지 가려내는 법이 없다」). 받아 둔 시점과 커밋 시점 사이에 남이 넣은 줄이었고, GitLab API `POST repository/commits` 의 `update` 는 **병합이 아니라 갈아치우기**라 그대로 없어졌다(`git` 은 3-way 병합이라 안 나는 사고다).

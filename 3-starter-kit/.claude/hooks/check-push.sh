@@ -123,7 +123,9 @@ CHANGED=$(printf '%s\n' "$CHANGED" | sed 's/^"//; s/"$//')
 # scripts/ 는 **이름 규약으로 잡아라**(`check-*`·`test-*`·`notify-*`·`extract-*`). `scripts/**` 전체를 걸면 스파이크·작업 코드까지
 #   매번 확인창이 떠 도장찍기가 되고, 반대로 **하나씩 열거하면 신설 검사기를 계속 빠뜨린다**(2026-09-04 bnsone 실측).
 # ★lockfile·package.json은 루트 앵커(^) 밖 — 모노레포 하위(`apps/web/package.json`)를 못 잡았다.
-HITS=$(printf '%s\n' "$CHANGED" | grep -iE '^(src/shared/|\.claude/|\.gitlab/|\.husky/|db/migrations/|CLAUDE\.md$|\.gitattributes$|\.gitlab-ci\.ya?ml$|docker-compose\.ya?ml$|Dockerfile$|scripts/(check|test|notify|extract)-[A-Za-z0-9._-]*\.(sh|cjs|ts)$|scripts/gen-module\.cjs$)|(^|/)(middleware|proxy)\.[a-z.]+$|(^|/)package(-lock)?\.json$|(^|/)(yarn\.lock|pnpm-lock\.yaml)$' || true)
+# ★이름 규약 밖인데 차단형 잡이 «직접» 부르는 것도 넣는다(`run-self-tests.sh`·`check-append-only.py`·`pipeline-verdict.cjs`) —
+#   빠지면 그걸 무르게 하는 MR 이 알림·게이트 없이 셀프 머지된다(2026-09-29 배포처 friction). CI `high-risk-paths` 와 1:1.
+HITS=$(printf '%s\n' "$CHANGED" | grep -iE '^(src/shared/|\.claude/|\.gitlab/|\.husky/|db/migrations/|CLAUDE\.md$|\.gitattributes$|\.gitlab-ci\.ya?ml$|docker-compose\.ya?ml$|Dockerfile$|scripts/(check|test|notify|extract)-[A-Za-z0-9._-]*\.(sh|cjs|ts|py)$|scripts/(gen-module|pipeline-verdict)\.cjs$|scripts/run-self-tests\.sh$|test/[^/]*\.test\.js$)|(^|/)(middleware|proxy)\.[a-z.]+$|(^|/)package(-lock)?\.json$|(^|/)(yarn\.lock|pnpm-lock\.yaml)$' || true)
 [ -z "$HITS" ] && exit 0
 
 N=$(printf '%s\n' "$HITS" | grep -c .)

@@ -21,8 +21,8 @@
    - **CLAUDE.md 모듈 소유 표** → 팀 태울 때 소유자 기입 (본보기 모듈 이관 포함 — 비워두면 /card 배정·/start 진단 불능)
    - `.claude/hooks/check-push.sh`의 **공통 영역 감지는 파일 경로 기준**이다(테이블 이름이 아니다 — `src/shared/`·`.claude/`·`db/migrations/`·`CLAUDE.md`·CI/컨테이너 설정·lockfile·middleware). repo 폴더 구조가 킷과 다르면 그 `grep -iE` 패턴의 **경로**를 실제 구조에 맞게 고쳐라. ※테이블명 치환은 필요 없다 — 스크립트에 테이블 이름은 없다
    - **`.claude/rules/*.md`의 `paths:` 글롭** → 실제 repo 폴더 구조에 맞게 (구조가 다르면 규칙이 조용히 죽는다)
-   - `.claude/rules/migrations.md`의 `<확장자>` → 마이그레이션 도구 표준(.sql/.ts 등).
-     **DB·마이그레이션 없는 스택이면**: rules/migrations.md 삭제 + CLAUDE.md '스키마·데이터' 절 제거 + /done 2단계 제거
+   - `.claude/rules/migrations.md`의 `<마이그레이션 꼬리>` → 도구 표준 이름 꼬리: 파일형 도구면 확장자(`.sql`/`.ts` 등), 폴더형(Prisma)이면 `/migration.sql`. 도구 기본 형식과 다르면 그 파일의 «형식» 줄대로 맞춘다.
+     **DB·마이그레이션 없는 스택이면**: rules/migrations.md 삭제 + CLAUDE.md '스키마·데이터' 절 제거 + /done 의 '마이그레이션 적용' 단계(2단계) 제거 후 남는 단계 번호를 당긴다(단계 번호를 가리키는 다른 자리도 함께)
    - package-lock.json 은 **스켈레톤에 커밋**해 둔다 (untracked 로 방치하면 카드 무관 커밋에 휩쓸린다)
 3. `.gitignore` 는 **동봉된 것을 그대로 쓴다**(`CLAUDE.local.md`·`.claude/settings.local.json`·`.env*`·세션 잠금·`docs/inbox/_tmp/` 가 들어 있다) — 손으로 더할 것 없음
 4. 커밋. **각 팀원은 clone 후 repo 루트에서 `claude` 첫 실행 → 신뢰 수락** — 그래야 권한·훅이 발효된다
@@ -36,7 +36,7 @@
 | `ONBOARDING.md` | 역할별 첫날 셋업 + 매일 일하는 순서 (개발자·공통 개발자용 1장 — 역할별 별책 가이드 3종은 `docs/00_Guide/`) |
 | `.claude/settings.json` | 권한 허용목록(승인 클릭 제거) + 훅 등록 + 보안 플러그인 |
 | `.claude/rules/*.md` | 경로별 규칙 — 그 경로 파일을 만질 때 AI에 자동 로드 |
-| `.claude/skills/` | 스킬 **19종**(개발 13: start·todo·card·dev·fix·ui·inspect·done·module·docs·change·log·adr + 공통 개발자 6: design·scaffold·setup-gitlab·assign-module·metrics·overhaul) — 팀 표준 절차. **예시·결과 표의 정본 = repo-README 스킬 표** |
+| `.claude/skills/` | 스킬 **20종**(개발 14: start·todo·card·dev·fix·ui·inspect·done·module·docs·change·log·adr·handoff + 공통 개발자 6: design·scaffold·setup-gitlab·assign-module·metrics·overhaul) — 팀 표준 절차. **예시·결과 표의 정본 = repo-README 스킬 표** |
 | `.claude/hooks/check-push.sh` | push 전 공통 영역 변경 감지 → 확인 요구 (Claude Code `PreToolUse` 훅 전용 — git/husky 훅이 아니다) |
 | `_reference/*.md` | `_reference/` 실전 노트 전부 — **CLAUDE.md·CI가 본문에서 가리킨다**(자동 로드 ❌) |
 | `scripts/check-density.sh` | 규칙 문서 밀도 검사 — **CI `density-check` 잡이 실행**(로컬: `bash scripts/check-density.sh`) |

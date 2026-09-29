@@ -35,6 +35,12 @@ CLEAN=$(mkfixture clean src/modules/sample/x.ts)     # 공통 영역 아님 → 
 COMMON=$(mkfixture common .gitlab-ci.yml)            # 공통 영역(CI 설정) → ask 를 내야 한다
 CHECKER=$(mkfixture checker scripts/check-density.sh)  # 검사기 자신 → ask (게이트를 느슨하게 하는 변경도 알린다)
 SHARED=$(mkfixture shared src/shared/db.ts)          # 공용 코드 → ask
+# 이름 규약 밖이지만 차단형 잡이 직접 부르는 것 — 빠지면 무르게 하는 MR 이 셀프 머지된다(2026-09-29)
+RUNNER=$(mkfixture runner scripts/run-self-tests.sh)
+APPENDPY=$(mkfixture appendpy scripts/check-append-only.py)
+VERDICT=$(mkfixture verdict scripts/pipeline-verdict.cjs)
+BTEST=$(mkfixture btest test/check-boundaries.test.js)
+SPIKE=$(mkfixture spike scripts/spike-run-self-tests.sh.bak)  # 이름만 닮은 작업 파일 → 조용해야 한다
 REPO="$CLEAN"
 
 # $1=ASK(확인 창)|NOTE(창 없는 알림)|SILENT  $2=기대 사유 조각(- 면 무시)  $3=명령   ※$REPO 저장소에서 실행
@@ -139,6 +145,11 @@ REPO="$CHECKER"
 t NOTE '공통 영역' 'git push origin work'                   # 검사기 자신 — 게이트를 느슨하게 하는 변경도 알린다
 REPO="$SHARED"
 t NOTE '공통 영역' 'git push origin work'                   # 공용 코드
+for R in "$RUNNER" "$APPENDPY" "$VERDICT" "$BTEST"; do
+  REPO="$R"; t NOTE '공통 영역' 'git push origin work'      # 차단형 잡이 직접 부르는 스크립트·경계 회귀 테스트
+done
+REPO="$SPIKE"
+t SILENT - 'git push origin work'                           # 이름만 닮은 작업 파일 — 앵커가 풀리면 여기서 뜬다
 REPO="$CLEAN"
 t SILENT - 'git push origin work'                           # 공통 영역이 아니면 조용
 
@@ -150,6 +161,20 @@ t NOTE '공통 영역' "git -C $COMMON push origin work"         # 대상이 공
 t NOTE '공통 영역' "cd $COMMON && git push origin work"      # cd 형태도 같다
 REPO="$COMMON"
 t SILENT - "git -C $CLEAN push origin work"                  # 대상이 깨끗 → 현재 폴더가 공통영역이어도 조용(오탐 금지)
+
+echo "── J. 훅 ↔ CI high-risk-paths 대칭 (scripts/·test/ 줄) — 한쪽에만 더하면 여기서 빨개진다"
+CI="$(dirname "$HOOK")/../../.gitlab-ci.yml"
+PAT=$(grep -m1 '^HITS=' "$HOOK" | sed "s/.*grep -iE '//; s/' || true).*//")
+if [ ! -f "$CI" ] || [ -z "$PAT" ]; then echo "FAIL(판정 불능 — CI 파일이나 훅 패턴을 못 읽음)"; fail=$((fail+1)); else
+  G=$(sed -n '/&high-risk-paths/,/when:/p' "$CI" | grep -oE '^[[:space:]]+- (scripts|test)/[^[:space:]]+' | sed 's/^[[:space:]]*- //')
+  [ -n "$G" ] || { echo "FAIL(CI 목록에서 scripts/ 줄을 0개 읽음 — 잣대가 빗나감)"; fail=$((fail+1)); }
+  set -f  # ★글로브를 셸이 펼치면 저장소 루트에서 돌 때 실제 파일명으로 바뀌어 건수가 흔들린다(실측 81→101)
+  for g in $G; do  # 글로브의 * 를 실제 이름 조각으로 바꿔 훅 패턴에 흘린다
+    p=$(printf '%s' "$g" | sed 's/\*/sample/g')
+    if printf '%s\n' "$p" | grep -qiE "$PAT"; then pass=$((pass+1)); else echo "FAIL(CI 에만 있음 — 훅 HITS 가 안 잡는다): $g"; fail=$((fail+1)); fi
+  done
+  set +f
+fi
 
 echo "──────── $pass OK / $fail FAIL"
 [ "$fail" -eq 0 ] || exit 1

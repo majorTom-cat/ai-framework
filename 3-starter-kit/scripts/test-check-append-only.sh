@@ -144,5 +144,20 @@ ck "J2 새 판이 없는 파일이면 exit 2" "2" "$(runraw "$TMP/before.md" "$T
 ck "J3 --moved-to 가 ref 면 exit 2" "2" "$(runraw "$TMP/before.md" "$TMP/after.md" --moved-to HEAD)"
 ck "J4 셋 다 실재 파일이면 정상 판정" "0" "$(runraw "$TMP/before.md" "$TMP/after.md")"
 
+echo "── K. ★Windows cp949 출력에서 죽지 않는다 — 죽음도 exit 1 이라 «잃은 줄 있음»과 모양이 같았다(2026-09-29 배포처)"
+# PYTHONIOENCODING=cp949 로 Windows 콘솔·파이프를 흉내 낸다 — `⛔` 는 cp949 에 없다.
+cat > "$TMP/before.md" <<'E'
+2026-09-01 /dev — ⛔ 로 시작하는 경고를 적은 줄이다. 오래된 누적 줄은 이렇게 길다 — 앞머리만 조금 고친다.
+2026-09-02 /dev — 둘째 줄
+E
+cat > "$TMP/after.md" <<'E'
+2026-09-01 /dev — ⛔ 로 시작하는 경고를 적은 줄이다. 오래된 누적 줄은 이렇게 길다 — 앞머리만 조금 고친다. [닫힘:이 커밋]
+2026-09-02 /dev — 둘째 줄
+E
+ck "K1 cp949 에서 정상 편집은 exit 0(죽어서 1 이 아니다)" "0" "$(PYTHONIOENCODING=cp949 python3 "$TOOL" "$TMP/before.md" "$TMP/after.md" > "$TMP/out" 2>&1; echo $?)"
+printf '2026-09-02 /dev — 둘째 줄\n' > "$TMP/after.md"
+ck "K2 cp949 에서 진짜 삭제는 exit 1" "1" "$(PYTHONIOENCODING=cp949 python3 "$TOOL" "$TMP/before.md" "$TMP/after.md" > "$TMP/out" 2>&1; echo $?)"
+ck "K3 그 exit 1 은 판정이지 죽음(Traceback)이 아니다" "0" "$(grep -c Traceback "$TMP/out")"
+
 echo "────────  $OK OK / $FAIL FAIL"
 [ "$FAIL" = 0 ] || exit 1

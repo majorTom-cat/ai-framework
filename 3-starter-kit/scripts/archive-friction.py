@@ -16,6 +16,14 @@ append 전용이면 정확히 반대로 남는다(오너 지적 2026-09-10).
 """
 import sys, re, os
 
+# ★Windows cp949 콘솔·파이프에서 `⛔`·`—` 를 못 찍어 UnicodeEncodeError 로 죽는다 — 출력만 utf-8 로 돌린다
+#   (check-append-only.py 와 같은 수리 · 2026-09-29 배포처. 파일 읽기·쓰기는 이미 utf-8 지정).
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError, OSError):
+        pass
+
 _args = [a for a in sys.argv[1:] if a != "--oldest-first"]
 OLDEST_FIRST = "--oldest-first" in sys.argv[1:]   # ★옛 순서 파일을 처음 옮겨올 때만
 if len(_args) < 2:

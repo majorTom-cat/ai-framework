@@ -298,7 +298,9 @@ if (modelOwner.size) {
 // ── 4) 모듈 지도(--map) — 검사가 이미 계산한 그래프를 버리지 않고 한 장으로 출력.
 //    (2026-08-15 Graphify 아이디어 차용: "지도는 결정적 추출로 공짜 생성, AI는 조회만" — LLM·외부 의존 0)
 //    재생성: node scripts/check-boundaries.cjs --map — 새 모듈·index 변경·스키마 변경 후. 낡으면 재생성이 정답.
-if (process.argv.includes('--map')) {
+//    ★--map-check: 쓰지 않고 «커밋된 지도와 같은가»만 본다 — 다르거나 없으면 exit 1(CI 용. 재생성 강제 장치가 없어 낡은 채 머지됐다 — 2026-09-29 배포처).
+const MAP_CHECK = process.argv.includes('--map-check');
+if (process.argv.includes('--map') || MAP_CHECK) {
   const mods = fs.existsSync(MODULE_ROOT)
     ? fs.readdirSync(MODULE_ROOT, { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith('_')).map((e) => e.name)
     : [];
@@ -334,7 +336,17 @@ if (process.argv.includes('--map')) {
     if (models.length) out.push(`- 소유 DB 모델: ${models.join(', ')}`);
     out.push('');
   }
-  if (mods.length) {
+  if (MAP_CHECK) {
+    const mapPath = path.join(MODULE_ROOT, '_MODULE_MAP.md');
+    // CRLF 로 체크아웃된 Windows 사본을 «낡음»으로 오판하지 않게 줄바꿈만 맞춘다
+    const cur = fs.existsSync(mapPath) ? fs.readFileSync(mapPath, 'utf8').replace(/\r\n/g, '\n') : null;
+    const want = mods.length ? out.join('\n') : null;
+    if (cur === want) console.log(`🗺  ${toPosix(mapPath)} 최신 (모듈 ${mods.length}개)`);
+    else {
+      console.error(`❌ ${toPosix(mapPath)} 가 ${cur === null ? '없다' : want === null ? '남아 있다(모듈 0개)' : '낡았다'} — \`node scripts/${SELF} --map\` 으로 재생성해 커밋하라`);
+      process.exitCode = 1;
+    }
+  } else if (mods.length) {
     const mapPath = path.join(MODULE_ROOT, '_MODULE_MAP.md');
     fs.writeFileSync(mapPath, out.join('\n'));
     console.log(`🗺  ${toPosix(mapPath)} 생성 (모듈 ${mods.length}개)`);

@@ -162,3 +162,21 @@ test('순환 의존 — 모듈 index 간 양방향 참조를 DFS로 잡는다', 
     assert.match(r.stderr, /cyc-a → cyc-b → cyc-a|cyc-b → cyc-a → cyc-b/, '순환 경로 표기가 없다:\n' + r.stderr);
   });
 });
+
+test('--map-check — 커밋된 지도와 다르거나 없으면 exit 1, 재생성 직후엔 0 (2026-09-29)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'boundaries-map-'));
+  const run = (...a) => spawnSync(process.execPath, [CHECKER, ...a], { cwd: dir, encoding: 'utf8' });
+  const MAP = path.join(dir, 'src/modules/_MODULE_MAP.md');
+  try {
+    writeTree(dir, BASE);
+    let r = run('--map-check');
+    assert.strictEqual(r.status, 1, `지도가 없는데 통과했다:\n${r.stdout}${r.stderr}`);
+    assert.ok(!fs.existsSync(MAP), '--map-check 가 지도를 써 버렸다(검사는 쓰면 안 된다)');
+    assert.strictEqual(run('--map').status, 0);
+    assert.strictEqual(run('--map-check').status, 0, '재생성 직후인데 낡았다고 한다');
+    writeTree(dir, { 'src/modules/board/index.js': 'module.exports = { listPosts: () => [], newFn: 1 };\n' });
+    r = run('--map-check');
+    assert.strictEqual(r.status, 1, `index 가 바뀌었는데 통과했다:\n${r.stdout}${r.stderr}`);
+    assert.match(r.stderr, /낡았다/);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});

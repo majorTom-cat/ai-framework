@@ -112,5 +112,15 @@ run 1 >/dev/null
 ck "H1 메모 줄이 파일에 남는다" "1" "$(grep -c '수거 카드 메모' "$TMP/f.md")"
 ck "H2 옮겼다고 알린다" "yes" "$(grep -q '옮겼다' "$TMP/last.out" && echo yes || echo no)"
 
+echo "── I. ★Windows cp949 출력에서 죽지 않는다 — «⚠️»·«ℹ️» 는 cp949 에 없어 UnicodeEncodeError 였다(2026-09-29 배포처)"
+mk <<'E'
+2026-09-01 옛것 [닫힘:구기록]
+2026-09-09 최신 [닫힘:구기록]
+E
+PYTHONIOENCODING=cp949 python3 "$TOOL" "$TMP/f.md" "$TMP/a.md" 1 --oldest-first > "$TMP/last.out" 2>&1; RC=$?
+ck "I1 cp949 에서도 exit 0" "0" "$RC"
+ck "I2 죽음(Traceback)이 없다" "0" "$(grep -c Traceback "$TMP/last.out")"
+ck "I3 손실 0" "2" "$(( $(n_entries "$TMP/f.md") + $(n_entries "$TMP/a.md") ))"
+
 echo "────────  $OK OK / $FAIL FAIL"
 [ "$FAIL" = 0 ] || exit 1

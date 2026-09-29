@@ -135,8 +135,8 @@ flowchart LR
 
 > 🧭 **처음 왔다면 읽는 순서**: ① 아래 **"첫날 셋업"**(30분) → ② **"내 모듈 처음 시작할 때"**(한 번) → ③ **"매일"** 루틴. 그 사이의 명령표는 참조용 — 외울 필요 없다.
 
-**개발자 명령은 13개 — 전부 짧은 단어**(`/`만 치면 목록이 뜬다):
-`/start` `/todo` `/card` `/dev` `/fix` `/ui` `/inspect` `/done` `/module` `/docs` `/change` `/log` `/adr`
+**개발자 명령은 14개 — 전부 짧은 단어**(`/`만 치면 목록이 뜬다):
+`/start` `/todo` `/card` `/dev` `/fix` `/ui` `/inspect` `/done` `/module` `/docs` `/change` `/log` `/adr` `/handoff`
 — 각각의 **예시·결과(어디에 무엇이 남는지) 표 = [repo README §4](/README.md#4-스킬--하나씩)가 정본.**
 
 > **명령 쓰는 법 (실전):**

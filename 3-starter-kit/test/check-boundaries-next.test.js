@@ -195,3 +195,25 @@ test('DB 스키마 없는 스택 — 비활성을 소리 내어 알린다', () =
     assert.match(r.stdout + r.stderr, /DB (경계 검사 비활성|검사 비활성)/);
   });
 });
+
+test('--map-check — 커밋된 지도와 다르거나 없으면 exit 1, 재생성 직후엔 0 (2026-09-29)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bnext-map-'));
+  const run = (...a) => spawnSync(process.execPath, [CHECKER, ...a], { cwd: dir, encoding: 'utf8' });
+  const MAP = path.join(dir, 'src/modules/_MODULE_MAP.md');
+  try {
+    writeTree(dir, BASE);
+    let r = run('--map-check');
+    assert.strictEqual(r.status, 1, `지도가 없는데 통과했다:\n${r.stdout}${r.stderr}`);
+    assert.match(r.stderr, /없다/);
+    assert.ok(!fs.existsSync(MAP), '--map-check 가 지도를 써 버렸다(검사는 쓰면 안 된다)');
+    assert.strictEqual(run('--map').status, 0);
+    r = run('--map-check');
+    assert.strictEqual(r.status, 0, `재생성 직후인데 낡았다고 한다:\n${r.stdout}${r.stderr}`);
+    fs.writeFileSync(MAP, fs.readFileSync(MAP, 'utf8').replace(/\n/g, '\r\n'));  // Windows CRLF 체크아웃 = 낡음 아님
+    assert.strictEqual(run('--map-check').status, 0, 'CRLF 만 다른데 낡았다고 한다');
+    writeTree(dir, { 'src/modules/boards/index.ts': "export const listBoards = () => [];\nexport const newFn = 1;\n" });
+    r = run('--map-check');
+    assert.strictEqual(r.status, 1, `index 가 바뀌었는데 통과했다:\n${r.stdout}${r.stderr}`);
+    assert.match(r.stderr, /낡았다/);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
