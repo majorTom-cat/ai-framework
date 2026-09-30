@@ -14,12 +14,15 @@
 - **결정(오너)**: AI 가 effort 를 고르게 두지 않는다. 판단이 무거운 스킬 9개에 값을 박는다. 「xhigh 세션을 끌어내린다」는 우려는 «그렇게 쓰는 사람이 없다»로 기각. `/design` 의 max 기각 사유(DD-05 「게이트 대화가 느려진다」)도 「전체를 재설계하는 스킬에 xhigh 는 낮다」로 뒤집혔다 — DD-05 개정 참조.
 - 공식 권고(Opus 5): 「Start with high … step up to xhigh for demanding coding and agentic work, or to max when a task justifies unconstrained token spending」.
 
+## 2026-09-30 한 단씩 내림 — 기준 모델이 Opus 5.5 로 바뀌었다
+`model: opus`·오너 설정 `"model": "opus"` 는 이제 Opus 5.5 로 풀린다. 공식 이관 안내(Opus 5.5): 「API 기본값은 `medium`(Opus 5 는 `high`)」 · 「Opus 5.5 의 `medium` 이 코딩·지식 작업에서 Opus 5 의 `high` 를 넘는다」 · 「같은 수준에서 Opus 5 보다 더 오래 생각한다(특히 `xhigh`·`max`)」 · 「`xhigh`·`max` 는 품질 향상을 잰 작업에만」. **수준 이름이 모델마다 같은 양이 아니므로** 등급 구조는 그대로 두고 값만 한 단씩 내렸다(max→xhigh · xhigh→high · high→medium · low 유지). 세션 모델이 Opus 5 이하면 이 표는 한 단 낮게 도는 셈이다 — 그땐 세션을 `opus` 로. 재측정 = 2026-10-16 리뷰 기록(`done/단계상세.md` §9)과 함께.
+
 ## 배정표
 | 등급 | 스킬 | 근거 |
 |---|---|---|
-| `effort: max` (+`model: opus` design·scaffold) | overhaul · design · scaffold | 전수 재검토·되돌리기 가장 어려운 결정·골격. 저빈도라 토큰은 문제되지 않는다. 공식: 「max when a task justifies unconstrained token spending」 |
-| `effort: xhigh` | dev · fix · adr · change · ui | 코딩·판단 작업. 공식: 「step up to xhigh for demanding coding and agentic work」 |
-| `effort: high` | done | ★2026-09-10 오너 결정으로 xhigh 에서 내렸다 — **머지 절차 자체는 판단 밀도가 낮고**(카드 확인·CI·라벨·머지), 무거운 건 그 안의 리뷰 한 대목뿐이다. **그 리뷰 수준은 카드가 정한다**(아래 절) |
+| `effort: xhigh` (+`model: opus` design·scaffold) | overhaul · design · scaffold | 전수 재검토·되돌리기 가장 어려운 결정·골격. 저빈도. Opus 5.5 에서 `max` 는 상한이 없고 품질 향상을 잰 적이 없어 `xhigh` |
+| `effort: high` | dev · fix · adr · change · ui | 코딩·판단 작업(Opus 5 의 `xhigh` 자리) |
+| `effort: medium` | done | **머지 절차 자체는 판단 밀도가 낮고**(카드 확인·CI·라벨·머지), 무거운 건 그 안의 리뷰 한 대목뿐이다. **그 리뷰 수준은 카드가 정한다**(아래 절) |
 | `effort: low` | log · assign-module | 조회 요약·표 갱신 — 판단 밀도 낮음. **기본값보다 내리는 핀**(비용 절감) |
 | (핀 없음 = 세션 값) | module · docs · inspect · card · setup-gitlab · metrics · start · todo | 게이트가 백스톱이거나 절차·조회형. **todo는 low 금지** — 고위험 승인 대행 경로가 있다 |
 
@@ -29,9 +32,11 @@
 
 | 조건(위에서부터 먼저 맞는 것) | 수준 |
 |---|---|
-| `고위험` 라벨이 붙었거나 diff 에 `k8s/**`·인증·권한·결제·마이그레이션 파일이 있다 | `xhigh` |
-| 바뀐 파일이 **전부 `*.md`** 다 | `medium` |
-| 그 밖(코드가 바뀌었다) | **`high`** ← 기본 |
+| `고위험` 라벨이 붙었거나 diff 에 `k8s/**`·인증·권한·결제·마이그레이션 파일이 있다 | `high` |
+| 바뀐 파일이 **전부 `*.md`** 다 | `low` |
+| 그 밖(코드가 바뀌었다) | **`medium`** ← 기본 |
+
+(2026-09-30 한 단씩 내림 — 위 절. 리뷰어를 못 띄워 `/code-review` 로 갈 땐 `high` 그대로: 그 스킬은 `medium` 이하에서 «확신하는 것만 보고»로 범위까지 좁힌다.)
 
 `merge-review` 워크플로는 이 값을 `args.level` 로 받는다. **반박표는 한 단 낮춰 돈다**(`refuteLevel`) — 반박은 「인용이 그 줄에 실재하나」를 확인하는 일이라 수준을 낮춰도 판정이 흔들리지 않고, 발견 1건당 3표라 토큰이 가장 많이 드는 자리다. ★**이 표를 고칠 땐 `done/SKILL.md` 4단계와 `merge-review.js` 를 같은 커밋에서** — 셋 중 하나만 고치면 나머지가 정본 행세를 한다.
 

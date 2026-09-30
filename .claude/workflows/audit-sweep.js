@@ -70,7 +70,7 @@ const results = await pipeline(
     return agent(
       `인용 검증자. 아래 발견 목록의 각 항목에 대해 file 을 직접 열어 quote 가 실제로 그 파일에 있는지(줄 번호 ±3 허용) 확인하라. 없거나 다른 문장이면 quote_found=false. 판단하지 말고 실재 여부만 보고하라.\n\n` +
       r.findings.map((f, i) => `[${i}] ${f.file}:${f.line} «${f.quote}»`).join('\n'),
-      { label: `verify:${b.name}`, phase: 'Verify', schema: VERIFY, effort: 'high' })
+      { label: `verify:${b.name}`, phase: 'Verify', schema: VERIFY, effort: 'medium' })
       .then(v => {
         const ok = new Map((v ? v.results : []).map(x => [x.index, x]))
         const findings = [], dropped = []

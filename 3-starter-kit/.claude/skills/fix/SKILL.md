@@ -1,6 +1,6 @@
 ---
 name: fix
-effort: xhigh # 배정표 = _reference/skill-tiers.md
+effort: high # 배정표 = _reference/skill-tiers.md
 description: 작은 수정·버그 픽스용 경량 절차. 스펙·계획 게이트 없이 바로 구현 — 반나절 미만 작업에 사용.
 disable-model-invocation: true
 argument-hint: "[이슈번호]"

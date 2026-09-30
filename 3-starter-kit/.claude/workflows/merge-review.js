@@ -1,7 +1,7 @@
 export const meta = {
   name: 'merge-review',
   description: '머지 전 diff 리뷰 — 렌즈 4개 병렬 + 발견마다 반박 3표, 살아남은 것만 보고',
-  whenToUse: '/done 4단계에서. args: { base: "origin/main", card: "#123", acceptance: "수용 기준 원문", externalSurface: true|false, level: "medium"|"high"|"xhigh" }',
+  whenToUse: '/done 4단계에서. args: { base: "origin/main", card: "#123", acceptance: "수용 기준 원문", externalSurface: true|false, level: "low"|"medium"|"high" }',
   phases: [
     { title: 'Find', detail: '정확성 · 과잉설계 · 수용기준 대조 (+보안: 외부 입력 표면이 있을 때만) 렌즈를 fresh context 로 병렬' },
     { title: 'Verify', detail: '발견마다 반박 전용 검토자 3명 — 둘 이상이 «틀렸다»면 탈락' },
@@ -14,9 +14,9 @@ const base = a.base || 'origin/main'
 const card = a.card || '(카드 미지정)'
 const acceptance = a.acceptance || ''
 // 리뷰 수준 = 카드가 정한다(짐작 금지 — 호출하는 /done 4단계가 diff 로 골라 넘긴다).
-// 기본 high. 반박표는 «인용이 실재하나»를 보는 일이라 한 단 낮춰도 판정이 흔들리지 않는다(토큰 절반).
-const LEVELS = ['medium', 'high', 'xhigh']
-const level = LEVELS.includes(a.level) ? a.level : 'high'
+// 기본 medium(Opus 5.5 기준 — 옛 Opus 5 의 high 이상). 반박표는 «인용이 실재하나»를 보는 일이라 한 단 낮춰도 판정이 흔들리지 않는다(토큰 절반).
+const LEVELS = ['low', 'medium', 'high']
+const level = LEVELS.includes(a.level) ? a.level : 'medium'
 const refuteLevel = LEVELS[Math.max(0, LEVELS.indexOf(level) - 1)]
 const DIFF = `대상 = \`git diff ${base}...HEAD\` 와 미커밋 변경 \`git diff\`. 먼저 그 명령으로 diff 를 직접 읽고, 필요하면 파일을 열어 주변 코드를 확인하라. 기억으로 답하지 마라.`
 
