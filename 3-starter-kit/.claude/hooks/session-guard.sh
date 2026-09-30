@@ -153,7 +153,7 @@ if [ "$MODE" = "register" ]; then
   # ★따라잡기는 등록보다 «먼저», pid 와 무관하게 — pid 를 못 찾는 세션도 옛 규칙을 읽으면 안 된다.
   [ -n "$ROOT" ] && command -v git >/dev/null 2>&1 && catchup "$ROOT"
   if [ -z "$MYPID" ]; then
-    echo "⚠️ 세션 pid를 찾지 못해 워킹트리 점유 등록을 건너뛴다 — 이 세션은 다른 세션에게 보이지 않는다(session-guard 한계 ㉡)."
+    echo "⚠️ 세션 pid를 찾지 못해 워킹트리 점유 등록을 건너뛴다 — 이 세션은 다른 세션에게 보이지 않는다(session-guard 한계 ㉡). 이 클론은 점유 보호가 안 되니 커밋 직전 \`git branch --show-current\` 로 브랜치를 확인하라."
     exit 0
   fi
   [ -z "$ROOT" ] && exit 0
