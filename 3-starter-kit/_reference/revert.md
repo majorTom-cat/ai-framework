@@ -22,18 +22,18 @@ main에 잘못된 것이 머지됐을 때 쓸 절차가 어디에도 없었고, 
 
 ## B. 마이그레이션이 포함된 머지 (Prisma 예시 — 경로·명령은 스택 치환)
 
-표준 `git revert -m 1`을 그대로 커밋하지 마라 — **머지된 마이그레이션 파일을 삭제한다**(실측: `delete mode 100644 prisma/schema/migrations/…/migration.sql`). 이는 '머지된 마이그레이션은 불변' 규칙과 정면 충돌하고, 이미 적용된 DB와 폴더가 어긋난다. 이 삭제는 2026-08-07 도입한 `migration-immutable` 잡(차단형)이 MR 파이프라인에서 잡는다 — 단 실 파이프라인 첫 발동은 미확인이니(§알려진 구멍) 빨간불에 기대지 말고 아래 2단계를 지켜라. 잡 도입 전(2026-08-06)엔 무검출이 실측됐다.
+표준 `git revert -m 1`을 그대로 커밋하지 마라 — **머지된 마이그레이션 파일을 삭제한다**(실측: `delete mode 100644 prisma/schema/migrations/…/migration.sql`). 이는 '머지된 마이그레이션은 불변' 규칙과 정면 충돌하고, 이미 적용된 DB와 폴더가 어긋난다. 이 삭제는 2026-08-07 도입한 `migration-immutable` 검사(차단형 — 지금은 `mr-checks` 묶음 잡 안)가 MR 파이프라인에서 잡는다 — 단 실 파이프라인 첫 발동은 미확인이니(§알려진 구멍) 빨간불에 기대지 말고 아래 2단계를 지켜라. 잡 도입 전(2026-08-06)엔 무검출이 실측됐다.
 
 1. `git revert -m 1 --no-commit <머지커밋>` — 커밋하지 않고 워킹트리만 되돌린다
 2. `git checkout <머지커밋> -- prisma/schema/migrations/<되돌릴폴더>` — 지워진 마이그레이션 파일을 원상 복원(**불변 유지**)
 3. `prisma/schema/migrations/<YYYYMMDD_HHMMSS>_revert_<원이름>/migration.sql`에 **역DDL을 새로 쓴다** — 멱등·존재검사 형태(`ALTER TABLE "X" DROP COLUMN IF EXISTS "y";`). 되돌리기는 down이 아니라 "앞으로 가는 새 마이그레이션"이다
 4. 선언형 스키마(`*.prisma`)는 1단계의 revert 결과를 그대로 두거나 전진 편집으로 정리한다 — 스키마 파일과 마이그레이션이 같은 방향을 가리켜야 한다
-5. 커밋 메시지 `#카드 롤백 — 되돌리는 새 마이그레이션` → MR은 **고위험(DB 마이그레이션)** = 경고 레인: AI 경고 리뷰 + 증적 3종 후 `셀프승인` 라벨을 붙이고 **새 파이프라인**을 돌린다(절차 = `/done` `함정.md` §2-b). 그러면 `high-risk-gate` 가 ▶ 없이 통과한다. 사람이 ▶ 를 누르는 예외·push 때 창 여부의 정본 = `CLAUDE.md` '머지 등급'·`_reference/asks.md`(여기에 옮겨 적지 마라 — 갈린다)
+5. 커밋 메시지 `#카드 롤백 — 되돌리는 새 마이그레이션` → MR은 **고위험(DB 마이그레이션)** = 경고 레인: AI 경고 리뷰 + 증적 3종 후 `셀프승인` 라벨을 붙이고 `node scripts/mr-pipeline-refresh.cjs <MR번호>` 를 돌린다(라벨이 늦게 붙었을 때만 새 파이프라인을 만든다 — 절차 = `/done` `함정.md` §2-b). 그러면 `high-risk-gate` 가 ▶ 없이 통과한다. 사람이 ▶ 를 누르는 예외·push 때 창 여부의 정본 = `CLAUDE.md` '머지 등급'·`_reference/asks.md`(여기에 옮겨 적지 마라 — 갈린다)
 6. 검증: `npm test` 통과 확인 + 되돌린 폴더가 **남아 있고** 새 revert 폴더가 **추가됐는지** `git show --stat`으로 눈으로 본다(실측 결과: 2 files changed, +3/-2 — 삭제 0)
 
 ## 알려진 구멍 (이 절차를 믿기 전에 알 것)
 
 - **force push의 기계 방어선은 훅 ask까지다**: settings deny는 명령 접두 기준이라 체이닝을 못 본다(실측). 2026-08-07 훅 확장으로 체이닝(`&& git push -f`)·`git -C`·전역옵션(`-c`·`--git-dir`) 변형에 **ask**가 뜬다 — 단 ask는 하드 차단이 아니고, auto/bypass 세션 훅은 미보장. 경위 `_reference/push-guard.md`.
-- ~~머지된 마이그레이션의 삭제·수정을 감지하는 CI 검사가 없다~~ → 2026-08-07 `migration-immutable` 잡(차단형, `--diff-filter=DMR`) 도입 — B의 2단계를 빠뜨리면 이제 MR 파이프라인이 빨간불이다. 단 실 파이프라인 첫 발동은 미확인.
+- ~~머지된 마이그레이션의 삭제·수정을 감지하는 CI 검사가 없다~~ → 2026-08-07 `migration-immutable` 검사(차단형, `--diff-filter=DMR` — 지금은 `mr-checks` 묶음 잡 안) 도입 — B의 2단계를 빠뜨리면 이제 MR 파이프라인이 빨간불이다. 단 실 파이프라인 첫 발동은 미확인.
 - 로컬에 `git push origin main`(main 직접 push)을 막는 장치가 없다 — 서버측 Protected branch(직접 push·force push 금지)로 걸어야 한다.
 - **미검증**: Prisma의 실제 드리프트 에러 문구(사본에 DB 미기동 — "폴더에 없는 마이그레이션이 적용돼 있으면 실패한다"는 인과는 파일 삭제까지만 실증), 여러 MR이 얽힌 상태의 revert(리허설은 단일 머지 n=1씩), 권한 시스템이 체이닝 명령을 어떻게 평가하는지.

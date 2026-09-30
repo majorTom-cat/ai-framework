@@ -40,7 +40,7 @@ CI 는 `git show origin/main:<파일>` 로 **파이프라인이 도는 시점의
 
 ⇒ **둘 다 둔다.** 겹치는 게 맞다 — 이 사고의 원인이 «사람이 판정을 넘긴 것»이라, 방어를 사람 층에만 두면 같은 자리에서 또 무너진다.
 - **사람**(동기하는 세션이 커밋 직전): ①`?ref=main` 재조회 → ②`check-append-only.py` → ③커밋 → ④`repository/compare` 로 «지운 줄» 재확인. 정본 = `CLAUDE.md` 킷동기 절.
-- **기계**(MR 파이프라인): CI 잡 `append-only-check` → `scripts/check-append-only-git.sh`(자기시험 `test-check-append-only-git.sh` 8케이스). 검사 대상 파일 목록은 그 스크립트 상단 `PAIRS` 한 곳 — **배포처는 그 줄만 고친다.**
+- **기계**(MR 파이프라인): CI 묶음 잡 `mr-checks` 의 `append-only-check` 검사(`scripts/ci-job-append-only-check.sh`) → `scripts/check-append-only-git.sh`(자기시험 `test-check-append-only-git.sh` 8케이스). 검사 대상 파일 목록은 그 스크립트 상단 `PAIRS` 한 곳 — **배포처는 그 줄만 고친다.**
 - ⚠️**기계가 사람을 대체하지 않는다**: 파이프라인이 돈 «뒤» 머지 직전까지 사이에 남이 또 머지하면 그 줄은 못 본다. 그리고 API 로 **main 에 직접** 올리면 MR 파이프라인 자체가 없다.
 
 ### 이 검사기가 «정상 작업»과 «사고»를 가르는 두 자리 (2026-09-16 · 배포처 `#285` 와 상호 검증)

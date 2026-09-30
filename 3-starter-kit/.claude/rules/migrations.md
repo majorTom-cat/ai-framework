@@ -20,7 +20,7 @@
   - 리셋 요구를 받으면 먼저 **«실제 차이가 있나»를 재라** — 0 이면 리셋 없이 체크섬만 맞추면 된다. 흔한 경우: 남이 머지 «전»에 주석 한 줄만 고친 파일을, 내가 고치기 전 판으로 먼저 적용해 둔 것(불변 위반이 아니다). 우회로(`migrate diff` → 손 SQL → `deploy`)로만 풀면 어긋난 행이 남아 다음 카드가 같은 우회로를 또 탄다.
     ①재기: `node_modules/.bin/prisma migrate diff --from-migrations {마이그레이션 폴더} --to-url {로컬 DB 호스트용 URL} --shadow-database-url {섀도 URL} --exit-code` — 0 = 차이 없음 · 2 = 있음 · 1 = 실패(Prisma 6.19 `--help` 기준). ②**0 일 때만** `sha256sum {폴더}/{이름}/migration.sql`(mac 은 `shasum -a 256`) 값으로 `UPDATE _prisma_migrations SET checksum='{해시}' WHERE migration_name='{이름}'` ③막혔던 명령을 다시 돌려 리셋 요구가 사라졌는지 본다.
     **2·1 이면 하지 마라** — 진짜 스키마 차이를 가린다. 그땐 위 줄대로(되돌리는 새 마이그레이션 → 안 되면 사람이 리셋).
-- 되돌리기는 down이 아니라 "되돌리는 내용의 새 마이그레이션" 추가 (forward-only). 머지커밋 revert는 머지된 마이그레이션 파일을 **지운다**(불변 위반 — `migration-immutable` 잡이 차단) — 절차는 `_reference/revert.md` B로(B는 Prisma 예시 — 경로·역DDL은 스택 것으로 치환).
+- 되돌리기는 down이 아니라 "되돌리는 내용의 새 마이그레이션" 추가 (forward-only). 머지커밋 revert는 머지된 마이그레이션 파일을 **지운다**(불변 위반 — `mr-checks` 잡의 `migration-immutable` 검사가 차단) — 절차는 `_reference/revert.md` B로(B는 Prisma 예시 — 경로·역DDL은 스택 것으로 치환).
 - **전역 직렬 자산**(모듈 소유로 못 막는다): 머지는 생성 순서대로 직렬. 내 브랜치가 뒤처진 새 마이그레이션이 main에 들어왔으면 내 것을 최신 뒤로 재생성. (왜·벤더 경고: `_reference/schema-conflicts.md`)
 - 날짜를 «하루» 단위로 자를 땐 **현지 시각(KST) 기준으로** 잘라라 — SQL 의 `::date` 캐스팅도, TS 의 `toISOString().slice(0,10)` 도 UTC 라 한국 시각 오전 9시 이전이 전날로 밀린다. TS·SQL 두 층에서 따로 나는 버그다.
 - 제약이 걸린 테이블·enum 을 다시 만드는 마이그레이션은 **그 제약의 재생성을 함께 써라** — 겹침 차단(EXCLUDE)·CHECK·유니크를 빠뜨리면 앱 쪽 검사만 남고 DB 원천 보장이 조용히 사라진다(앱은 멀쩡해 보인다).

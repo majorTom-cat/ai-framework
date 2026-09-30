@@ -33,117 +33,32 @@ stages:
 # 스택 무관 게이트 — 지금부터 동작
 # ─────────────────────────────────────────────────────────
 
-# AI 리뷰 잡 전제: 사내 러너에서 api.anthropic.com 에 통신되나? (막히면 CI AI리뷰 잡 불가)
-ai-connectivity:
-  stage: test
-  image: alpine:3
-  script:
-    - apk add --no-cache curl >/dev/null
-    - |
-      CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 -X POST \
-        -H "content-type: application/json" -d '{}' \
-        https://api.anthropic.com/v1/messages || echo "000")
-      echo "api.anthropic.com 응답: $CODE  (4xx=통신 성공(인증만 실패) / 000=방화벽 차단)"
-      case "$CODE" in
-        4*) echo "OK — 필요 시 AI 리뷰 잡을 사내 러너에서 돌릴 수 있다";;
-        *)  echo "차단 — 러너 아웃바운드 방화벽/프록시 확인 필요";;
-      esac
-  allow_failure: true
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-
-# 테스트 변조 감지: src와 test(또는 CI설정)를 같은 MR에서 동시 수정 → 검토 필요
-tamper-check:
+# ── 가벼운 검사 묶음 ─────────────────────────────────────────────────────────
+#   왜 묶나: 공용 러너는 동시 실행 자리가 한정돼 있다. 10~80초짜리 검사가 잡마다 자리를 따로 잡으면(파드 기동·
+#     패키지 설치를 잡마다 되풀이) MR 둘만 겹쳐도 무거운 검사(test·build)가 그 뒤에 줄을 선다. 검사 «내용»은 그대로다.
+#   묶는 기준 = 같은 이미지 · 같은 rules · 같은 차단 여부. 셋 중 하나라도 다르면 묶지 않는다 —
+#     `allow_failure` 는 잡 단위라 경고형과 차단형을 섞으면 차단형 실패가 경고로 묻히거나 그 반대가 된다.
+#     그래서 `secret-scan`(전용 이미지)·`changes:` 로 켜지는 잡(density-check·skill-size·ask-check·self-tests)은 따로 둔다.
+#   본문은 `scripts/ci-job-<이름>.sh` 에 있고 실행기 `scripts/ci-run-checks.sh` 가 하나가 실패해도 **끝까지** 돈 뒤
+#     로그 끝 «묶음 결과» 에 «실패: 이름…» 을 찍는다. 이름 오타는 실패(exit 2)다 — 검사가 조용히 빠지지 않는다.
+#     배선(여기서 부르는 이름 ↔ `ci-job-*.sh` 실물 1:1)은 `scripts/test-ci-run-checks.sh` 가 지킨다.
+#   `/scaffold` 가 가벼운 검사를 더하면 같은 기준으로 기존 묶음에 넣고, 기준이 다르면 새 묶음을 만든다.
+#   되돌리기: 묶음 잡을 지우고 각 `ci-job-*.sh` 를 종전 이름의 잡 하나씩(`script: bash scripts/ci-job-<이름>.sh`)으로 되살린다.
+#
+# 경고형 묶음 — `allow_failure: true`: 실패해도 초록으로 보인다. **이 초록은 근거가 아니다**(CLAUDE.md '머지 등급').
+#   · tamper-check — 테스트 변조 감지: src와 test(또는 CI설정)를 같은 MR에서 동시 수정 → 검토 필요.
+#     정당한 테스트 삭제(기능 제거)도 걸리므로 막지 않고 보여준다.
+#   · ai-connectivity — AI 리뷰 잡 전제: 사내 러너에서 api.anthropic.com 에 통신되나?(막히면 CI AI리뷰 잡 불가)
+mr-warnings:
   stage: test
   image: alpine:3
   variables:
-    # ★얕은 클론이면 origin/main 과의 merge base 가 없어 `git diff origin/main...HEAD` 가
-    #   fatal 로 죽는다(잡 전체 실패 = 게이트 무효). density-check 와 같은 이유다.
+    # ★얕은 클론이면 origin/main 과의 merge base 가 없어 tamper-check 의 `git diff origin/main...HEAD` 가
+    #   fatal 로 죽는다(검사 전체 실패 = 게이트 무효). density-check 와 같은 이유다.
     GIT_DEPTH: 0
   script:
-    - apk add --no-cache git >/dev/null
-    - git fetch -q origin main
-    - CH=$(git diff --name-only origin/main...HEAD)
-    - echo "변경 파일:"; echo "$CH"
-    - |
-      # 테스트 감지는 파일명 기준 — 테스트가 src 안에 코로케이션되는 스택(Vitest 등)에서도 걸리게 (bnsone 실측 2026-07-29: '^test/'만으로는 src/**/*.test.ts가 영원히 미매칭)
-      # ★소스·테스트·CI설정을 서로 다른 축으로 분류한다. 예전엔 '^src/ 매칭 && 테스트 매칭'이라
-      #   src/foo.test.ts 한 파일이 두 조건을 혼자 만족시켜 평범한 TDD MR마다 경고가 떴다
-      #   (오탐 실측 2026-07-29 · 파일럿 #72). 오탐이 반복되면 경고가 무시되어 진짜 변조를 놓친다.
-      #   판정 논리 정본 = 파일럿 scripts/tamper-check.sh (테스트가 붙어 있는 파일판).
-      TEST_RE='\.test\.|\.spec\.|(^|/)tests?/|(^|/)__tests__/'
-      CI_RE='(^|/)\.gitlab-ci\.yml$|(^|/)\.gitlab/'
-      TESTS=$(echo "$CH" | grep -E "$TEST_RE" || true)
-      CICONF=$(echo "$CH" | grep -E "$CI_RE" | grep -vE "$TEST_RE" || true)
-      # 소스 = 테스트가 아닌 src 파일. 스택별 루트 소스(server.js·middleware.ts 등)는 /scaffold 가 여기 추가한다.
-      SRCS=$(echo "$CH" | grep -E '^src/' | grep -vE "$TEST_RE" || true)
-      # ★수집 설정 — 소스도 테스트도 아닌 사각지대(2026-08-26 신설). include 를 줄이면 **테스트 파일을
-      #   한 줄도 안 고치고 전부 끌 수 있다**. 스택마다 이름이 다르니 /scaffold 가 이 목록을 치환한다.
-      CFG_RE='(^|/)(vitest\.config\.[a-z]+|vitest\.workspace\.[a-z]+|jest\.config\.[a-z]+|package\.json)$'
-      CFG=$(echo "$CH" | grep -E "$CFG_RE" || true)
-      # ★2026-08-26 개정 — 두 층으로 나눈다(오너 결정).
-      #   ⓘ알림(NOTE, 통과): '동시 수정' 조합. 이건 우리 표준 작업 방식이기도 해서 빨간불로 두면
-      #      상시 실패가 된다(bnsone 실측: 최근 23건 중 14건 실패 → 아무도 안 봄 = 진짜 변조도 놓침).
-      #   ⛔의심(SUSPECT, 실패): 테스트 무력화 신호. 이쪽이 훨씬 정확하고, 지금까진 '소스를 안 건드린
-      #      경우'에만 돌아서 소스와 함께 테스트를 끄는 형태를 아예 못 봤다 — 그 공백도 함께 메운다.
-      NOTE=0
-      SUSPECT=0
-      # ⓪수집 설정 변경 — 수집 범위·테스트 명령이 바뀌면 의심(버전 올림 같은 무관한 변경은 안 걸린다)
-      if [ -n "$CFG" ]; then
-        CFGHIT=$(git --literal-pathspecs diff --no-renames --unified=0 origin/main...HEAD -- $CFG \
-          | grep -E '^[-+]' | grep -vE '^(\+\+\+|---)' \
-          | grep -E 'include|exclude|testMatch|testPathIgnorePatterns|setupFiles|coverage|threshold|"test"[[:space:]]*:' || true)
-        if [ -n "$CFGHIT" ]; then
-          echo "⛔ 테스트 수집 설정이 바뀌었다 — 수집 범위를 줄여 테스트를 통째로 끈 게 아닌지 검토"
-          echo "$CFGHIT" | head -10
-          SUSPECT=1
-        fi
-      fi
-      if [ -n "$SRCS" ] && [ -n "$TESTS" ]; then
-        echo "ⓘ 소스와 테스트 동시 수정(정상 작업일 수 있음 — 기록만)"
-        echo "  소스:"; echo "$SRCS" | sed 's/^/    /'
-        echo "  테스트:"; echo "$TESTS" | sed 's/^/    /'
-        NOTE=1
-      fi
-      # CI설정은 테스트와 별개 축으로 센다 — 한 덩어리로 세면 CI만 고쳐도 '테스트 동시 수정'으로 오탐난다.
-      if [ -n "$CICONF" ] && [ -n "$TESTS" ]; then
-        echo "ⓘ CI설정과 테스트 동시 수정(기록만) — 게이트를 무르게 하며 테스트를 고친 게 아닌지는 리뷰가 본다"
-        NOTE=1
-      fi
-      if [ -n "$SRCS" ] && [ -n "$CICONF" ]; then
-        echo "ⓘ 소스와 CI설정 동시 수정(기록만)"
-        NOTE=1
-      fi
-      # ⛔무력화 감지 — 테스트 파일이 바뀌었으면 **항상** 본다.
-      #   ·skip/only/todo 추가 = 어떤 경우든 의심(테스트를 끄는 행위 자체)
-      #   ·줄 삭제 = 소스·CI를 안 건드린 '테스트만 변경'일 때만 의심(리팩터링 중 줄 삭제는 정상)
-      #   테스트 '추가·보강'은 조용히 통과시킨다. ※공백 든 파일명은 파일럿 scripts/tamper-check.sh 판이 안전하다.
-      if [ -n "$TESTS" ]; then
-        DIFF=$(git --literal-pathspecs diff --no-renames --unified=0 origin/main...HEAD -- $TESTS)
-        DEL=$(echo "$DIFF" | grep -E '^-' | grep -vE '^--- ' || true)
-        # skipIf(true)·runIf(false) 포함 — 조건을 상수로 박아 끄는 우회(조건부 자체는 관용구라 제외)
-        OFF=$(echo "$DIFF" | grep -E '^\+' | grep -vE '^\+\+\+ ' | grep -E '(^|[^A-Za-z0-9_])(it|test|describe)(\.[A-Za-z]+)*\.(skip|only|todo|failing)[[:space:]]*[(<`.]|(^|[^A-Za-z0-9_])x(it|test|describe)[[:space:]]*\(|\.(skipIf[[:space:]]*\([[:space:]]*true|runIf[[:space:]]*\([[:space:]]*false)' || true)
-        # 테스트 케이스 '순감소' — 제목 수정처럼 선언 1줄을 지우고 1줄 추가하는 것까지 걸리면 또 상시 경고가
-        # 된다. 그래서 삭제 선언 수 > 추가 선언 수일 때만 본다(파일을 test/ 밖으로 옮겨 없애는 은닉이 이 형태).
-        CASE_RE='(^|[^A-Za-z0-9_])(it|test|describe)(\.[A-Za-z]+)*[[:space:]]*[(<`]'
-        DEL_CASES=$(echo "$DIFF" | grep -E '^-' | grep -vE '^--- ' | grep -cE "$CASE_RE" || true)
-        ADD_CASES=$(echo "$DIFF" | grep -E '^\+' | grep -vE '^\+\+\+ ' | grep -cE "$CASE_RE" || true)
-        if [ -n "$OFF" ]; then
-          echo "⛔ 테스트에 skip/only/todo 추가 — 테스트 무력화가 아닌지 검토"
-          SUSPECT=1
-        fi
-        if [ "$DEL_CASES" -gt "$ADD_CASES" ]; then
-          echo "⛔ 테스트 케이스가 순감소했다 — 무력화·은닉이 아닌지 검토 (선언 삭제 $DEL_CASES · 추가 $ADD_CASES)"
-          SUSPECT=1
-        elif [ -z "$SRCS" ] && [ -z "$CICONF" ] && [ -n "$DEL" ]; then
-          # 케이스 수는 그대로인데 줄만 지워진 것 = 단언 삭제이거나 리팩터링. 파일 규칙으로는 못 가르므로
-          # 알림으로 남긴다(실질 판정은 /done 리뷰). 실패로 두면 테스트 정리 때마다 빨간불이라 원위치다.
-          echo "ⓘ 테스트만 변경됐고 줄 삭제가 있다(케이스 수는 유지 — 기록만)"
-          NOTE=1
-        fi
-      fi
-      if [ "$SUSPECT" = "1" ]; then exit 1; fi
-      if [ "$NOTE" = "1" ]; then echo "동시 수정 알림만 — 무력화 신호 없음 · OK"; else echo "변조 의심 조합 아님 — OK"; fi
+    - apk add --no-cache bash git curl >/dev/null
+    - bash scripts/ci-run-checks.sh tamper-check ai-connectivity
   allow_failure: true
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
@@ -205,48 +120,37 @@ ask-check:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       changes: [".claude/hooks/**/*", _reference/asks.md, scripts/check-asks.sh, scripts/test-check-asks.sh]
 
-# 누적 파일(friction·CHANGELOG 류)의 «사라진 줄» 검사 — ★차단한다(allow_failure 없음).
-# 왜 차단인가: 이 검사기가 태어난 사고(2026-09-10 `!451` — 남의 마찰 줄 하나가 조용히 증발)의 원인은
-#   «규칙을 안 지킨 것»이 아니라 **사람이 판정을 넘긴 것**이다. 스크립트가 「내 사본에 없는 main 줄 30개」를
-#   찍었는데 내가 고친 줄이 29개인 것을 대조하지 않았다. 그래서 처방을 「올리기 전에 사람이 돌려라」로만
-#   두면 **방어를 사고와 같은 층(사람의 기억)에 둔 것**이라 같은 자리에서 또 무너진다.
-# ★`_reference/append-only.md` 는 「CI 는 커밋 전의 main 을 모른다」는 이유로 이 잡을 **의도적으로** 안
-#   만들었는데, 그 이유가 틀렸다 — `git show origin/main:<파일>` 이 정확히 «지금의 main» 이다.
-#   2026-09-16 실측(픽스처): merge base 기준 = exit 0(놓침) · origin/main tip 기준 = exit 1(잃은 줄 지목).
-# ★changes: 를 걸지 않는다 — 누적 파일을 안 건드린 MR 은 «검사 0건»으로 조용히 통과한다(무해).
-#   반대로 걸어 두면 판정 유무가 브랜치 상태에 따라 흔들린다(migration-immutable 과 같은 이유).
-append-only-check:
+# MR 전용 차단형 묶음 — ★allow_failure 를 쓰지 않는다(묶는 이유는 위 `mr-warnings` 머리 주석).
+#   · migration-immutable — 머지된 마이그레이션 불변 감시(삭제·수정·이름변경이면 빨간불).
+#     왜: `git revert -m 1` 은 되돌리는 머지에 딸린 마이그레이션 폴더를 그냥 삭제한다(2026-08-06 리허설 실증).
+#     CLAUDE.md '스키마·데이터'의 "main 에 머지된 파일은 불변"은 사람 규칙뿐이었고, 기본 도구의 기본 동작이
+#     그 규칙을 깨는 쪽이라 사고가 조용히 지나간다(적용된 마이그레이션이 사라지면 드리프트).
+#     되돌리는 정해진 길 = 파일은 되살려 두고(git checkout <머지커밋> -- <폴더>) 역DDL 을 담은 '새 마이그레이션'을
+#     추가한다 → 그러면 diff 에 A 만 남아 통과한다(절차: _reference/revert.md B).
+#     ※의도적 예외 통로를 두지 않았다 — 예외가 필요하면 그 스크립트를 고쳐야 하고, 그 변경은 high-risk-gate 를 탄다.
+#     ※DB 없는 스택이면 DIR 경로가 없어 diff 0건 = 항상 통과(무해). 마이그레이션 도구 도입 시 `ci-job-migration-immutable.sh` 의 DIR 만 치환하라.
+#   · append-only-check — 누적 파일(friction·CHANGELOG 류)의 «사라진 줄» 검사.
+#     왜 차단인가: 이 검사기가 태어난 사고(2026-09-10 `!451` — 남의 마찰 줄 하나가 조용히 증발)의 원인은
+#     «규칙을 안 지킨 것»이 아니라 **사람이 판정을 넘긴 것**이다. 처방을 「올리기 전에 사람이 돌려라」로만 두면
+#     방어를 사고와 같은 층(사람의 기억)에 둔 것이라 같은 자리에서 또 무너진다.
+#     CI 는 `git show origin/main:<파일>` 로 «지금의 main» 을 안다 — merge base 기준 = 놓침 · tip 기준 = 잡음(2026-09-16 픽스처 실측).
+#   · deferred-check — «미룬 일»이 카드 번호 없이 문장으로만 남았나. 이 MR 이 «더한 줄»만 본다 — 옛 부채는 막지 않는다
+#     (주기 점검 `--all` 로 따로 본다). 빠져나갈 길 = 조각마다 `(카드 불요: 사유)`.
+#     왜 차단인가: 2026-09-17 bnsone 1차 요구 전수 대조에서 «후속 카드로·별도 카드·범위 밖(후속)»만 적고 안 생긴 일이
+#     19건 나왔다. 사람 절차(/done 6단계)만 두면 같은 층에서 또 샌다.
+#   ★changes: 를 걸지 않는다 — changes 는 '새 브랜치 첫 푸시에서 무조건 참'이라 조건부로 만들면 판정 유무가
+#     브랜치 상태에 따라 흔들린다(_reference/ci-needs.md). 대상 파일을 안 건드린 MR 은 각 검사가 «0건»으로 몇 초에 통과한다.
+#   ★검사기 자체가 맞는지 먼저 본다(각 `ci-job-*.sh` 앞머리) — self-tests 잡은 `changes: scripts/**` 라 대상 파일만 고친
+#     MR 에서는 안 돈다. 그 MR 에서 검사기가 깨져 있으면 무음으로 통과한다.
+mr-checks:
   stage: test
   image: python:3-alpine
   variables:
-    # ★얕은 클론이면 대상 브랜치가 없어 «판정 불능»(exit 2)으로 죽는다.
+    # ★얕은 클론이면 대상 브랜치와의 merge base 가 없어 diff 가 성립하지 않는다(append-only 는 «판정 불능» exit 2 로 죽는다).
     GIT_DEPTH: 0
   script:
     - apk add --no-cache bash git >/dev/null
-    - git fetch -q origin "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
-    # ★검사기 자체가 맞는지 먼저 본다 — self-tests 잡은 `changes: scripts/**` 라 **누적 파일만 고친
-    #   MR 에서는 안 돈다**. 그 MR 에서 검사기가 깨져 있으면 무음으로 통과한다.
-    - bash scripts/test-check-append-only-git.sh
-    - bash scripts/check-append-only-git.sh "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-
-# «미룬 일»이 카드 번호 없이 문장으로만 남았나 — ★차단한다(allow_failure 없음).
-# 왜 차단인가: 2026-09-17 bnsone 1차 요구 전수 대조에서 «후속 카드로·별도 카드·범위 밖(후속)»만 적고 안 생긴 일이
-#   19건 나왔다(예고 카드 11 · 분해안 5 · 1차 기능 3). 사람 절차(/done 6단계)만 두면 같은 층에서 또 샌다.
-# 이 MR 이 «더한 줄»만 본다 — 옛 부채는 막지 않는다(주기 점검 `--all` 로 따로 본다). 빠져나갈 길 = 조각마다 `(카드 불요: 사유)`.
-# ★changes: 를 걸지 않는다 — docs 를 안 건드린 MR 은 «파일 0개»로 조용히 통과한다(무해).
-deferred-check:
-  stage: test
-  image: python:3-alpine
-  variables:
-    GIT_DEPTH: 0
-  script:
-    - apk add --no-cache bash git >/dev/null
-    - git fetch -q origin "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
-    # 검사기 자체가 맞는지 먼저 — self-tests 는 scripts/** 변경 MR 에서만 돈다(append-only-check 와 같은 이유)
-    - bash scripts/test-check-deferred.sh
-    - bash scripts/check-deferred.sh "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
+    - bash scripts/ci-run-checks.sh migration-immutable append-only-check deferred-check
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
 
@@ -301,41 +205,21 @@ secret-scan:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH == "main"'
 
-# 파일명 유니코드 정규화(NFC/NFD) 충돌 검사 — 기획자 웹 업로드(대개 NFC)와 맥 로컬 git add(NFD)가
-# **같은 표시명의 파일을 두 벌** 만든 실사고 방지(bnsone #85 — 이틀 잠복, 눈·grep·기존 CI 전부 못 잡음:
-# 화면엔 한 파일로 보이고 grep 패턴은 한쪽 인코딩만 친다). 검사는 체크아웃 트리 전수(= 그 커밋의 추적 파일).
-# ★차단은 "정규화하면 같은 경로가 되는 실물 두 벌"만 — 이 겹침은 항상 진짜 중복이라 오탐이 없다.
-#   NFD 단독 존재(겹침 없음)는 경고만 낸다 — 맥 git 설정에 따라 정상 작업에서도 나올 수 있어 차단하면 오탐.
-filename-nfc-check:
+# MR·main 공통 차단형 묶음 — ★allow_failure 를 쓰지 않는다(묶는 이유는 위 `mr-warnings` 머리 주석).
+#   · planner-guard — 비개발자(기획/디자이너) 직접 push 안전망. CE엔 경로별 push 제한(CODEOWNERS·Push Rules)이 없어
+#     '사후 감지'로 대체한다. CI/CD Variables 에 PLANNER_EMAILS 를 등록하면 발효(미등록이면 무해 통과).
+#   · filename-nfc-check — 파일명 유니코드 정규화(NFC/NFD) 충돌 검사(같은 표시명의 파일 두 벌 — bnsone #85).
+#     겹침만 차단, NFD 단독은 경고만.
+#   ★main 에도 건다 — main 직접 push(기획자 docs 직접 push·최초 구축 예외)도 검사한다.
+repo-guards:
   stage: test
   image: python:3-alpine
+  variables:
+    # 얕은 클론이면 push 범위(BEFORE..SHA)의 앞쪽 커밋이 없어 planner-guard 의 git log 가 실패한다 → 폴백으로 떨어져 감시 범위가 준다.
+    GIT_DEPTH: 0
   script:
-    - |
-      python3 - <<'PY'
-      import os, sys, unicodedata
-      seen, dups, nfd = {}, [], []
-      for root, dirs, files in os.walk('.'):
-          dirs[:] = [d for d in dirs if d != '.git']
-          for f in files:
-              p = os.path.relpath(os.path.join(root, f), '.')
-              key = unicodedata.normalize('NFC', p)
-              if p != key:
-                  nfd.append(p)
-              if key in seen and seen[key] != p:
-                  dups.append((seen[key], p))
-              else:
-                  seen[key] = p
-      if nfd and not dups:
-          print(f"주의: NFD 인코딩 파일명 {len(nfd)}건(겹침 없음 — 통과). 맥에서 git config core.precomposeunicode true 권장:")
-          for p in nfd[:10]: print("  -", p)
-      if dups:
-          print("⛔ 같은 표시명의 파일이 두 벌 있습니다 — 유니코드 정규화(NFC/NFD) 충돌:")
-          for a, b in dups:
-              print(f"  · {a!r} ↔ {b!r}  (화면·grep에는 하나로 보입니다)")
-          print("고치기: 두 벌의 내용을 대조해 최신 쪽만 남기고, 남길 파일 이름을 NFC로 통일(git mv). 경위는 bnsone #85 참조.")
-          sys.exit(1)
-      print(f"파일명 정규화 충돌 0건 (검사 {len(seen)}개)")
-      PY
+    - apk add --no-cache bash git >/dev/null
+    - bash scripts/ci-run-checks.sh planner-guard filename-nfc-check
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH == "main"'
@@ -371,7 +255,7 @@ deploy-review:
     - |
       echo "고위험 변경 게이트 — 발동 사유: ${GATE_REASON:-미지정}"
       echo "경고 레인입니다 — AI 경고 리뷰 + 증적 3종을 남기고 본인이 이 잡을 실행합니다(동료 승인은 선택 · CLAUDE.md 머지 등급)."
-      echo "본인이 실행하려면 MR 에 '셀프승인' 라벨을 붙이고 ★새 파이프라인을 돌린 뒤 이 잡을 실행하세요."
+      echo "본인이 실행하려면 MR 에 '셀프승인' 라벨을 붙이고 node scripts/mr-pipeline-refresh.cjs <MR번호> 를 돌리세요(라벨이 늦게 붙었을 때만 새 파이프라인을 만든다)."
       # ★안내 echo 만 있던 시절 = 게이트가 걸린 머지 24건 중 18건(75%)을 MR 작성자 본인이 눌렀고
       #  실 개발자 간 동료 승인은 0건이었다(2026-08-06 파일럿 전수 실측). GitLab CE 에는 '작성자
       #  승인 금지' 설정이 없다(projects/:id/approvals → 404 = Premium 기능). 그래서 잡이 직접 판정한다.
@@ -409,8 +293,9 @@ deploy-review:
       if [ "$SELF" = "1" ]; then
         echo "⛔ '셀프승인' 라벨이 없습니다 — 이 잡을 누른 사람(${PLAYER})이 변경 작성자와 같습니다."
         echo "   본인 통과가 표준 경로입니다(경고 레인). MR 에 '셀프승인' 라벨을 붙이고"
-        echo "   ★새 파이프라인을 돌린 뒤 이 잡을 실행하세요 — MR 라벨은 파이프라인 생성 시점에 읽히므로"
-        echo "   라벨만 붙이고 이 잡을 재실행해도 반영되지 않습니다(빈 커밋 push 또는 Run pipeline)."
+        echo "   node scripts/mr-pipeline-refresh.cjs <MR번호> 를 돌리세요 — MR 라벨은 파이프라인 생성 시점에 읽히므로"
+        echo "   라벨만 붙이고 이 잡을 재실행해도 반영되지 않습니다. 그 스크립트가 새 파이프라인을 만들고 이 파이프라인은 취소합니다"
+        echo "   (손으로 빈 커밋 push·Run pipeline 을 하면 같은 커밋에 두 벌이 돕니다)."
         exit 1
       fi
       if [ -z "$PLAYER" ]; then
@@ -445,6 +330,9 @@ high-risk-gate:
     #   판정 스크립트는 그대로 돌아 «✅ 본인 통과(경고 레인)» 로그를 남긴다 — 승인의 실체는 증적 3종+라벨이고
     #   ▶ 클릭은 정보량 0 이었다(8/6 실측 게이트 24건 중 18건 본인 실행). 라벨 없는 MR 은 아래 manual 규칙(동료 레인) 그대로.
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_LABELS =~ /(^|,)셀프승인(,|$)/'
+      # ⚠️`changes:` 목록 하나는 **50줄이 상한**이다 — 넘으면 GitLab 이 «has too many entries (maximum 50)» 로 설정 전체를
+      #   무효로 본다(파이프라인이 안 만들어져 전 게이트가 꺼진다 · 자기시험은 그대로 초록). `/scaffold` 가 더하는 스택 경로도
+      #   이 50줄에 든다 — 넘칠 것 같으면 글로브로 합쳐라. 줄 수는 `scripts/test-ci-changes-limit.sh` 가 센다.
       changes: &high-risk-paths
         - src/shared/**/*
         - db/migrations/**/*              # 스택 마이그레이션 경로로 치환 (Prisma 면 prisma/**/*)
@@ -457,6 +345,14 @@ high-risk-gate:
         - .claude/**/*                    # AI 규칙 실물 — 스킬·rules·settings.json(권한·훅)·훅 스크립트 전부
         - .husky/**/*                     # git 훅 실물 — 한 줄 고치면 전원의 pre-push 검사가 영구히 꺼진다(2026-08-11 리뷰 B-1)
         - .gitattributes                  # 줄바꿈 규칙 — 깨지면 게이트 .sh 가 조용히 안 돈다
+        # 훅 HITS 에만 있던 경로 — CI 도 같이 건다(훅↔CI 1:1).
+        - Dockerfile
+        - docker-compose.yml
+        - docker-compose.yaml
+        - "**/middleware.*"               # 인증·라우팅 입구(Next 16 은 proxy.*)
+        - "**/proxy.*"
+        - "**/yarn.lock"
+        - "**/pnpm-lock.yaml"
         # ★게이트 스크립트만 명시한다 — `scripts/**/*` 전체를 걸면 스파이크·작업 코드까지
         #   매번 수동 승인이 걸려 승인이 도장찍기가 된다(파일럿 실측). `changes:`는 제외를 지원하지 않으니 열거가 유일한 방법.
         # ★2026-09-09: 이름 규약 글로브로 바꿨다 — 훅(`check-push.sh` HITS)은 `scripts/(check|test|notify|extract)-*`
@@ -481,6 +377,8 @@ high-risk-gate:
         - scripts/extract-*.py
         - scripts/run-self-tests.sh       # 이름 규약 밖이지만 차단형 `self-tests` 잡이 직접 부른다 — 빈 루프로 바꾸면 전부 초록
         - scripts/pipeline-verdict.cjs    # 머지 판정 근거 — 느슨해지면 «종결초록» 오판으로 머지된다
+        - scripts/mr-pipeline-refresh.cjs # 게이트 절차가 부른다 — 파이프라인을 만들고 «취소»한다
+        - scripts/ci-*.sh                 # 검사 묶음 실행기·잡 본문(ci-run-checks·ci-job-*) — 빈 본문으로 바꾸면 묶음이 초록
         - scripts/gen-module.cjs          # 모듈 생성기 = 새 모듈의 골격을 정한다
         - test/*.test.js                  # 경계 검사기 회귀 테스트
         # ⚠️이름 규약 밖 스크립트를 차단형 잡이 직접 부르게 했으면 여기와 훅 HITS 양쪽에 더하라(배포처 예: soak-int-tests.sh).
@@ -498,7 +396,9 @@ high-risk-gate:
 #   머지된다(파일럿 !113 실측). `changes:` 는 '지금 diff 에 그 파일이 있나'만 보므로, 라벨은 사람이 붙인
 #   '이 변경은 고위험' 판단이라 diff 로 지워지지 않는다. /done 7단계가 고위험 MR 에 `--label 고위험`을 강제한다.
 # ※경로 입구와 동시 발동하면 manual 버튼이 2개 뜬다 — 무해하다(둘 다 같은 판정, 둘 다 눌러야 머지).
-# ※한계: MR 라벨은 파이프라인 생성 시점에 읽힌다. 라벨을 나중에 붙였으면 새 파이프라인을 돌려야 잡이 생긴다.
+# ※한계: MR 라벨은 파이프라인 생성 시점에 읽힌다. 라벨을 나중에 붙였으면 새 파이프라인을 돌려야 잡이 생긴다
+#   — `node scripts/mr-pipeline-refresh.cjs <MR번호>` 가 «늦게 붙었을 때만» 만들고 같은 커밋의 앞 것을 취소한다.
+#   이 잡·위 `high-risk-gate` 가 읽는 라벨 이름을 바꾸면 그 스크립트의 GATE_LABELS 도 함께(`test-mr-pipeline-refresh.sh` ⑤가 대조).
 #   한글 라벨의 RE2 매칭은 실 파이프라인 실측 전 — 첫 고위험 MR 에서 잡 생성을 눈으로 확인하라(/done 7단계).
 high-risk-label-gate:
   extends: .peer-approval-gate
@@ -510,90 +410,3 @@ high-risk-label-gate:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_LABELS =~ /고위험/'
       when: manual
       allow_failure: false
-
-# 머지된 마이그레이션 불변 감시 — 삭제·수정이면 빨간불 (allow_failure 없음 = 차단형)
-# ★왜: `git revert -m 1` 은 되돌리는 머지에 딸린 마이그레이션 폴더를 그냥 삭제한다(2026-08-06 리허설 실증).
-#   CLAUDE.md '스키마·데이터'의 "main 에 머지된 파일은 불변"은 사람 규칙뿐이었고,
-#   기본 도구의 기본 동작이 그 규칙을 깨는 쪽이라 사고가 조용히 지나간다(적용된 마이그레이션이 사라지면 드리프트).
-# ★되돌리는 정해진 길 = 파일은 되살려 두고(git checkout <머지커밋> -- <폴더>) 역DDL 을 담은
-#   '새 마이그레이션'을 추가한다 → 그러면 diff 에 A 만 남아 이 잡이 통과한다. (절차: _reference/revert.md B)
-# ※의도적 예외 통로를 두지 않았다 — 예외가 필요하면 이 파일을 고쳐야 하고, 그 변경은 high-risk-gate 를 탄다.
-# ※DB 없는 스택이면 DIR 경로가 없어 diff 0건 = 항상 통과(무해). 마이그레이션 도구 도입 시 DIR 만 치환하라.
-migration-immutable:
-  stage: test
-  image: alpine:3
-  variables:
-    # 얕은 클론이면 대상 브랜치와의 merge base 가 없어 diff 가 성립하지 않는다.
-    GIT_DEPTH: 0
-  script:
-    - apk add --no-cache git >/dev/null
-    - |
-      # 비교 기준은 MR 의 실제 대상 브랜치 — main 을 박아두면 다른 브랜치로 가는 MR을 엉뚱한 기준과 비교한다
-      TARGET="${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
-      git fetch -q origin "$TARGET" || { echo "⛔ origin/$TARGET fetch 실패 — 비교 기준이 없어 판정 불가"; exit 1; }
-      BASE=$(git merge-base HEAD "origin/$TARGET") || BASE=""
-      # ★기준을 못 구하면 조용히 통과하지 않고 소리를 낸다 — 통과시키면 안전망이 필요한 순간에만 꺼진다
-      if [ -z "$BASE" ]; then echo "⛔ merge base 를 못 구했다(GIT_DEPTH: 0 확인) — 판정 불가라 실패시킨다"; exit 1; fi
-      DIR="db/migrations"               # 스택 마이그레이션 경로로 치환 (Prisma 폴더형이면 prisma/schema/migrations)
-      # ★필터에 R(이름변경)을 반드시 포함한다 — 폴더명만 바꾸면 git 은 삭제로 보지 않고 R 로 기록해
-      #   DM 만 볼 때 이름 변경이 100% 새어 나갔다(사본 실측). 마이그레이션은 이름이 곧 순번이다.
-      HIT=$(git diff --diff-filter=DMR --name-only "$BASE" HEAD -- "$DIR" || true)
-      if [ -n "$HIT" ]; then
-        echo "⛔ 머지된 마이그레이션을 삭제·수정·이름변경했습니다 (CLAUDE.md '스키마·데이터' — 머지된 파일은 불변):"
-        echo "$HIT"
-        echo "   → 되돌리려면: git revert -m 1 --no-commit <머지커밋> 후"
-        echo "     git checkout <머지커밋> -- $DIR/<되돌릴대상> 로 파일을 되살리고,"
-        echo "     역DDL(DROP ... IF EXISTS 등 멱등)을 담은 새 마이그레이션을 추가하세요(_reference/revert.md B)."
-        echo "   → 신규 추가(A)만 있으면 이 잡은 통과합니다. 마이그레이션 MR 은 고위험 = 경고 레인(AI 경고 리뷰 + 증적 3종)."
-        exit 1
-      fi
-      ADD=$(git diff --diff-filter=A --name-only "$BASE" HEAD -- "$DIR" || true)
-      N=$(echo "$ADD" | sed '/^$/d' | wc -l | tr -d ' ')
-      echo "마이그레이션 삭제·수정·이름변경 없음 — OK (신규 추가 파일 ${N}건)"
-  rules:
-    # ★changes: 를 걸지 않는다 — changes 는 '새 브랜치 첫 푸시에서 무조건 참'이라
-    #   조건부로 만들면 판정 유무가 브랜치 상태에 따라 흔들린다(_reference/ci-needs.md). 항상 돌게 둔다.
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-
-# 비개발자(기획/디자이너) 직접 push 안전망
-# CE엔 경로별 push 제한(CODEOWNERS·Push Rules)이 없어 '사후 감지'로 대체한다.
-# 공통 개발자가 CI/CD Variables 에 PLANNER_EMAILS(기획/디자이너 이메일, 쉼표구분)를 등록하면 발효.
-# 그 계정이 docs/·README 외(코드·CI·설정) 파일을 바꾸면 파이프라인 실패 → 되돌린다.
-planner-guard:
-  stage: test
-  image: alpine:3
-  variables:
-    # 얕은 클론이면 push 범위(BEFORE..SHA)의 앞쪽 커밋이 없어 git log 가 실패한다 → 폴백으로 떨어져 감시 범위가 준다.
-    GIT_DEPTH: 0
-  script:
-    - apk add --no-cache git >/dev/null
-    - 'echo "author=$CI_COMMIT_AUTHOR"'
-    - |
-      if [ -z "$PLANNER_EMAILS" ]; then echo "PLANNER_EMAILS 미설정 — 감지 비활성(무해). 공통 개발자가 등록하면 발효"; exit 0; fi
-      HIT=0
-      for e in $(echo "$PLANNER_EMAILS" | tr ',' ' '); do
-        case "$CI_COMMIT_AUTHOR" in *"<$e>"*) HIT=1;; esac
-      done
-      if [ "$HIT" != "1" ]; then echo "개발자 커밋 — 통과"; exit 0; fi
-      # ★push 범위 전체를 본다 — 마지막 커밋 하나(git show $CI_COMMIT_SHA)만 보면
-      #   커밋 2개를 한 번에 push했을 때 앞 커밋의 위반이 그대로 통과한다.
-      CH=""
-      ZERO="0000000000000000000000000000000000000000"
-      if [ -n "${CI_COMMIT_BEFORE_SHA:-}" ] && [ "$CI_COMMIT_BEFORE_SHA" != "$ZERO" ]; then
-        CH=$({ git -c core.quotepath=false log --name-only --pretty=format: "$CI_COMMIT_BEFORE_SHA".."$CI_COMMIT_SHA" 2>/dev/null || true; } | sed '/^$/d' | sort -u)
-      fi
-      # 폴백 — 새 브랜치 첫 push는 BEFORE_SHA가 0으로 채워진 SHA다(MR 파이프라인도 동일). 그땐 종전대로 마지막 커밋만 본다.
-      if [ -z "$CH" ]; then
-        CH=$(git -c core.quotepath=false show --name-only --pretty=format: "$CI_COMMIT_SHA" | sed '/^$/d')
-      fi
-      echo "변경 파일:"; echo "$CH"
-      BAD=$(echo "$CH" | grep -vE '^(docs/|README)' || true)
-      if [ -n "$BAD" ]; then
-        echo "⛔ 기획/디자이너 계정이 docs/·README 외 파일을 변경했습니다:"; echo "$BAD"
-        echo "코드·CI·배포설정은 개발자만 변경합니다. 이 커밋을 되돌리세요(공통 개발자 문의)."
-        exit 1
-      fi
-      echo "docs/ 내 변경만 — OK"
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 「쌓이는 파일」(friction·CHANGELOG 류)이 이 브랜치에서 항목을 잃었는지 본다 — CI 잡 `append-only-check` 가 부른다.
+# 「쌓이는 파일」(friction·CHANGELOG 류)이 이 브랜치에서 항목을 잃었는지 본다 — CI 묶음 잡 `mr-checks` 의 `append-only-check` 검사(`ci-job-append-only-check.sh`)가 부른다.
 #
 # 왜 CI 에서도 봐야 하나: `check-append-only.py` 는 «올리기 전에 사람이 돌려라»로만 걸려 있었다(`CLAUDE.md` 킷동기 절).
 #   그런데 그 검사기가 태어난 사고(2026-09-10 `!451`)의 원인이 **사람이 판정을 넘긴 것**이다 — 방어를 같은 층
@@ -37,7 +37,7 @@ PREFIX=$(git rev-parse --show-prefix 2>/dev/null) || {
 if [ -n "$PREFIX" ]; then
   echo "⛔ 판정 불능 — repo 루트가 아니라 '$PREFIX' 에서 돌았다(PAIRS 는 루트 기준 경로다)."
   echo "   ①repo 루트로 옮겨 다시 돌려라."
-  echo "   ②킷처럼 이 스크립트가 하위 폴더에 놓인 곳이라면 여기서는 돌리는 것이 아니다 — 이 파일은 «배포처 repo 루트»(CI 잡 append-only-check) 전용이고, 사람이 손으로 볼 때는 `scripts/check-append-only.py` 에 두 경로를 직접 준다(_reference/append-only.md)."
+  echo "   ②킷처럼 이 스크립트가 하위 폴더에 놓인 곳이라면 여기서는 돌리는 것이 아니다 — 이 파일은 «배포처 repo 루트»(CI 묶음 잡 mr-checks 의 append-only-check 검사) 전용이고, 사람이 손으로 볼 때는 `scripts/check-append-only.py` 에 두 경로를 직접 준다(_reference/append-only.md)."
   exit 2
 fi
 

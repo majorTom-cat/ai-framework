@@ -40,6 +40,8 @@ RUNNER=$(mkfixture runner scripts/run-self-tests.sh)
 APPENDPY=$(mkfixture appendpy scripts/check-append-only.py)
 VERDICT=$(mkfixture verdict scripts/pipeline-verdict.cjs)
 BTEST=$(mkfixture btest test/check-boundaries.test.js)
+CIJOB=$(mkfixture cijob scripts/ci-job-tamper-check.sh)      # 검사 묶음 잡 본문 — 빈 본문이면 묶음이 초록
+REFRESH=$(mkfixture refresh scripts/mr-pipeline-refresh.cjs) # 게이트 절차가 부르는 파이프라인 재생성기
 SPIKE=$(mkfixture spike scripts/spike-run-self-tests.sh.bak)  # 이름만 닮은 작업 파일 → 조용해야 한다
 REPO="$CLEAN"
 
@@ -145,7 +147,7 @@ REPO="$CHECKER"
 t NOTE '공통 영역' 'git push origin work'                   # 검사기 자신 — 게이트를 느슨하게 하는 변경도 알린다
 REPO="$SHARED"
 t NOTE '공통 영역' 'git push origin work'                   # 공용 코드
-for R in "$RUNNER" "$APPENDPY" "$VERDICT" "$BTEST"; do
+for R in "$RUNNER" "$APPENDPY" "$VERDICT" "$BTEST" "$CIJOB" "$REFRESH"; do
   REPO="$R"; t NOTE '공통 영역' 'git push origin work'      # 차단형 잡이 직접 부르는 스크립트·경계 회귀 테스트
 done
 REPO="$SPIKE"
@@ -174,6 +176,26 @@ if [ ! -f "$CI" ] || [ -z "$PAT" ]; then echo "FAIL(판정 불능 — CI 파일�
     if printf '%s\n' "$p" | grep -qiE "$PAT"; then pass=$((pass+1)); else echo "FAIL(CI 에만 있음 — 훅 HITS 가 안 잡는다): $g"; fail=$((fail+1)); fi
   done
   set +f
+fi
+
+echo "── J2. 게이트 스크립트 이름이 «양쪽 다» 걸린다 — 훅만 넓히고 CI 에 안 더하면(또는 반대) 여기서 빨개진다"
+# ★J 는 «CI 에 있는 줄을 훅이 잡나» 한 방향이다. CI 에서 줄을 지우면 J 는 셀 것이 줄어 초록인 채로 남는다 —
+#   그래서 게이트가 꼭 덮어야 하는 이름을 직접 찔러 CI 목록(글로브)과 훅 패턴 둘 다에 걸리는지 본다.
+if [ ! -f "$CI" ] || [ -z "$PAT" ]; then echo "FAIL(판정 불능 — CI 파일이나 훅 패턴을 못 읽음)"; fail=$((fail+1)); else
+  G2=$(sed -n '/&high-risk-paths/,/when:/p' "$CI" | grep -oE '^[[:space:]]+- [^[:space:]#]+' | sed 's/^[[:space:]]*- //; s/^"//; s/"$//')
+  for p in scripts/ci-run-checks.sh scripts/ci-job-sample.sh scripts/mr-pipeline-refresh.cjs scripts/pipeline-verdict.cjs scripts/run-self-tests.sh; do
+    printf '%s\n' "$p" | grep -qiE "$PAT" && pass=$((pass+1)) || { echo "FAIL(훅 HITS 가 안 잡는다): $p"; fail=$((fail+1)); }
+    hit=0
+    set -f
+    for g in $G2; do
+      # GitLab 글로브의 * 는 / 를 넘지 않는다 — 셸 case 는 넘으므로 슬래시 수가 같을 때만 대조한다
+      [ "$(printf '%s' "$g" | tr -cd / | wc -c)" = "$(printf '%s' "$p" | tr -cd / | wc -c)" ] || continue
+      # shellcheck disable=SC2254
+      case "$p" in $g) hit=1; break ;; esac
+    done
+    set +f
+    [ "$hit" = 1 ] && pass=$((pass+1)) || { echo "FAIL(CI high-risk-paths 가 안 잡는다): $p"; fail=$((fail+1)); }
+  done
 fi
 
 echo "──────── $pass OK / $fail FAIL"

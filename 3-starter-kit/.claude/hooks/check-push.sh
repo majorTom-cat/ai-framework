@@ -125,7 +125,8 @@ CHANGED=$(printf '%s\n' "$CHANGED" | sed 's/^"//; s/"$//')
 # ★lockfile·package.json은 루트 앵커(^) 밖 — 모노레포 하위(`apps/web/package.json`)를 못 잡았다.
 # ★이름 규약 밖인데 차단형 잡이 «직접» 부르는 것도 넣는다(`run-self-tests.sh`·`check-append-only.py`·`pipeline-verdict.cjs`) —
 #   빠지면 그걸 무르게 하는 MR 이 알림·게이트 없이 셀프 머지된다(2026-09-29 배포처 friction). CI `high-risk-paths` 와 1:1.
-HITS=$(printf '%s\n' "$CHANGED" | grep -iE '^(src/shared/|\.claude/|\.gitlab/|\.husky/|db/migrations/|CLAUDE\.md$|\.gitattributes$|\.gitlab-ci\.ya?ml$|docker-compose\.ya?ml$|Dockerfile$|scripts/(check|test|notify|extract)-[A-Za-z0-9._-]*\.(sh|cjs|ts|py)$|scripts/(gen-module|pipeline-verdict)\.cjs$|scripts/run-self-tests\.sh$|test/[^/]*\.test\.js$)|(^|/)(middleware|proxy)\.[a-z.]+$|(^|/)package(-lock)?\.json$|(^|/)(yarn\.lock|pnpm-lock\.yaml)$' || true)
+#   검사 묶음 실행기·잡 본문(`scripts/ci-*.sh`)과 게이트 절차가 부르는 `mr-pipeline-refresh.cjs` 도 같은 이유로 넣는다.
+HITS=$(printf '%s\n' "$CHANGED" | grep -iE '^(src/shared/|\.claude/|\.gitlab/|\.husky/|db/migrations/|CLAUDE\.md$|\.gitattributes$|\.gitlab-ci\.ya?ml$|docker-compose\.ya?ml$|Dockerfile$|scripts/(check|test|notify|extract)-[A-Za-z0-9._-]*\.(sh|cjs|ts|py)$|scripts/ci-[A-Za-z0-9._-]*\.sh$|scripts/(gen-module|pipeline-verdict|mr-pipeline-refresh)\.cjs$|scripts/run-self-tests\.sh$|test/[^/]*\.test\.js$)|(^|/)(middleware|proxy)\.[a-z.]+$|(^|/)package(-lock)?\.json$|(^|/)(yarn\.lock|pnpm-lock\.yaml)$' || true)
 [ -z "$HITS" ] && exit 0
 
 N=$(printf '%s\n' "$HITS" | grep -c .)
