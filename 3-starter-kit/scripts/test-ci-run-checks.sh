@@ -92,7 +92,8 @@ LOOSE=$(grep -ac 'ci-run-checks\.sh [a-z]' "$CI_YML" || true)
 STRICT=$(grep -acE "$CALL_RE" "$CI_YML" || true)
 [ "$LOOSE" = "$STRICT" ] && pass || fail "ci-run-checks.sh 를 부르는 줄 ${LOOSE}개 중 정식 모양은 ${STRICT}개다 — 주석 처리됐거나 뒤에 무언가(|| true 등) 붙었다"
 # 묶음 잡 블록: `이름:` 줄부터 다음 최상위 줄 전까지(주석 줄 제외)
-job_block() { awk -v j="$1:" '$0==j{f=1;next} f&&/^[^ ]/{exit} f' "$CI_YML" | grep -v '^[[:space:]]*#'; }
+# 블록 끝 = 0열의 «주석 아닌» 줄. 0열 주석에서 끊으면 그 뒤의 `allow_failure: true` 를 못 봐 차단형이 경고가 돼도 초록이다.
+job_block() { awk -v j="$1:" '$0==j{f=1;next} f&&/^[^ #]/{exit} f' "$CI_YML" | grep -v '^[[:space:]]*#'; }
 # 러너를 부르는 잡은 전부 BLOCKING_JOBS·WARNING_JOBS 중 한쪽에 분류돼 있어야 한다
 BUNDLES=$(awk '/^[a-z][a-z0-9-]*:$/{j=substr($0,1,length($0)-1)} /^    - bash scripts\/ci-run-checks\.sh/{print j}' "$CI_YML" | sort -u)
 [ -n "$BUNDLES" ] && pass || fail "러너를 부르는 잡을 하나도 못 찾았다 — 파싱이 깨졌다"

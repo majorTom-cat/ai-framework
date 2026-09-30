@@ -7,7 +7,8 @@
 #   CI 자기시험도 안 돌고, 로컬 자기시험은 YAML 을 문법으로만 읽어 전부 초록이다. `glab ci lint` 만 잡는데 그건
 #   사람이 기억할 때만 돈다. 그래서 «넘기 전에» 로컬 `run-self-tests` 와 CI `self-tests` 가 막는다.
 # 세는 것: 블록 목록(`- 항목` 줄 — 주석 줄 제외)·한 줄 목록(`[a, b]` — 따옴표·중괄호 안 쉼표는 안 센다)·
-#   `changes: paths:` 형태. 별칭(`*이름`)은 원본(`&이름`) 자리에서 이미 셌으므로 건너뛴다.
+#   `changes: paths:` 형태. 별칭(`*이름`)은 원본(`&이름`) 자리에서 센다 — 원본이 `changes:` 밑이 아니라
+#   따로 둔 키(`.code_changes: &code_changes`)여도 `changes: *code_changes` 로 쓰이면 그 목록을 센다.
 # 종료: 0 = 전부 50 이하 · 1 = 넘는 목록 있음 또는 잣대가 빗나감(목록을 거의 못 읽음)
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
@@ -34,6 +35,18 @@ function count_inline(s,    i, c, n, q, br, sawtok) {
   return sawtok ? n + 1 : 0
 }
 function flush() { if (mode != "") { print start "\t" name "\t" cnt }; mode = "" }
+function open_list(rest) {
+  if (rest ~ /^\[/) {
+    if (index(rest, "]") > 0) { mode = "x"; cnt = count_inline(rest); flush(); return }
+    mode = "inline"; buf = rest; return
+  }
+  mode = "block"
+}
+# 1차 읽기: `changes: *이름` 으로 쓰이는 별칭 이름을 모은다
+FNR == NR {
+  if (match($0, /changes:[[:space:]]*\*[A-Za-z0-9_.-]+/)) { a = substr($0, RSTART, RLENGTH); sub(/^.*\*/, "", a); used[a] = 1 }
+  next
+}
 {
   line = $0
   if (mode == "inline") {
@@ -63,18 +76,24 @@ function flush() { if (mode != "") { print start "\t" name "\t" cnt }; mode = ""
     col = p - 1
     rest = substr(line, p + 8)
     sub(/^[[:space:]]+/, "", rest)
-    start = NR; cnt = 0; itemind = -1; name = "(이름없음)"
-    if (rest ~ /^\*/) next                       # 별칭 — 원본에서 셌다
+    start = FNR; cnt = 0; itemind = -1; name = "(이름없음)"
+    if (rest ~ /^\*/) next                       # 별칭 — 원본(&이름) 자리에서 센다
     if (rest ~ /^&/) { name = rest; sub(/[[:space:]].*$/, "", name); sub(/^&/, "", name); rest = substr(rest, length(name) + 2); sub(/^[[:space:]]+/, "", rest) }
-    if (rest ~ /^\[/) {
-      if (index(rest, "]") > 0) { mode = "x"; cnt = count_inline(rest); flush(); next }
-      mode = "inline"; buf = rest; next
+    open_list(rest)
+    next
+  }
+  # `changes:` 밖에서 정의됐지만 `changes: *이름` 으로 쓰이는 앵커 목록
+  if (line !~ /^[[:space:]]*#/ && match(line, /:[[:space:]]*&[A-Za-z0-9_.-]+/)) {
+    nm = substr(line, RSTART, RLENGTH); sub(/^.*&/, "", nm)
+    if (nm in used) {
+      col = indent(line); start = FNR; cnt = 0; itemind = -1; name = nm
+      rest = substr(line, RSTART + RLENGTH); sub(/^[[:space:]]+/, "", rest)
+      open_list(rest)
     }
-    mode = "block"
   }
 }
 END { flush() }
-' "$CI_YML")
+' "$CI_YML" "$CI_YML")
 
 OK=0; FAIL=0
 N=$(printf '%s\n' "$COUNTS" | grep -c . || true)
