@@ -95,6 +95,21 @@ N1=$(grep -c . "$MINE/.claude/.session-lock"); CLAUDE_PROJECT_DIR="$MINE" bash "
 N2=$(grep -c . "$MINE/.claude/.session-lock")
 [ "$N1" = "$N2" ] && pass=$((pass+1)) || { echo "FAIL(재진입에 중복 등록: $N1 → $N2)"; fail=$((fail+1)); }
 
+echo "── D1. CLAUDE.local.md 머리 절 길이 경고(④)"
+# 한글 30자 = 90바이트. 한도 50 이면 «문자»로 세야 무음, «바이트»로 세면 경고 — 단위가 틀리면 여기서 빨개진다.
+LH="$MINE/CLAUDE.local.md"
+printf '# 메모\n\n## 🔴 세션 시작 시\n가나다라마바사아자차카타파하가나다라마바사아자차카타파하갸\n\n## 그 밖\n%s\n' "$(printf 'x%.0s' $(seq 1 200))" > "$LH"
+OUT=$(SESSION_GUARD_LOCAL_HEAD_MAX=50 CLAUDE_PROJECT_DIR="$MINE" bash "$HOOK" register 2>/dev/null)
+printf '%s' "$OUT" | grep -q '머리 절' && { echo "FAIL(한글을 바이트로 셌거나 다음 ## 절까지 셌다): $OUT"; fail=$((fail+1)); } || pass=$((pass+1))
+# 같은 절에 ### 하위 절로 쌓인 것도 센다 → 경고
+printf '# 메모\n\n## 🔴 세션 시작 시\n- 한 줄\n### 앞 세션 인계\n%s\n\n## 그 밖\n' "$(printf 'y%.0s' $(seq 1 80))" > "$LH"
+OUT=$(SESSION_GUARD_LOCAL_HEAD_MAX=50 CLAUDE_PROJECT_DIR="$MINE" bash "$HOOK" register 2>/dev/null); RC=$?
+{ [ "$RC" -eq 0 ] && printf '%s' "$OUT" | grep -q '머리 절'; } && pass=$((pass+1)) || { echo "FAIL(넘친 머리 절에 경고 안 뜸): ${OUT:-무음}"; fail=$((fail+1)); }
+# 기본 한도(4,000자)에서 짧은 절은 무음
+OUT=$(env -u SESSION_GUARD_LOCAL_HEAD_MAX CLAUDE_PROJECT_DIR="$MINE" bash "$HOOK" register 2>/dev/null)
+printf '%s' "$OUT" | grep -q '머리 절' && { echo "FAIL(기본 한도에서 짧은 절이 경고됨)"; fail=$((fail+1)); } || pass=$((pass+1))
+rm -f "$LH"
+
 # claude 조상이 있는 환경인가 — 없으면 조상 폴백은 성립할 수 없다(CI 컨테이너가 그렇다).
 has_claude_ancestor() {
   local p i; p=$(ps -o ppid= -p $$ 2>/dev/null | tr -d ' '); i=0

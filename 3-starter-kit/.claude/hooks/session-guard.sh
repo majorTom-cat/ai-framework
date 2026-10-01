@@ -147,11 +147,30 @@ catchup() { # $1=repo 루트
 MODE="${1:-check}"
 MYPID=$(my_pid) || MYPID=""
 
-# ══════════════════ ① SessionStart — 등록 + 점유 경고 (+ ③ 따라잡기) ══════════════════
+# ── ④ CLAUDE.local.md 머리 절 길이 (SessionStart · 경고만) ──
+# 왜: /handoff 4단계는 «머리 절을 덮어쓴다(누적 금지)»인데, 같은 클론의 세션 여럿이 «남의 줄은 지우지 않고» 자기 줄을
+#   위에 더해 배포처 머리 절이 세션 14개분 약 3만 자까지 불었다(2026-10-01). 매 세션 자동으로 읽히는 파일이라 그만큼 토큰이 든다.
+#   글 규칙은 이미 있었다 — 넘쳤다는 신호가 없어서 아무도 몰랐다. 그래서 신호만 낸다(차단하지 않는다).
+# 재는 범위 = `## 🔴` 제목 다음 줄부터 다음 `## ` 제목 앞까지(`###` 하위 절 포함). 단위 = 문자(UTF-8 이어지는 바이트를 빼고 센다 —
+#   로캘에 기대지 않는다. `wc -m` 은 로캘이 C 면 바이트를 세어 한글이 3배로 부푼다).
+# 한도 4,000자 = /handoff 의 «8~12줄» × 줄당 300자에 여유를 조금 둔 값. 시험용으로 SESSION_GUARD_LOCAL_HEAD_MAX 로 바꿀 수 있다.
+local_head_warn() {
+  local f="$1/CLAUDE.local.md" n lim
+  [ -f "$f" ] || return 0
+  lim="${SESSION_GUARD_LOCAL_HEAD_MAX:-4000}"
+  case "$lim" in ''|*[!0-9]*) lim=4000 ;; esac
+  n=$(LC_ALL=C awk '/^## 🔴/{on=1; next} on && /^## /{exit} on' "$f" 2>/dev/null | LC_ALL=C tr -d '\200-\277' | wc -c | tr -d ' ')
+  case "$n" in ''|*[!0-9]*) return 0 ;; esac
+  [ "$n" -gt "$lim" ] || return 0
+  echo "📏 CLAUDE.local.md 머리 절(## 🔴)이 ${n}자다(한도 ${lim}자) — 덮어쓰지 않고 쌓였다. 다음 /handoff 때 4단계대로 지금 유효한 사실만 남겨 덮어써라(세션별 문단을 쌓지 마라). 사용자에게 한 줄로 알려라."
+}
+
+# ══════════════════ ① SessionStart — 등록 + 점유 경고 (+ ③ 따라잡기 · ④ 머리 절 길이) ══════════════════
 if [ "$MODE" = "register" ]; then
   ROOT=$(repo_root "${CLAUDE_PROJECT_DIR:-.}")
   # ★따라잡기는 등록보다 «먼저», pid 와 무관하게 — pid 를 못 찾는 세션도 옛 규칙을 읽으면 안 된다.
   [ -n "$ROOT" ] && command -v git >/dev/null 2>&1 && catchup "$ROOT"
+  [ -n "$ROOT" ] && local_head_warn "$ROOT"
   if [ -z "$MYPID" ]; then
     echo "⚠️ 세션 pid를 찾지 못해 워킹트리 점유 등록을 건너뛴다 — 이 세션은 다른 세션에게 보이지 않는다(session-guard 한계 ㉡). 이 클론은 점유 보호가 안 되니 커밋 직전 \`git branch --show-current\` 로 브랜치를 확인하라."
     exit 0
