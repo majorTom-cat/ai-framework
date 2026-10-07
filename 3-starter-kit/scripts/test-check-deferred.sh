@@ -90,6 +90,20 @@ setup || { echo "⛔ 픽스처 실패"; exit 1; }
 add docs/03_Requirement/_digest.md "- 의견 수정은 이번 범위 밖이다."
 ck "G2 «이번 범위 밖»은 exit 1" "1" "$(run)"
 
+echo "── I. 값 나열은 «괄호로 묶으면» 한 조각이다 — 괄호 없는 나열·짝 안 맞는 괄호는 여전히 잡는다 (2026-10-07 bnsone #219)"
+setup || { echo "⛔ 픽스처 실패"; exit 1; }
+add docs/03_Requirement/_digest.md "- 휴가 단위는 후속 카드 #503 (연차 1 · 반차 0.5 · 반반차 0.25)."
+ck "I1 괄호 안 나열은 exit 0" "0" "$(run)"
+setup || { echo "⛔ 픽스처 실패"; exit 1; }
+add docs/03_Requirement/_digest.md "- 휴가 단위는 후속 카드 #503: 연차 1 · 반차 0.5 · 반반차 0.25."
+ck "I2 괄호 없는 나열은 exit 1(구멍 C 와 같은 모양)" "1" "$(run)"
+setup || { echo "⛔ 픽스처 실패"; exit 1; }
+add docs/03_Requirement/_digest.md "- 휴가 단위는 후속 카드 (연차 1 · 반차 0.5."
+ck "I3 괄호 안 닫히면 exit 1(전부 나눔)" "1" "$(run)"
+setup || { echo "⛔ 픽스처 실패"; exit 1; }
+add docs/03_Requirement/_digest.md "- 휴가 단위는 후속 카드 (연차 1 · 반차 0.5)."
+ck "I4 괄호 안 나열에 번호가 전혀 없으면 exit 1" "1" "$(run)"
+
 echo "── H. 못 재면 «판정 불능»(2)이다 — 통과가 아니다"
 setup || { echo "⛔ 픽스처 실패"; exit 1; }
 add docs/03_Requirement/_digest.md "- 엑셀은 별도 카드로."

@@ -7,6 +7,7 @@
 #
 # 판정: 미룸 문구가 든 줄을, 문구 «뒤»를 ` · `(앞뒤 공백 있는 가운뎃점)·`;` 로 나눠 **조각마다** `#숫자` 가 있어야 한다.
 #   한 줄에 카드 하나만 달고 나머지를 흘리는 모양(「범위 밖: A(#280) · B(#279) · C」)이 실제 사고라 줄 단위로는 못 잡는다.
+#   값 나열은 «괄호로 묶으면» 한 조각이다(괄호 안 ` · ` 는 안 쪼갠다). 괄호 없는 나열은 조각마다 번호가 필요하다.
 #   카드가 필요 없는 미룸이면 그 조각에 `(카드 불요: 사유)` 를 적는다 — 사유 없는 표시는 인정하지 않는다.
 #
 # 대상 = docs/ 중 «우리가 쓰는 문서»뿐: `_` 로 시작하는 파일(digest·STEP_INDEX) · 06 이후 STEP · adr · 그 밖 docs 바로 밑 파일.
@@ -78,6 +79,23 @@ path, pat = sys.argv[1], sys.argv[2]
 rx = re.compile(pat)
 card = re.compile(r'#\d+')
 waive = re.compile(r'\(카드 불요:\s*[^\s)]')  # 사유가 비면(`(카드 불요:)`) 인정하지 않는다
+
+def split_top(s):
+    # ` · `·`;` 로 나누되 «괄호 안»은 쪼개지 않는다 — 「후속 카드 #503 (연차 1 · 반차 0.5)」는 한 조각이다.
+    # 괄호 짝이 안 맞으면 괄호를 무시하고 전부 나눈다(구멍을 넓히지 않는 쪽).
+    parts, buf, bal, i = [], [], 0, 0
+    while i < len(s):
+        c = s[i]
+        if c in '(（': bal += 1
+        elif c in ')）': bal -= 1
+        if bal < 0: return re.split(r' · |;', s)
+        if bal == 0 and s.startswith(' · ', i):
+            parts.append(''.join(buf)); buf = []; i += 3; continue
+        if bal == 0 and c == ';':
+            parts.append(''.join(buf)); buf = []; i += 1; continue
+        buf.append(c); i += 1
+    parts.append(''.join(buf))
+    return parts if bal == 0 else re.split(r' · |;', s)
 for raw in open(path, encoding='utf-8'):
     raw = raw.rstrip('\n')
     f, n, text = raw.split(':', 2)
@@ -85,7 +103,7 @@ for raw in open(path, encoding='utf-8'):
     if not m:
         continue
     tail = text[m.start():]
-    parts = [p for p in re.split(r' · |;', tail) if p.strip()]
+    parts = [p for p in split_top(tail) if p.strip()]
     missing = [p.strip() for p in parts if not card.search(p) and not waive.search(p)]
     if missing:
         frag = missing[0]
