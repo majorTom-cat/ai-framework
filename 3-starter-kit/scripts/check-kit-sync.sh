@@ -91,11 +91,34 @@ fi
 #   (이 검사기 자신과 그 시험. 배포처엔 킷 저장소가 없어 돌려도 «판정 불능»이다.)
 SCRIPTS_DIR="scripts"; [ -n "$PREFIX" ] && SCRIPTS_DIR="$PREFIX/scripts"
 KIT_ONLY=(":(exclude)$SCRIPTS_DIR/check-kit-sync.sh" ":(exclude)$SCRIPTS_DIR/test-check-kit-sync.sh")
-LIST=$(git -C "$REPO" log --format='%h %s' "$BASE..HEAD" -- "${PATHSPEC[@]}" "${KIT_ONLY[@]}")
+# ★기준점 «하나»만 믿지 마라 — 배포처가 킷 커밋을 순서대로 받는다는 보장이 없다. 새 것을 먼저 받고(185c0e2·3da48f7)
+#   옛 것을 나중에 받으면(2d10f66·d7c843a) 마지막 표시가 옛 쪽이라 이미 받은 새 것이 «안 간 커밋»으로 남는다
+#   (2026-10-12 bnsone 실측, 2026-09-23 에도 같은 모양). 그래서 배포처의 «모든» 킷동기 표시에 적힌 해시를
+#   모아 두고, 후보 중 거기 있는 것은 뺀다. 해시는 짧은 것도 있어 킷에서 전체 해시로 풀어 비교한다.
+SYNCED=" "
+for m in $MARKS; do
+  for h in $(git -C "$DEP" log -n1 --format='%B' "$m" | grep '^킷동기:' | grep -oE '[0-9a-f]{7,40}'); do
+    full=$(git -C "$REPO" rev-parse -q --verify "${h}^{commit}" 2>/dev/null) || continue
+    SYNCED="$SYNCED$full "
+  done
+done
+RAW=$(git -C "$REPO" log --format='%H %h %s' "$BASE..HEAD" -- "${PATHSPEC[@]}" "${KIT_ONLY[@]}")
+LIST=""; ALREADY=0
+while read -r full short rest; do
+  [ -n "$full" ] || continue
+  case "$SYNCED" in
+    *" $full "*) ALREADY=$((ALREADY+1)); continue ;;
+  esac
+  LIST="$LIST$short $rest"$'\n'
+done <<EOF
+$RAW
+EOF
+LIST=${LIST%$'\n'}
 N=$(printf '%s\n' "$LIST" | grep -c . )
 
 echo "기준점 = 배포처가 마지막으로 넘긴 킷 커밋 $BASE"
 echo "대상   = ${FRAMEWORK[*]}"
+[ "$ALREADY" -gt 0 ] && echo "ℹ️ 기준점 뒤인데 배포처 «킷동기» 표시에 이미 적힌 킷 커밋 ${ALREADY}건은 뺐다(받은 순서가 킷 순서와 달랐다)"
 if [ "$N" -eq 0 ]; then
   echo "킷 동기 OK — 그 뒤로 배포처에 넘길 킷 변경이 없다"
   exit 0

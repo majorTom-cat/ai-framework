@@ -122,6 +122,31 @@ ck "I1 종료코드 1(그 앞 표시로 판정)" "1" "$(run "$D")"
 ck "I2 «해시가 없어 거슬렀다»를 알린다" "yes" "$(grep -q '해시가 없어' "$TMP/last.out" && echo yes || echo no)"
 ck "I3 판정 불능(2)으로 죽지 않는다" "yes" "$(grep -q '판정 불능' "$TMP/last.out" && echo no || echo yes)"
 
+echo "── M. ★배포처가 킷 커밋을 «순서 뒤섞어» 받았다 — 이미 표시된 새 커밋을 «안 간 것»으로 올리지 않는다"
+# 2026-10-12 bnsone 실측: 킷 기록 순서 X1→X2→X3→X4 인데 배포처는 X3, X4 를 먼저 받고 마지막에 X1·X2 를 받았다.
+#   마지막 표시(X1·X2)를 기준점으로 잡으니 그 뒤 구간의 X3·X4 가 이미 들어왔는데도 «안 간 커밋 2건».
+XS=()
+for n in 1 2 3 4; do
+  echo "규칙 X$n" >> "$KIT/3-starter-kit/.claude/rules/a.md"
+  G "$KIT" add -A >/dev/null; G "$KIT" commit -qm "킷: 순서 시험 X$n"
+  XS[$n]=$(G "$KIT" rev-parse --short HEAD)
+done
+X1=${XS[1]}; X2=${XS[2]}; X3=${XS[3]}; X4=${XS[4]}
+mkdep_multi() { # $1=배포처 이름, 나머지=킷동기 커밋 메시지들(오래된 것부터)
+  local d="$TMP/$1"; shift; rm -rf "$d"; mkdir -p "$d" || return 1
+  ( cd "$d" && git init -q ) || return 1
+  echo x > "$d/f.txt"; G "$d" add -A >/dev/null; G "$d" commit -qm "일반 작업"
+  local msg; for msg in "$@"; do G "$d" commit -q --allow-empty -m "$msg"; done
+  printf '%s' "$d"
+}
+D=$(mkdep_multi depM "킷동기: $C3 — 기준" "킷동기: $X3 — 새 것 먼저" "킷동기: $X4 — 그다음" "킷동기: ${X1}·${X2} — 옛 것을 나중에")
+ck "M1 종료코드 0(이미 받은 X3·X4 를 후보에서 뺀다)" "0" "$(run "$D")"
+ck "M2 «이미 표시된 N건은 뺐다»를 알린다" "yes" "$(grep -q '이미 적힌 킷 커밋 2건' "$TMP/last.out" && echo yes || echo no)"
+D=$(mkdep_multi depM2 "킷동기: $C3 — 기준" "킷동기: $X3 — 새 것 먼저" "킷동기: ${X1}·${X2} — 옛 것을 나중에")
+ck "M3 ★표시에 없는 X4 는 여전히 센다(종료 1)" "1" "$(run "$D")"
+ck "M4 건수 1" "1" "$(cnt)"
+ck "M5 센 것이 X4 다" "yes" "$(grep -q "$X4" "$TMP/last.out" && echo yes || echo no)"
+
 echo "── G. ★잣대 증명 — 경로 거르기를 뗀 돌연변이는 C 에서 FAIL 이 나야 한다"
 MUT="$TMP/mutant.sh"
 sed 's/ -- "${PATHSPEC\[@\]}"//' "$RUN" > "$MUT" || exit 1
