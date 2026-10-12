@@ -41,6 +41,7 @@ allowed-tools: Read Glob Grep Bash(npm *) Bash(curl *) Bash(git *) Bash(glab *)
   - ⚠️**gitignore 만으로는 안 덮인다** — `browser_take_screenshot` 의 `filename` 이 상대경로면 스크린샷은 그 폴더가 아니라 cwd(= repo 루트)에 저장되고, `git add -A` 를 쓰는 세션은 그대로 커밋에 실어 보낸다. 저장 경로를 `.playwright-mcp/` 아래로 명시하거나, 검사 끝에 지워라.
 - **콘솔 에러 0** · **반응형**: 모바일 뷰포트(375px)로도 렌더 · **가로 넘침**: `document.body.scrollWidth <= viewport` (넘침은 다른 검사를 전부 빠져나간다)
 - **시안·확정 디자인 소스 diff**: 디자인 HTML↔렌더를 구조·문구에 더해 **수치 단위**(콘텐츠 max-width·좌우 여백·열 구성·탭·표 머리 글자)로 대조 — 눈대조가 아니라 소스로. 디자인 소스가 없으면 건너뛰지 말고 보고에 «디자인 소스 없음» 한 줄
+  - `scripts/design-metrics.cjs` 가 있으면: 창 폭 1920 에서 앱 값을 재 JSON 으로 만들어(양식 = 스크립트 머리 주석) `node scripts/design-metrics.cjs <디자인.dc.html> --compare <앱측정.json>`. 종료 1(어긋남·추출 못 함)·2(판정 불능)는 통과로 세지 말고 어긋남 목록에 올려라
 
 ## 3. 보고 — "0건=완료"라고 말하지 마라
 - **"검사 N종 소진, 안 돌린 층: X"** 형식으로. 각 층에서 실행한 것·발견한 것·못 돌린 것을 구분.
