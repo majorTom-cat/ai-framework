@@ -35,7 +35,9 @@ KEEP = int(_args[2]) if len(_args) > 2 else 5
 text = open(src, encoding="utf-8").read()
 lines = text.split("\n")
 
-entry = re.compile(r"^\d{4}-")
+# ★`[막힘] 2026-…` 로 시작하는 줄도 항목이다 — friction.md 머리말이 «막힘은 줄 머리에 [막힘]» 이라 시키는데
+#   `^\d{4}-` 만 항목으로 봤더니 그 줄들이 «항목이 아닌 줄»로 조용히 버려지고 «손실 0» 이 찍혔다(2026-10-12 5줄).
+entry = re.compile(r"^(\[막힘\] )?\d{4}-")
 is_entry = lambda l: entry.match(l) is not None
 is_closed = lambda l: "[닫힘:" in l          # ★기계가 보는 건 이 접두어뿐이다
 
@@ -44,14 +46,25 @@ if not idx:
     print("항목이 없다 — 아무것도 안 했다"); sys.exit(0)
 head = lines[: idx[0]]
 entries = [lines[i] for i in idx]
-stray = [l for i, l in enumerate(lines) if i >= idx[0] and not is_entry(l) and l.strip()]
+# 도구가 다시 만드는 구획 제목 «둘»만 면제한다 — 사용자가 만든 `## …` 를 포함해 항목 사이에 낀 줄은 쓰면 사라진다
+OWN_HEADINGS = ("## 지금 살아 있는 것", "## 최근에 끝난 것")
+stray = [l for i, l in enumerate(lines)
+         if i >= idx[0] and not is_entry(l) and l.strip() and not l.startswith(OWN_HEADINGS)]
+if stray:
+    # ★버리면서 «손실 0» 을 찍지 않는다 — 아무것도 쓰기 전에 멈춘다(작업 파일·보관 파일 그대로)
+    print(f"⛔ 항목 사이에 «날짜로 시작하지 않는» 줄 {len(stray)}개가 있다 — 쓰면 사라지므로 아무것도 안 하고 멈춘다. "
+          "줄 머리를 `YYYY-` 또는 `[막힘] YYYY-` 로 고치거나 손으로 옮긴 뒤 다시 돌려라:")
+    for l in stray[:5]:
+        print("   ", l[:80])
+    sys.exit(1)
 
 # ★파일 안 순서가 정본이다 — 다시 정렬하지 않는다.
 #   왜: 날짜로 재정렬하면 **같은 날 줄의 앞뒤가 뭉개진다**(2026-09-10 실측 — 그날 적은 새 줄이
 #   같은 날짜 5줄 뒤로 밀려 보관으로 딸려갔다). 날짜는 «하루» 단위라 그 안의 순서를 못 가른다.
 #   규약이 «새 줄은 맨 위»이므로 파일 순서가 곧 최신순이다.
 def key(l):
-    return l[:10]
+    m = re.search(r"\d{4}-\d{2}-\d{2}", l)   # `[막힘] ` 가 앞에 붙어도 날짜만 본다
+    return m.group(0) if m else l[:10]       # `2026-9-9` 같은 모양이어도 죽지 않는다(항목 정규식은 `YYYY-` 만 요구)
 # ★뒤집을지는 **추측하지 않는다 — 부르는 쪽이 말한다.**
 #   2026-09-10 에 추측이 두 번 틀렸다: ⑴«첫 줄 대 마지막 줄» 비교는 bnsone friction.md 처럼
 #   **첫 줄도 마지막 줄도 같은 날짜**면 «최신이 위»로 오판한다 ⑵이웃 쌍을 세는 방식도 **동점**이면
@@ -59,8 +72,8 @@ def key(l):
 #   — 하려던 것의 정반대이고, 결과만 보면 정상처럼 보인다(항목 수는 맞으니까).
 #   ⇒ 기본은 **파일 순서가 정본**(이 파일의 규약이 «새 줄은 맨 위»이므로 그것이 곧 최신순)이고,
 #     옛 순서 파일을 처음 옮겨올 때만 `--oldest-first` 를 준다. 아래 경고가 그 자리를 알려 준다.
-asc = sum(1 for a, b in zip(entries, entries[1:]) if a[:10] < b[:10])
-desc = sum(1 for a, b in zip(entries, entries[1:]) if a[:10] > b[:10])
+asc = sum(1 for a, b in zip(entries, entries[1:]) if key(a) < key(b))
+desc = sum(1 for a, b in zip(entries, entries[1:]) if key(a) > key(b))
 entries_new_first = list(reversed(entries)) if OLDEST_FIRST else list(entries)
 if OLDEST_FIRST:
     print("ℹ️ --oldest-first: 옛 순서 파일로 보고 한 번 뒤집는다(이후로는 파일 순서를 그대로 쓴다)")
@@ -132,7 +145,3 @@ print(f"작업 파일: {len(text):,}자 → {len(after):,}자")
 print(f"  남김 = 열림 {len(open_e)} + 최근 닫힘 {len(keep_c)}   /   보관으로 {len(move_c)}")
 print(f"  항목 합계 {len(entries)} = {len(open_e) + len(keep_c)} + {len(move_c)} "
       f"→ {'손실 0' if len(entries) == len(open_e) + len(keep_c) + len(move_c) else '⛔ 수가 안 맞는다'}")
-if stray:
-    print(f"⚠️ 항목 사이의 «날짜로 시작하지 않는» 줄 {len(stray)}개는 버려졌다 — 확인하라:")
-    for l in stray[:5]:
-        print("   ", l[:80])

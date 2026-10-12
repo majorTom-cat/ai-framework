@@ -122,5 +122,68 @@ ck "I1 cp949 에서도 exit 0" "0" "$RC"
 ck "I2 죽음(Traceback)이 없다" "0" "$(grep -c Traceback "$TMP/last.out")"
 ck "I3 손실 0" "2" "$(( $(n_entries "$TMP/f.md") + $(n_entries "$TMP/a.md") ))"
 
+# 파일이 없으면 0 — 없는 파일에 grep 하면 빈 값이 나와 아래 `$(( ))` 산술이 «준비 실패»로 터진다
+n_all() { [ -e "$1" ] || { echo 0; return; }; grep -cE '^(\[막힘\] )?[0-9]{4}-' "$1" || true; }
+
+echo "── J. ★«[막힘] 날짜» 로 시작하는 줄도 항목이다 — 옛 판은 «항목이 아닌 줄»로 조용히 버리고 «손실 0» 을 찍었다(2026-10-12 5줄)"
+mk <<'E'
+2026-09-09 최신 [닫힘:구기록]
+[막힘] 2026-09-08 막힘닫힘 [닫힘:구기록]
+2026-09-07 옛닫힘 [닫힘:구기록]
+E
+OUT="$(run 1)"
+ck "J1 닫힌 [막힘] 줄도 보관으로 간다(작업+보관 3줄)" "3" "$(( $(n_all "$TMP/f.md") + $(n_all "$TMP/a.md") ))"
+ck "J2 보관 파일에 [막힘] 줄이 있다" "1" "$(grep -c '막힘닫힘' "$TMP/a.md")"
+ck "J3 ★[막힘] 줄 때문에 «날짜가 올라간다» 거짓 경고가 나지 않는다" "no" "$(printf '%s' "$OUT" | grep -q '올라가는' && echo yes || echo no)"
+mk <<'E'
+[막힘] 2026-09-09 열린막힘
+2026-09-08 닫힘 [닫힘:구기록]
+E
+run 1 >/dev/null
+ck "J4 열린 [막힘] 줄은 작업 파일에 남는다" "1" "$(grep -c '열린막힘' "$TMP/f.md")"
+
+echo "── K. ★버려질 줄이 있으면 «손실 0» 을 찍지 말고 아무것도 쓰지 않고 실패한다"
+mk <<'E'
+2026-09-09 가 [닫힘:구기록]
+날짜로 시작하지 않는 메모
+2026-09-08 나 [닫힘:구기록]
+E
+BEFORE="$(cksum < "$TMP/f.md")"
+python3 "$TOOL" "$TMP/f.md" "$TMP/a.md" 1 > "$TMP/last.out" 2>&1; RC=$?
+ck "K1 종료 코드 1" "1" "$RC"
+ck "K2 작업 파일이 그대로다" "$BEFORE" "$(cksum < "$TMP/f.md")"
+ck "K3 보관 파일을 만들지 않았다" "no" "$([ -e "$TMP/a.md" ] && echo yes || echo no)"
+ck "K4 어떤 줄이 문제인지 이름을 댄다" "yes" "$(grep -q '날짜로 시작하지 않는 메모' "$TMP/last.out" && echo yes || echo no)"
+
+ck "K5 사용자가 만든 ## 제목이 항목 사이에 있으면 «손실 0» 으로 지우지 않고 멈춘다" "1" "$(
+  mk <<'E'
+2026-09-09 a [닫힘:구기록]
+## 내가 만든 구획
+2026-09-08 b [닫힘:구기록]
+2026-09-07 c [닫힘:구기록]
+E
+  python3 "$TOOL" "$TMP/f.md" "$TMP/a.md" 1 > "$TMP/last.out" 2>&1; echo $?)"
+ck "K6 그 제목이 파일에 그대로 남아 있다" "1" "$(grep -c '내가 만든 구획' "$TMP/f.md")"
+
+echo "── L. ★도구가 만든 결과 파일을 다시 돌려도 «정상 파일에서 오탐으로 멈추지» 않는다(구획 제목 면제가 이 성질을 지킨다)"
+mk <<'E'
+2026-09-09 열림 하나
+2026-09-08 닫힘 가 [닫힘:구기록]
+2026-09-07 닫힘 나 [닫힘:구기록]
+E
+run 1 >/dev/null
+python3 "$TOOL" "$TMP/f.md" "$TMP/a.md" 1 > "$TMP/last.out" 2>&1; RC=$?
+ck "L1 두 번째 실행도 exit 0 (결과 파일의 «## 최근에 끝난 것» 을 버려질 줄로 오인하지 않는다)" "0" "$RC"
+ck "L2 항목이 그대로다(작업+보관 3줄)" "3" "$(( $(n_all "$TMP/f.md") + $(n_all "$TMP/a.md") ))"
+
+echo "── M. 날짜 모양이 YYYY-MM-DD 가 아닌 항목 줄이어도 죽지 않는다"
+mk <<'E'
+2026-9-9 짧은날짜 [닫힘:구기록]
+2026-09-08 나 [닫힘:구기록]
+E
+python3 "$TOOL" "$TMP/f.md" "$TMP/a.md" 1 > "$TMP/last.out" 2>&1; RC=$?
+ck "M1 exit 0" "0" "$RC"
+ck "M2 Traceback 이 없다" "0" "$(grep -c Traceback "$TMP/last.out")"
+
 echo "────────  $OK OK / $FAIL FAIL"
 [ "$FAIL" = 0 ] || exit 1
