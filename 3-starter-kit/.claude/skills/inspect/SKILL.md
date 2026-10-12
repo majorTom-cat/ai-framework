@@ -40,7 +40,7 @@ allowed-tools: Read Glob Grep Bash(npm *) Bash(curl *) Bash(git *) Bash(glab *)
 - **검사 산출물이 repo에 남지 않게** — Playwright MCP는 호출 때마다 cwd에 `.playwright-mcp/`(스냅샷·콘솔 로그)를 만든다. `git status`에 뜨면 커밋에 딸려 간다: 팀이 Playwright를 쓰면 `.gitignore`에, 개인 도구로만 쓰면 개인 gitignore(`~/.config/git/ignore`)에 넣어라 — 팀 `.gitignore`는 공통 영역이라 나 혼자 쓰는 도구 때문에 고치지 않는다.
   - ⚠️**gitignore 만으로는 안 덮인다** — `browser_take_screenshot` 의 `filename` 이 상대경로면 스크린샷은 그 폴더가 아니라 cwd(= repo 루트)에 저장되고, `git add -A` 를 쓰는 세션은 그대로 커밋에 실어 보낸다. 저장 경로를 `.playwright-mcp/` 아래로 명시하거나, 검사 끝에 지워라.
 - **콘솔 에러 0** · **반응형**: 모바일 뷰포트(375px)로도 렌더 · **가로 넘침**: `document.body.scrollWidth <= viewport` (넘침은 다른 검사를 전부 빠져나간다)
-- (시안이 있는 프로젝트만) **시안 소스 diff**: 시안 HTML↔렌더를 구조·문구 단위로 대조 — 스크린샷 눈대조가 아니라 소스로
+- **시안·확정 디자인 소스 diff**: 디자인 HTML↔렌더를 구조·문구에 더해 **수치 단위**(콘텐츠 max-width·좌우 여백·열 구성·탭·표 머리 글자)로 대조 — 눈대조가 아니라 소스로. 디자인 소스가 없으면 건너뛰지 말고 보고에 «디자인 소스 없음» 한 줄
 
 ## 3. 보고 — "0건=완료"라고 말하지 마라
 - **"검사 N종 소진, 안 돌린 층: X"** 형식으로. 각 층에서 실행한 것·발견한 것·못 돌린 것을 구분.
