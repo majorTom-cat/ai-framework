@@ -185,5 +185,49 @@ python3 "$TOOL" "$TMP/f.md" "$TMP/a.md" 1 > "$TMP/last.out" 2>&1; RC=$?
 ck "M1 exit 0" "0" "$RC"
 ck "M2 Traceback 이 없다" "0" "$(grep -c Traceback "$TMP/last.out")"
 
+echo "── N. ★보관 파일의 «항목 아닌 줄»도 경고 없이 지우지 않는다 — 보관에 쓸 때 아무것도 쓰기 전에 멈춘다"
+mk <<'E'
+2026-09-09 가 [닫힘:구기록]
+2026-09-08 나 [닫힘:구기록]
+E
+printf '# 보관 머리\n\n> 메모는 머리말에\n\n2026-09-01 옛1 [닫힘:구기록]\n보관 안에 낀 메모\n2026-08-30 옛2 [닫힘:구기록]\n' > "$TMP/a.md"
+BEFORE_F="$(cksum < "$TMP/f.md")"; BEFORE_A="$(cksum < "$TMP/a.md")"
+python3 "$TOOL" "$TMP/f.md" "$TMP/a.md" 1 > "$TMP/last.out" 2>&1; RC=$?
+ck "N1 종료 코드 1" "1" "$RC"
+ck "N2 작업 파일이 그대로다" "$BEFORE_F" "$(cksum < "$TMP/f.md")"
+ck "N3 보관 파일이 그대로다(메모 줄이 살아 있다)" "$BEFORE_A" "$(cksum < "$TMP/a.md")"
+ck "N4 어떤 줄이 문제인지 이름을 댄다" "yes" "$(grep -q '보관 안에 낀 메모' "$TMP/last.out" && echo yes || echo no)"
+mk <<'E'
+2026-09-09 가 [닫힘:구기록]
+E
+printf '# 보관 머리\n\n2026-09-01 옛1 [닫힘:구기록]\n보관 안에 낀 메모\n2026-08-30 옛2 [닫힘:구기록]\n' > "$TMP/a.md"
+BEFORE_A="$(cksum < "$TMP/a.md")"
+python3 "$TOOL" "$TMP/f.md" "$TMP/a.md" 5 > "$TMP/last.out" 2>&1; RC=$?
+ck "N5 보관에 쓸 게 없으면 보관 파일 상태와 무관하게 정상(exit 0)" "0" "$RC"
+ck "N6 그때 보관 파일은 건드리지 않는다" "$BEFORE_A" "$(cksum < "$TMP/a.md")"
+mk <<'E'
+2026-09-09 가 [닫힘:구기록]
+2026-09-08 나 [닫힘:구기록]
+E
+printf '# 보관 머리\n\n> 머리말 메모는 항목 앞이라 안전하다\n\n2026-09-01 옛1 [닫힘:구기록]\n' > "$TMP/a.md"
+python3 "$TOOL" "$TMP/f.md" "$TMP/a.md" 1 > "$TMP/last.out" 2>&1; RC=$?
+ck "N7 머리말에만 메모가 있는 보관 파일은 정상(exit 0)" "0" "$RC"
+ck "N8 머리말 메모가 그대로 남는다" "1" "$(grep -c '머리말 메모는 항목 앞이라 안전하다' "$TMP/a.md")"
+
+echo "── O. 정상 실행에 «날짜가 올라가는 이웃 쌍» 경고가 늘 뜨지 않는다 — 두 구획의 경계는 세지 않는다"
+mk <<'E'
+2026-09-01 오래된열림
+2026-09-09 최신닫힘 [닫힘:구기록]
+E
+run 2 >/dev/null
+OUT="$(run 2)"
+ck "O1 도구가 만든 파일(열림 위·닫힘 아래)을 다시 돌려도 거짓 경고가 없다" "no" "$(printf '%s' "$OUT" | grep -q '올라가는' && echo yes || echo no)"
+mk <<'E'
+2026-09-01 옛 [닫힘:구기록]
+2026-09-09 최신 [닫힘:구기록]
+E
+OUT="$(run 2)"
+ck "O2 ★같은 구획 안에서 올라가는 진짜 어긋남은 여전히 경고한다" "yes" "$(printf '%s' "$OUT" | grep -q '올라가는' && echo yes || echo no)"
+
 echo "────────  $OK OK / $FAIL FAIL"
 [ "$FAIL" = 0 ] || exit 1

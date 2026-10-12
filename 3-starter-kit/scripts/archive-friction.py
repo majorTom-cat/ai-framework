@@ -72,8 +72,16 @@ def key(l):
 #   — 하려던 것의 정반대이고, 결과만 보면 정상처럼 보인다(항목 수는 맞으니까).
 #   ⇒ 기본은 **파일 순서가 정본**(이 파일의 규약이 «새 줄은 맨 위»이므로 그것이 곧 최신순)이고,
 #     옛 순서 파일을 처음 옮겨올 때만 `--oldest-first` 를 준다. 아래 경고가 그 자리를 알려 준다.
-asc = sum(1 for a, b in zip(entries, entries[1:]) if key(a) < key(b))
-desc = sum(1 for a, b in zip(entries, entries[1:]) if key(a) > key(b))
+# ★이웃 쌍은 «같은 구획 안»에서만 센다 — 도구가 만든 파일은 «지금 살아 있는 것»(열림, 오래된 줄이 섞임) 아래에
+#   «최근에 끝난 것»(닫힘)이 오므로 두 구획의 경계에서 날짜가 올라가는 쌍이 정상으로 1개 생긴다(늘 뜨던 무해한 경고).
+_sec, _s = [], 0
+for l in lines:
+    if l.startswith("## "):
+        _s += 1
+    _sec.append(_s)
+_pairs = [(entries[k], entries[k + 1]) for k in range(len(entries) - 1) if _sec[idx[k]] == _sec[idx[k + 1]]]
+asc = sum(1 for a, b in _pairs if key(a) < key(b))
+desc = sum(1 for a, b in _pairs if key(a) > key(b))
 entries_new_first = list(reversed(entries)) if OLDEST_FIRST else list(entries)
 if OLDEST_FIRST:
     print("ℹ️ --oldest-first: 옛 순서 파일로 보고 한 번 뒤집는다(이후로는 파일 순서를 그대로 쓴다)")
@@ -115,6 +123,18 @@ if salvaged:
         print("    " + l[:100])
 while head and not head[-1].strip():
     head.pop()
+# ★보관 파일에도 같은 안전장치 — 아래에서 보관 파일은 «머리말 + 항목»만 다시 쓴다. 항목 아닌 줄(제목·메모)이
+#   항목 사이에 끼어 있으면 경고 없이 사라지므로, 아무것도 쓰기 전에(작업 파일 포함) 멈춘다. 보관에 쓸 때만 해당.
+if move_c and os.path.exists(dst):
+    _old = open(dst, encoding="utf-8").read().split("\n")
+    _oi = [i for i, l in enumerate(_old) if is_entry(l)]
+    _astray = [l for l in _old[_oi[0]:] if not is_entry(l) and l.strip()] if _oi else []
+    if _astray:
+        print(f"⛔ 보관 파일 `{os.path.basename(dst)}` 의 항목 사이에 «날짜로 시작하지 않는» 줄 {len(_astray)}개가 있다 — 쓰면 사라지므로 "
+              "아무것도 안 하고 멈춘다. 줄 머리를 `YYYY-` 또는 `[막힘] YYYY-` 로 고치거나 항목 앞(머리말)으로 옮긴 뒤 다시 돌려라:")
+        for l in _astray[:5]:
+            print("   ", l[:80])
+        sys.exit(1)
 body = ["", "## 지금 살아 있는 것 — 아직 안 고쳐진 줄"] + (open_e or ["(없음)"])
 body += ["", f"## 최근에 끝난 것 (최신 {len(keep_c)}줄 — 그 앞은 `{os.path.basename(dst)}`)"] + keep_c
 open(src, "w", encoding="utf-8").write("\n".join(head + body).rstrip("\n") + "\n")
