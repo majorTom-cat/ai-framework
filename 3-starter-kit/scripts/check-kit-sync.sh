@@ -102,7 +102,10 @@ for m in $MARKS; do
     SYNCED="$SYNCED$full "
   done
 done
-RAW=$(git -C "$REPO" log --format='%H %h %s' "$BASE..HEAD" -- "${PATHSPEC[@]}" "${KIT_ONLY[@]}")
+# ★조회 실패를 «대상 없음»으로 읽지 마라(rules/verify.md §2). 입력은 heredoc 이 아니라 프로세스 치환으로 준다 —
+#   맥 bash 3.2 의 heredoc 은 임시 파일을 만들어서, 울타리가 막으면 빈 입력으로 읽혀 «킷 동기 OK» 가 됐다(2026-10-13 bnsone).
+RAW=$(git -C "$REPO" log --format='%H %h %s' "$BASE..HEAD" -- "${PATHSPEC[@]}" "${KIT_ONLY[@]}") || {
+  echo "⛔ 판정 불능 — 킷 이력 조회 실패: $BASE..HEAD" >&2; exit 2; }
 LIST=""; ALREADY=0
 while read -r full short rest; do
   [ -n "$full" ] || continue
@@ -110,9 +113,7 @@ while read -r full short rest; do
     *" $full "*) ALREADY=$((ALREADY+1)); continue ;;
   esac
   LIST="$LIST$short $rest"$'\n'
-done <<EOF
-$RAW
-EOF
+done < <(printf '%s\n' "$RAW")
 LIST=${LIST%$'\n'}
 N=$(printf '%s\n' "$LIST" | grep -c . )
 

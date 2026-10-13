@@ -147,6 +147,13 @@ ck "M3 ★표시에 없는 X4 는 여전히 센다(종료 1)" "1" "$(run "$D")"
 ck "M4 건수 1" "1" "$(cnt)"
 ck "M5 센 것이 X4 다" "yes" "$(grep -q "$X4" "$TMP/last.out" && echo yes || echo no)"
 
+echo "── T. ★임시 파일을 못 만드는 환경(울타리)에서도 «안 간 커밋 있음»을 «OK» 로 바꾸지 않는다"
+# 2026-10-13 bnsone 실측: 울타리 안에서 here-document 임시 파일 생성이 막혀 입력이 빈 채로 읽히고 «킷 동기 OK»(0)로 끝났다.
+#   ⚠️이 환경에선 재현이 안 된다(bash 가 /tmp 로 물러난다) — 그래서 행동이 아니라 «구조»를 검사한다: 도구 본문에
+#   임시 파일을 만드는 입력 방식(heredoc `<<`·here-string `<<<`)이 없어야 한다. 옛 판은 `done <<EOF` 로 T1 이 빨개진다.
+ck "T1 heredoc·here-string 입력이 없다(임시 파일 생성 실패를 «대상 없음»으로 못 읽는다)" "0" "$(grep -cE '^[^#]*<<' "$TOOL")"
+ck "T2 git log 조회 실패는 판정 불능(2)으로 닫는다" "yes" "$(grep -qE 'RAW=\$\(.*\) *\|\| *\{' "$TOOL" && echo yes || echo no)"
+
 echo "── G. ★잣대 증명 — 경로 거르기를 뗀 돌연변이는 C 에서 FAIL 이 나야 한다"
 MUT="$TMP/mutant.sh"
 sed 's/ -- "${PATHSPEC\[@\]}"//' "$RUN" > "$MUT" || exit 1
