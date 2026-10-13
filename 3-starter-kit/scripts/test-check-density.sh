@@ -15,6 +15,8 @@ TMPROOT=$(mktemp -d); trap 'rm -rf "$TMPROOT"' EXIT
 [ -d "$TMPROOT" ] && touch "$TMPROOT/.w" 2>/dev/null || { echo "⛔ 임시 폴더를 못 만들거나 못 쓴다: $TMPROOT"; echo "   울타리(샌드박스) 안에서는 TMPDIR 이 막힐 수 있다 — 이 시험은 여기서 돌리지 마라."; exit 1; }
 R="$TMPROOT/repo"; mkdir -p "$R/.claude/skills/x" "$R/.claude/rules"
 ( cd "$R" && git init -q -b main . && git config user.email t@example.com && git config user.name t ) >/dev/null 2>&1
+# ★검사기는 «자기 저장소 루트»를 검사한다(스크립트 위치 기준) — 그래서 시험 저장소 안에 복사해 부른다.
+mkdir -p "$R/scripts" && cp "$SCRIPT" "$R/scripts/check-density.sh" && SCRIPT="$R/scripts/check-density.sh" || { echo "⛔ 검사기를 시험 저장소에 복사하지 못했다"; exit 1; }
 
 ko() { # $1=글자수 → 한글 그만큼
   awk -v n="$1" 'BEGIN{ s=""; for(i=0;i<n;i++) s=s "가"; print s }'
@@ -101,6 +103,13 @@ git -C "$R" checkout -q -- CLAUDE.md 2>/dev/null || :
 echo "── G. 대상 파일이 없으면 조용히 통과"
 rm -rf "$R/.claude/skills/x" "$R/.claude/rules"; ko 10 > "$R/CLAUDE.md"; commit_base
 t OK "대상이 없어도 종료 코드 0"
+
+echo "── H. ★다른 폴더에서 불러도 «검사기가 있는 저장소»를 검사한다 (2026-10-13 bnsone: 워크트리 스크립트를 본 클론 폴더에서 불러 본 클론을 검사한 채 «통과»)"
+ko 50 > "$R/CLAUDE.md"; commit_base
+ko 301 >> "$R/CLAUDE.md"
+got=$( cd "$TMPROOT" && unset CI_MERGE_REQUEST_DIFF_BASE_SHA CI_MERGE_REQUEST_TARGET_BRANCH_NAME && bash "$SCRIPT" >/dev/null 2>&1; echo $? )
+if [ "$got" = 1 ]; then pass=$((pass+1)); else echo "FAIL(종료코드 $got, 기대 1): 저장소 밖 폴더에서 불러도 그 저장소의 초과 줄을 잡아야 한다"; fail=$((fail+1)); fi
+git -C "$R" checkout -q -- CLAUDE.md 2>/dev/null || :
 
 echo "──────── $pass OK / $fail FAIL"
 [ "$fail" -eq 0 ] || exit 1
