@@ -1,5 +1,5 @@
 #!/bin/bash
-# 검사기 자기시험(scripts/test-*.sh)을 전부 돈다 — CI `self-tests` 잡과 로컬 `/done` 3단계가 같은 것을 부른다.
+# 검사기 자기시험(scripts/test-*.sh)을 전부 돈다 — CI `self-tests` 잡과 로컬 `/done` 6단계가 같은 것을 부른다.
 # 저장소 루트에서: bash scripts/run-self-tests.sh
 # 종료 0 = 전부 통과 · 1 = 실패한 시험 있음 · 2 = 돌 시험이 없다(자리를 잘못 잡았다 — 초록 아님)
 cd "$(dirname "$0")/.." || exit 2

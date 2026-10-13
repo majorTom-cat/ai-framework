@@ -1,0 +1,129 @@
+#!/usr/bin/env node
+// /done 합치기 판정기 — main 이 움직였을 때 «그대로 머지해도 되나»와 «합친 뒤 리뷰가 아직 유효한가»를 같은 기준으로 가른다 (배포처 bnsone #610).
+// 왜: 무료 GitLab 은 «main 과 합친 결과로 시험»(머지 트레인)이 없어 /done 이 손으로 대신한다. 눈으로 따지면 갈래를 놓친다.
+// 한계(솔직히): 파일이 안 겹쳐도 깨질 수 있다(함수 이름 바꿈 + 옛 이름 호출 추가). 아래 위험 경로는 그 흔한 길목을 막을 뿐이고,
+//   나머지는 머지 뒤 main 파이프라인 + revert 가 2차 방어다(done/단계상세.md §0).
+// 킷 규약 경로를 가정한다: src/modules/{x}/ · src/shared/ · docs/adr/NNNN- · 마이그레이션 폴더(이름이 migrations). 다르면 아래 정규식을 고쳐라.
+// 사용(저장소 안에서, 현재 브랜치 HEAD 기준):
+//   node scripts/done-merge-verdict.cjs main-moved [mainRef=origin/main]
+//   node scripts/done-merge-verdict.cjs after-merge <리뷰한SHA 40자> [mainRef=origin/main]
+// 출력: 1행 = 판정 토큰 — 스킬은 이 1행만 파싱한다. 사유는 2행부터.
+//   main-moved : 최신(main 이 안 움직임) | 그대로(안 겹침 — 합치지 않고 머지 가능) | 합치기(합치고 다시 시험)
+//   after-merge: 리뷰유효(병합이 main 쪽 파일만 바꿨다) | 재리뷰(내 파일이 바뀌었거나 병합 중 손댔다)
+// 종료코드: 0=판정함(내용 무관) / 2=판정 불능(git 실패·인자 오류 — «모름»을 어느 토큰으로도 위장하지 않는다)
+const { execFileSync, spawnSync } = require('child_process');
+
+const [mode, arg1, arg2] = process.argv.slice(2);
+const SHA = /^[0-9a-f]{40}$/i;
+
+const die = (msg) => {
+  console.error('판정 불능: ' + msg);
+  process.exit(2);
+};
+const git = (...args) => {
+  try {
+    return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 60000 });
+  } catch (e) {
+    return die(`git ${args.join(' ')} 실패 — ${(e.stderr || e.message).toString().split('\n')[0]}`);
+  }
+};
+const verify = (ref) => git('rev-parse', '--verify', '--quiet', ref + '^{commit}').trim();
+// -z + --no-renames: 한글 경로가 따옴표로 깨지지 않고, 이름 바꾼 파일은 옛 경로·새 경로 둘 다 목록에 든다
+const names = (...range) => new Set(git('diff', '--name-only', '-z', '--no-renames', ...range).split('\0').filter(Boolean));
+const added = (...range) => [...new Set(git('diff', '--name-only', '-z', '--no-renames', '--diff-filter=A', ...range).split('\0').filter(Boolean))];
+
+const moduleOf = (p) => (/^src\/modules\/([^/]+)\//.exec(p) || [])[1];
+const adrNo = (p) => (/^docs\/adr\/(\d+)-/.exec(p) || [])[1];
+
+if (mode === 'main-moved') {
+  const mainRef = arg1 || 'origin/main';
+  verify('HEAD') || die('HEAD 를 못 읽었다');
+  const mainSha = verify(mainRef) || die(`${mainRef} 를 못 읽었다 — git fetch origin 먼저`);
+  const base = git('merge-base', 'HEAD', mainRef).trim() || die('merge-base 없음');
+  if (base === mainSha) {
+    console.log('최신');
+    console.log(`main(${mainRef})이 내가 합친 뒤로 안 움직였다`);
+    process.exit(0);
+  }
+  const mainNew = names(base, mainSha); // main 이 내가 마지막으로 합친 뒤 새로 바꾼 파일
+  const mine = names(base, 'HEAD'); // 내 브랜치가 바꾼 파일
+  const why = [];
+  const overlap = [...mine].filter((p) => mainNew.has(p));
+  if (overlap.length) why.push('같은 파일: ' + overlap.slice(0, 5).join(', '));
+  const mineMods = new Set([...mine].map(moduleOf).filter(Boolean));
+  const modHit = [...new Set([...mainNew].map(moduleOf).filter((m) => m && mineMods.has(m)))];
+  if (modHit.length) why.push('같은 모듈: ' + modHit.join(', '));
+  const risky = [...mainNew].filter(
+    (p) =>
+      /(^|\/)migrations\//.test(p) ||
+      p === 'package.json' ||
+      p === 'package-lock.json' ||
+      /^src\/shared\//.test(p) ||
+      /^src\/modules\/[^/]+\/index\.ts$/.test(p) ||
+      p === '.gitlab-ci.yml'
+  );
+  // 위험 경로는 «내 변경에 코드가 있을 때만» 사유다 — 남의 마이그레이션·package·shared·CI 변경이 깨뜨릴 수 있는 건 코드뿐이다.
+  // 문서만 바꾸는 MR 이 그 때문에 계속 «합치기» 가 되던 것이 이 카드(#610)의 실제 사례다.
+  // ★fail-closed: «문서로 확인된 것만 비코드» 이고 나머지는 전부 코드다. 목록에 빠진 파일이 문서로 떨어지면(fail-open) 안 된다 —
+  //   CI 는 scripts/*.cjs·*.sh 를 직접 돌리고(경계 검사기는 src 를 스캔한다) 루트 설정·런타임 파일도 깨질 수 있다(독립 리뷰가 재현).
+  // 비코드 = 마크다운·텍스트(어디든), docs/ 아래에서 데이터·스크립트가 아닌 것(그림·html·pdf 등).
+  // docs/ 의 json·yaml·스크립트는 CI 검사가 읽는다(예: screen-registry.json) → 코드로 친다.
+  const isDoc = (p) => /\.(md|txt)$/i.test(p) || (/^docs\//.test(p) && !/\.(json|ya?ml|[cm]?[jt]sx?|sh|py)$/i.test(p));
+  const appCode = (p) => !isDoc(p);
+  const myCode = [...mine].filter(appCode);
+  let riskNote = '';
+  if (risky.length && myCode.length) why.push('main 의 위험 경로(마이그레이션·package·lock·shared·모듈 index·CI): ' + risky.slice(0, 5).join(', '));
+  else if (risky.length) riskNote = '참고: main 의 위험 경로 변경(' + risky.slice(0, 3).join(', ') + ')은 내 변경이 문서뿐이라 사유에서 뺐다';
+  const mainAdr = new Map(added(base, mainSha).filter(adrNo).map((p) => [adrNo(p), p]));
+  const adrClash = added(base, 'HEAD').filter((p) => adrNo(p) && mainAdr.has(adrNo(p)) && mainAdr.get(adrNo(p)) !== p);
+  if (adrClash.length) why.push('ADR 번호 겹침: ' + adrClash.join(', '));
+  const mt = spawnSync('git', ['merge-tree', '--write-tree', 'HEAD', mainRef], { encoding: 'utf8', timeout: 60000 });
+  if (mt.error) die('git merge-tree 를 못 돌렸다 — ' + mt.error.message);
+  if (mt.status === 1) why.push('글자 충돌');
+  else if (mt.status !== 0) die('git merge-tree 오류(종료 ' + mt.status + ') — ' + String(mt.stderr).split('\n')[0]);
+  console.log(why.length ? '합치기' : '그대로');
+  if (why.length) why.forEach((w) => console.log(w));
+  else console.log(`main 이 새로 바꾼 ${mainNew.size}개 파일이 내 변경과 안 겹친다 (충돌 없음)`);
+  if (riskNote) console.log(riskNote);
+  process.exit(0);
+}
+
+if (mode === 'after-merge') {
+  const reviewed = arg1;
+  const mainRef = arg2 || 'origin/main';
+  if (!reviewed || !SHA.test(reviewed)) die('리뷰한 SHA 40자가 필요하다 (짐작해 채우지 말고 rev-parse 출력에서 복사)');
+  verify(reviewed) || die(`${reviewed} 커밋을 못 읽었다`);
+  verify(mainRef) || die(`${mainRef} 를 못 읽었다`);
+  const head = verify('HEAD') || die('HEAD 를 못 읽었다');
+  if (head === reviewed.toLowerCase()) {
+    console.log('리뷰유효');
+    console.log('병합 없음 — HEAD 가 리뷰한 커밋 그대로');
+    process.exit(0);
+  }
+  const anc = spawnSync('git', ['merge-base', '--is-ancestor', reviewed, 'HEAD'], { timeout: 60000 });
+  if (anc.error || (anc.status !== 0 && anc.status !== 1)) die('조상 확인 실패');
+  if (anc.status === 1) {
+    console.log('재리뷰');
+    console.log('리뷰한 커밋이 HEAD 의 조상이 아니다 (rebase·되돌림 등으로 이력이 바뀜)');
+    process.exit(0);
+  }
+  const base0 = git('merge-base', reviewed, mainRef).trim() || die('merge-base 없음');
+  const mine = names(base0, reviewed); // 리뷰받은 내 변경 파일
+  const lastMain = git('merge-base', 'HEAD', mainRef).trim() || die('merge-base 없음'); // 마지막으로 합친 main 지점
+  const changed = names(reviewed, 'HEAD'); // 리뷰한 뒤 HEAD 까지 바뀐 파일 전부
+  const myTouched = [...changed].filter((p) => mine.has(p));
+  // «main 이 바꾼 파일»이라고 통과시키지 않는다 — 합친 main 지점과 HEAD 가 다른 파일은 전부 리뷰받은 내 변경이어야 한다.
+  // (병합 커밋에서 손으로 고친 것·병합 뒤 직선 커밋으로 고친 것이 main 이 건드린 파일이어도 여기서 걸린다)
+  const extra = [...names(lastMain, 'HEAD')].filter((p) => !mine.has(p));
+  if (!myTouched.length && !extra.length) {
+    console.log('리뷰유효');
+    console.log(`병합이 main 쪽 파일 ${changed.size}개만 바꿨고 리뷰받은 내 파일은 그대로다`);
+  } else {
+    console.log('재리뷰');
+    if (myTouched.length) console.log('리뷰받은 내 파일이 바뀜: ' + myTouched.slice(0, 8).join(', '));
+    if (extra.length) console.log('리뷰받지 않은 내 변경 — 병합 중·뒤에 손댄 파일: ' + extra.slice(0, 8).join(', '));
+  }
+  process.exit(0);
+}
+
+die('사용: node scripts/done-merge-verdict.cjs main-moved [mainRef] | after-merge <SHA> [mainRef]');

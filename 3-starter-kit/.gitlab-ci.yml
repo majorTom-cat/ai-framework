@@ -137,7 +137,7 @@ ask-check:
 #   · deferred-check — «미룬 일»이 카드 번호 없이 문장으로만 남았나. 이 MR 이 «더한 줄»만 본다 — 옛 부채는 막지 않는다
 #     (주기 점검 `--all` 로 따로 본다). 빠져나갈 길 = 조각마다 `(카드 불요: 사유)`.
 #     왜 차단인가: 2026-09-17 bnsone 1차 요구 전수 대조에서 «후속 카드로·별도 카드·범위 밖(후속)»만 적고 안 생긴 일이
-#     19건 나왔다. 사람 절차(/done 6단계)만 두면 같은 층에서 또 샌다.
+#     19건 나왔다. 사람 절차(/done 4단계)만 두면 같은 층에서 또 샌다.
 #   ★changes: 를 걸지 않는다 — changes 는 '새 브랜치 첫 푸시에서 무조건 참'이라 조건부로 만들면 판정 유무가
 #     브랜치 상태에 따라 흔들린다(_reference/ci-needs.md). 대상 파일을 안 건드린 MR 은 각 검사가 «0건»으로 몇 초에 통과한다.
 #   ★검사기 자체가 맞는지 먼저 본다(각 `ci-job-*.sh` 앞머리) — self-tests 잡은 `changes: scripts/**` 라 대상 파일만 고친
@@ -168,7 +168,7 @@ self-tests:
     # ★python3 — `scripts/*.py` 를 도는 자기테스트가 있다. 없으면 그 시험이 «검사기가 틀렸다»처럼 떨어진다(2026-09-10 배포처 CI 실측).
     # ★nodejs — `test-bundle-guard.sh` 가 `.cjs` 훅을 돈다. 없으면 «검증 불능»으로 떨어진다(합격으로 치지 않는다).
     - apk add --no-cache bash git python3 nodejs >/dev/null
-    # 로컬 `/done` 3단계와 같은 스크립트 — 한 곳만 고치면 둘 다 바뀐다
+    # 로컬 `/done` 6단계와 같은 스크립트 — 한 곳만 고치면 둘 다 바뀐다
     - bash scripts/run-self-tests.sh
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
