@@ -2,7 +2,7 @@
 name: inspect
 description: 화면 검사 묶음 — 개발한 화면을 기계로 검사(라우트·콘솔 에러·인터랙션·이상 입력·반응형·가로 넘침). /dev 7단계·/fix 4단계(커밋 전 로컬 화면), /done 8단계(머지 뒤 배포 화면 — 사람이 못 볼 때), 또는 "검사해봐" 할 때 실행.
 argument-hint: "[이슈번호 또는 화면 경로]"
-allowed-tools: Read Glob Grep Bash(npm *) Bash(curl *) Bash(git *) Bash(glab *) Bash(node scripts/design-metrics.cjs*)
+allowed-tools: Read Glob Grep Bash(npm *) Bash(curl *) Bash(git *) Bash(glab *) Bash(node scripts/design-metrics.cjs*) Bash(node scripts/measure-screens.cjs*)
 ---
 
 # /inspect — "$0" 화면 검사 묶음
