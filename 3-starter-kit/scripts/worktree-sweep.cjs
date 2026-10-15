@@ -10,7 +10,7 @@
 //   ※커밋 포함 여부(A)만 보면 C 를 놓친다. 내용이 main 에 없으면(= 푸시 안 된 일이 있다) 반드시 «보류».
 // 먼저 `git fetch origin` 을 해 둬라(안 하면 origin/main 이 낡아 «main 에 없음» 으로 오판한다).
 //   ※만든 지 1일 안인 워크트리(머지 직후여도) · 잠긴 워크트리는 «보류». git 이 안 보는 파일(.env 등)이 있으면 «정리 가능» 줄에 경고를 단다.
-// 종료 코드: 0 = 점검 끝(정리 가능 0개여도 · 한 워크트리의 판정 오류는 그 줄만 «보류») · 2 = 점검 불능(모든 행이 판정 오류인 경우 포함) · 그 밖의 값도 점검 불능 — «정리할 것 없음» 이 아니다
+// 종료 코드: 0 = 점검 끝(정리 가능 0개여도 · 한 워크트리의 판정 오류는 그 줄만 «보류») · 2 = 점검 불능(git 이 안 돈다 · origin/main 이 없다) · 그 밖의 값도 점검 불능 — «정리할 것 없음» 이 아니다
 'use strict';
 const { execFileSync } = require('child_process');
 const fs = require('fs');
@@ -42,6 +42,8 @@ for (const line of list.split('\n')) {
   else if (cur && line === 'bare') cur.bare = true;
 }
 const main = trees.shift(); // 첫 항목 = 본 클론
+// origin/main 이 없으면 «main 에 들어 있나» 를 아무도 못 재다 — 분리 HEAD·잠금 행이 섞여 «보류 N개» 로 보이기 전에 점검 불능으로 끝낸다
+if (!gitOk(REPO, 'rev-parse', '--verify', '-q', 'origin/main')) { console.error('⛔ origin/main 이 없다(fetch 안 함? 원격 이름이 다름?) — 점검 불능, «정리할 것 없음» 이 아니다'); process.exit(2); }
 
 function inUse(wt) {
   const lock = path.join(wt, '.claude', '.session-lock');
@@ -78,8 +80,11 @@ function mergedMrSha(branch) {
 // 만든 지 FRESH_SECS(기본 1일) 안이면 보류한다(.session-lock 에 안 잡히는 세션이 있다: 본 클론에서 켜고 `git -C` 로 일하는 경우).
 // ★main 이 움직여도 풀리지 않게 «끝 == origin/main» 조건은 두지 않는다 — 정리 가능으로 판정할 때마다 이 창을 먼저 본다(오너 결정 2026-10-16).
 //   대가: 방금 머지한 작업도 만든 지 1일 안이면 하루 동안 «보류». /done 이 직접 지우는 경로는 이 도구를 안 거치니 영향 없다.
-const envFresh = Number(process.env.WORKTREE_SWEEP_FRESH_SECS);
-const FRESH_SECS = process.env.WORKTREE_SWEEP_FRESH_SECS !== undefined && Number.isFinite(envFresh) && envFresh >= 0 ? envFresh : 86400; // 숫자가 아닌 값은 기본값(방어가 꺼지면 안 된다)
+const rawFresh = process.env.WORKTREE_SWEEP_FRESH_SECS;
+const envFresh = Number(rawFresh);
+// 빈 문자열·숫자가 아닌 값·음수는 기본값(방어가 꺼지면 안 된다 — Number('') 은 0 이다)
+const FRESH_SECS = rawFresh !== undefined && rawFresh.trim() !== '' && Number.isFinite(envFresh) && envFresh >= 0 ? envFresh : 86400;
+// (NaN 가드·ageSecs 의 catch→0 은 reflog 를 망가뜨리기 어려워 자기시험으로 못 지킨다 — 코드 리뷰로 확인한 부분이다)
 function ageSecs(wt) { // 워크트리 HEAD reflog 의 가장 오래된 항목 = 만든 시각
   try {
     const l = git(wt, 'reflog', 'show', '--format=%ct', 'HEAD').split('\n').filter(Boolean);
@@ -121,6 +126,4 @@ for (const t of trees) {
 const ok = rows.filter((r) => r[0] === '정리 가능').length;
 for (const r of rows) console.log(`${r[0]}\t${r[1]}\t${r[2]}`);
 console.log(`워크트리 ${rows.length}개 중 정리 가능 ${ok}개 · 보류 ${rows.length - ok}개 (이 도구는 지우지 않는다 — 지우는 순서는 /done 단계상세 §4)`);
-// 모든 행이 «판정 중 오류»면 점검을 못 한 것이다(예: origin/main 이 없다) — 0 으로 끝내면 «정리할 것 없음» 으로 읽힌다
-if (rows.length > 0 && rows.every((r) => r[2].startsWith('판정 중 오류'))) { console.error('⛔ 모든 워크트리가 판정 오류 — 점검 불능(원격 main 이 없거나 fetch 안 함?)'); process.exit(2); }
 process.exit(0);

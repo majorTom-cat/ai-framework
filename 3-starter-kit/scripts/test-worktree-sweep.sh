@@ -96,12 +96,18 @@ printf '%s\n' "$OUT3" | grep -a "$T/w7[[:space:]]" | grep -q '머지 직후여�
 # 숫자가 아닌 값(abc)은 방어를 끄지 못한다 — 기본값으로 돌아가 여전히 0개
 OUT4=$(WORKTREE_SWEEP_FRESH_SECS=abc WORKTREE_SWEEP_NO_GLAB=1 node "$SWEEP" --repo "$T/main" 2>&1)
 case "$OUT4" in *"9개 중 정리 가능 0개"*) pass=$((pass+1));; *) echo "FAIL(FRESH_SECS=abc 가 방어를 껐다): $(printf '%s' "$OUT4" | tail -1)"; fail=$((fail+1));; esac
+# 음수·빈 문자열도 방어를 못 끈다
+for bad in -5 ""; do
+  OUTB=$(WORKTREE_SWEEP_FRESH_SECS="$bad" WORKTREE_SWEEP_NO_GLAB=1 node "$SWEEP" --repo "$T/main" 2>&1)
+  case "$OUTB" in *"9개 중 정리 가능 0개"*) pass=$((pass+1));; *) echo "FAIL(FRESH_SECS='$bad' 가 방어를 껐다): $(printf '%s' "$OUTB" | tail -1)"; fail=$((fail+1));; esac
+done
 # origin/main 이 없는 저장소 — 모든 행이 판정 오류 → 종료 2 (0 이면 «정리할 것 없음» 으로 읽힌다)
 g init -q "$T/solo"
 echo s > "$T/solo/s.txt"
 g -C "$T/solo" add s.txt
 g -C "$T/solo" commit -q -m s
 g -C "$T/solo" worktree add -q -b solo-br "$T/solo-w"
+g -C "$T/solo" worktree add -q --detach "$T/solo-d"   # 분리 HEAD 행이 섞여도 «점검 불능» 이 드러나야 한다
 node "$SWEEP" --repo "$T/solo" >/dev/null 2>&1; RC5=$?
 if [ "$RC5" -eq 2 ]; then pass=$((pass+1)); else echo "FAIL(origin/main 없음 → 종료 2 기대, 실제 $RC5)"; fail=$((fail+1)); fi
 # 점검 불능: git 저장소가 아니면 종료 2 (거짓 «정리할 것 없음» 금지)
@@ -111,4 +117,4 @@ if [ "$RC2" -eq 2 ]; then pass=$((pass+1)); else echo "FAIL(저장소 아님 →
 for d in w1 w2 w3 w4 w5 w6 w7 w8 w9; do [ -d "$T/$d" ] && pass=$((pass+1)) || { echo "FAIL($d 가 지워졌다 — 점검기는 보고만 한다)"; fail=$((fail+1)); }; done
 
 echo "worktree-sweep: ${pass} 통과 / ${fail} 실패"
-[ "$fail" -eq 0 ] && [ "$pass" -ge 26 ] || exit 1
+[ "$fail" -eq 0 ] && [ "$pass" -ge 28 ] || exit 1
