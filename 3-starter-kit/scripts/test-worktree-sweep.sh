@@ -62,10 +62,16 @@ g -C "$T/main" add x.txt
 g -C "$T/main" commit -q -m "x via main"
 g -C "$T/main" push -q origin main 2>/dev/null
 g -C "$T/main" fetch -q origin 2>/dev/null
-# w7: 방금 만든 워크트리 — 끝이 지금 origin/main 과 같다(아직 시작 안 함과 FF 머지가 같은 모양)
+# w7: 방금 만든 워크트리 — 만든 직후엔 끝이 origin/main 과 같다. 그 뒤 main 이 움직여도 «방금 만든» 방어는 풀리면 안 된다
 g -C "$T/main" worktree add -q -b fresh-br "$T/w7" origin/main
+echo moved > "$T/main/moved.txt"
+g -C "$T/main" add moved.txt
+g -C "$T/main" commit -q -m "main moves"
+g -C "$T/main" push -q origin main 2>/dev/null
+g -C "$T/main" fetch -q origin 2>/dev/null
 
-OUT=$(WORKTREE_SWEEP_NO_GLAB=1 node "$SWEEP" --repo "$T/main" 2>&1); RC=$?
+# 판정 본 시험은 «만든 지 1일 안 보류»를 끄고(FRESH_SECS=0) 돈다 — 이 시험 폴더들은 방금 만들어져서 안 끄면 전부 보류다.
+OUT=$(WORKTREE_SWEEP_FRESH_SECS=0 WORKTREE_SWEEP_NO_GLAB=1 node "$SWEEP" --repo "$T/main" 2>&1); RC=$?
 pass=0; fail=0
 chk() { # $1=기대 줄 머리(정리 가능|보류) $2=폴더 이름
   if printf '%s\n' "$OUT" | grep -a -q "^$1.*$T/$2[[:space:]]"; then pass=$((pass+1)); else echo "FAIL($2 는 $1 이어야 한다)"; fail=$((fail+1)); fi
@@ -77,15 +83,27 @@ chk "정리 가능" w3
 chk "보류" w4
 chk "보류" w5
 chk "보류" w6
-chk "보류" w7
+chk "정리 가능" w7   # main 이 움직인 뒤라 끝이 main 의 조상이다 — 신선도를 끄면 정리 가능
 chk "보류" w8
 chk "보류" w9
-case "$OUT" in *"9개 중 정리 가능 2개"*) pass=$((pass+1));; *) echo "FAIL(요약 줄: 9개 중 정리 가능 2개)"; fail=$((fail+1));; esac
+case "$OUT" in *"9개 중 정리 가능 3개"*) pass=$((pass+1));; *) echo "FAIL(요약 줄: 9개 중 정리 가능 3개)"; fail=$((fail+1));; esac
 # .env 경고
 printf '%s\n' "$OUT" | grep -a "$T/w1[[:space:]]" | grep -q 'git 이 안 보는' && pass=$((pass+1)) || { echo "FAIL(w1 의 .env 경고가 없다)"; fail=$((fail+1)); }
-# 신선도 창을 0 으로 하면 w7 은 정리 가능이 된다(= 신선도 방어가 w7 을 막고 있었다는 증명)
-OUT3=$(WORKTREE_SWEEP_FRESH_SECS=0 WORKTREE_SWEEP_NO_GLAB=1 node "$SWEEP" --repo "$T/main" 2>&1)
-printf '%s\n' "$OUT3" | grep -a -q "^정리 가능.*$T/w7[[:space:]]" && pass=$((pass+1)) || { echo "FAIL(신선도 0 이면 w7 은 정리 가능이어야 한다)"; fail=$((fail+1)); }
+# ★신선도 방어: 기본값(1일)이면 방금 만든 이 폴더들은 main 이 움직인 뒤에도 전부 «보류» — 정리 가능 0개
+OUT3=$(WORKTREE_SWEEP_NO_GLAB=1 node "$SWEEP" --repo "$T/main" 2>&1)
+case "$OUT3" in *"9개 중 정리 가능 0개"*) pass=$((pass+1));; *) echo "FAIL(기본 신선도면 정리 가능 0개여야 한다): $(printf '%s' "$OUT3" | tail -1)"; fail=$((fail+1));; esac
+printf '%s\n' "$OUT3" | grep -a "$T/w7[[:space:]]" | grep -q '머지 직후여도' && pass=$((pass+1)) || { echo "FAIL(w7 보류 사유에 «머지 직후여도» 가 없다)"; fail=$((fail+1)); }
+# 숫자가 아닌 값(abc)은 방어를 끄지 못한다 — 기본값으로 돌아가 여전히 0개
+OUT4=$(WORKTREE_SWEEP_FRESH_SECS=abc WORKTREE_SWEEP_NO_GLAB=1 node "$SWEEP" --repo "$T/main" 2>&1)
+case "$OUT4" in *"9개 중 정리 가능 0개"*) pass=$((pass+1));; *) echo "FAIL(FRESH_SECS=abc 가 방어를 껐다): $(printf '%s' "$OUT4" | tail -1)"; fail=$((fail+1));; esac
+# origin/main 이 없는 저장소 — 모든 행이 판정 오류 → 종료 2 (0 이면 «정리할 것 없음» 으로 읽힌다)
+g init -q "$T/solo"
+echo s > "$T/solo/s.txt"
+g -C "$T/solo" add s.txt
+g -C "$T/solo" commit -q -m s
+g -C "$T/solo" worktree add -q -b solo-br "$T/solo-w"
+node "$SWEEP" --repo "$T/solo" >/dev/null 2>&1; RC5=$?
+if [ "$RC5" -eq 2 ]; then pass=$((pass+1)); else echo "FAIL(origin/main 없음 → 종료 2 기대, 실제 $RC5)"; fail=$((fail+1)); fi
 # 점검 불능: git 저장소가 아니면 종료 2 (거짓 «정리할 것 없음» 금지)
 OUT2=$(node "$SWEEP" --repo "$T" 2>&1); RC2=$?
 if [ "$RC2" -eq 2 ]; then pass=$((pass+1)); else echo "FAIL(저장소 아님 → 종료 2 기대, 실제 $RC2)"; fail=$((fail+1)); fi
@@ -93,4 +111,4 @@ if [ "$RC2" -eq 2 ]; then pass=$((pass+1)); else echo "FAIL(저장소 아님 →
 for d in w1 w2 w3 w4 w5 w6 w7 w8 w9; do [ -d "$T/$d" ] && pass=$((pass+1)) || { echo "FAIL($d 가 지워졌다 — 점검기는 보고만 한다)"; fail=$((fail+1)); }; done
 
 echo "worktree-sweep: ${pass} 통과 / ${fail} 실패"
-[ "$fail" -eq 0 ] && [ "$pass" -ge 21 ] || exit 1
+[ "$fail" -eq 0 ] && [ "$pass" -ge 26 ] || exit 1
