@@ -16,7 +16,7 @@
    - `<모듈a>`~`<모듈d>` → 실제 모듈 이름 / `<본보기모듈>` → 본보기 모듈 이름
    - **`<기동명령>`** → 로컬 앱 기동 명령 (CLAUDE.md '실행·테스트' 절이 전 문서 명령의 정본)
    - `<검수서버URL>` → 자동 배포 주소 (★검수자가 자기 자리에서 접속할 **공용 주소**. 아직 없으면 임시로 localhost를 넣되 **"공용 주소 전환" 카드를 바로 발행** — 위반 상태를 카드 없이 방치 금지)
-   - `<시안허브URL>` → 화면 시안 열람 주소 (CLAUDE.md ★실행 절·`/ui 시안`이 사용. 세팅은 인스턴스에 1회 — `docs/00_Guide/sian-hub-setup.md`. 아직 없으면 리터럴로 두면 `/ui 시안`이 세팅부터 안내한다)
+   - `<시안허브URL>` → **폐지**(시안 모드 폐지 2026-10-15) — 치환할 필요 없다. 옛 허브 문서는 `docs/00_Guide/sian-hub-setup.md`(기록용).
    - `<사내GitLab주소>` (ONBOARDING의 glab 로그인 · **`.claude/settings.json` 의 `sandbox.network.allowedDomains` 도 같은 자리다**) / `<팀채팅주소>` → 실제 채팅 채널
    - **CLAUDE.md 모듈 소유 표** → 팀 태울 때 소유자 기입 (본보기 모듈 이관 포함 — 비워두면 /card 배정·/start 진단 불능)
    - `.claude/hooks/check-push.sh`의 **공통 영역 감지는 파일 경로 기준**이다(테이블 이름이 아니다 — `src/shared/`·`.claude/`·`db/migrations/`·`CLAUDE.md`·CI/컨테이너 설정·lockfile·middleware). repo 폴더 구조가 킷과 다르면 그 `grep -iE` 패턴의 **경로**를 실제 구조에 맞게 고쳐라. ※테이블명 치환은 필요 없다 — 스크립트에 테이블 이름은 없다
