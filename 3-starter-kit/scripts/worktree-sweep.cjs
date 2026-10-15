@@ -9,7 +9,8 @@
 //     C 브랜치가 main 과 갈라진 뒤 바꾼 파일이 전부 origin/main 에서 같은 내용(닫힌 MR 뒤 다른 브랜치로 들어간 경우)
 //   ※커밋 포함 여부(A)만 보면 C 를 놓친다. 내용이 main 에 없으면(= 푸시 안 된 일이 있다) 반드시 «보류».
 // 먼저 `git fetch origin` 을 해 둬라(안 하면 origin/main 이 낡아 «main 에 없음» 으로 오판한다).
-// 종료 코드: 0 = 점검 끝(정리 가능 0개여도) · 2 = 점검 불능(git 이 안 돈다 등)
+//   ※끝이 origin/main 과 같은 «방금 만든» 워크트리(1일 안) · 잠긴 워크트리는 «보류». git 이 안 보는 파일(.env 등)이 있으면 «정리 가능» 줄에 경고를 단다.
+// 종료 코드: 0 = 점검 끝(정리 가능 0개여도 · 한 워크트리의 판정 오류는 그 줄만 «보류») · 그 밖의 값(2 등) = 점검 불능 — «정리할 것 없음» 이 아니다
 'use strict';
 const { execFileSync } = require('child_process');
 const fs = require('fs');
@@ -37,6 +38,7 @@ for (const line of list.split('\n')) {
   if (line.startsWith('worktree ')) { cur = { path: line.slice(9) }; trees.push(cur); }
   else if (cur && line.startsWith('branch ')) cur.branch = line.slice(7).replace(/^refs\/heads\//, '');
   else if (cur && line === 'detached') cur.detached = true;
+  else if (cur && /^locked(\s|$)/.test(line)) cur.locked = true;
   else if (cur && line === 'bare') cur.bare = true;
 }
 const main = trees.shift(); // 첫 항목 = 본 클론
@@ -56,7 +58,7 @@ function contentInMain(wt, tip) {
   // C: 갈라진 지점 이후 바꾼 파일이 전부 origin/main 에서 같은 내용인가
   let base;
   try { base = git(wt, 'merge-base', 'origin/main', tip).trim(); } catch (e) { return null; }
-  const files = git(wt, 'diff', '--name-only', base, tip).split('\n').filter(Boolean);
+  const files = git(wt, 'diff', '--no-renames', '--name-only', base, tip).split('\n').filter(Boolean);
   if (files.length === 0) return true;
   const blob = (ref, f) => { try { return git(wt, 'rev-parse', '--verify', '-q', `${ref}:${f}`).trim(); } catch (e) { return 'ABSENT'; } };
   for (const f of files) if (blob(tip, f) !== blob('origin/main', f)) return false;
@@ -72,22 +74,43 @@ function mergedMrSha(branch) {
   } catch (e) { return { unknown: true }; }
 }
 
+// 방금 만든 워크트리(끝 == origin/main)는 «일을 아직 시작 안 한 것»과 «FF 로 머지된 것»이 같은 모양이다 —
+// 만든 지 FRESH_SECS(기본 1일) 안이면 보류한다(.session-lock 에 안 잡히는 세션이 있다: 본 클론에서 켜고 `git -C` 로 일하는 경우).
+const FRESH_SECS = process.env.WORKTREE_SWEEP_FRESH_SECS !== undefined ? Number(process.env.WORKTREE_SWEEP_FRESH_SECS) : 86400;
+function ageSecs(wt) { // 워크트리 HEAD reflog 의 가장 오래된 항목 = 만든 시각
+  try {
+    const l = git(wt, 'reflog', 'show', '--format=%ct', 'HEAD').split('\n').filter(Boolean);
+    return Math.floor(Date.now() / 1000) - Number(l[l.length - 1]);
+  } catch (e) { return 0; } // 못 재면 «방금»으로 본다(안전한 쪽)
+}
+
+function judge(t) {
+  if (t.bare || t.detached || !t.branch) return ['보류', '브랜치가 없다(분리된 HEAD) — 사람이 본다'];
+  if (t.locked) return ['보류', '잠긴 워크트리(git worktree lock) — 잠근 사람이 푼다'];
+  let st;
+  try { st = git(t.path, 'status', '--short', '--ignored').split('\n').filter(Boolean); }
+  catch (e) { return ['보류', '폴더를 못 읽는다(이미 지워졌나) — `git worktree prune` 후보']; }
+  const dirty = st.filter((l) => !l.startsWith('!!'));
+  const ignored = st.length - dirty.length;
+  if (dirty.length) return ['보류', `저장 안 된 변경 ${dirty.length}건`];
+  if (inUse(t.path)) return ['보류', '다른 세션이 쓰는 중'];
+  const note = ignored ? ` · ⚠️git 이 안 보는 파일 ${ignored}개(.env·node_modules 등) — 지우면 함께 사라진다` : '';
+  const tip = git(t.path, 'rev-parse', 'HEAD').trim();
+  const mainTip = git(t.path, 'rev-parse', 'origin/main').trim();
+  if (tip === mainTip && ageSecs(t.path) < FRESH_SECS) return ['보류', '방금 만든 워크트리(끝이 origin/main 과 같다) — 아직 시작 안 했을 수 있다'];
+  if (gitOk(t.path, 'merge-base', '--is-ancestor', tip, 'origin/main')) return ['정리 가능', 'A 브랜치 끝이 main 에 들어 있다' + note];
+  if (contentInMain(t.path, tip) === true) return ['정리 가능', 'C 바꾼 파일이 전부 main 과 같은 내용(다른 경로로 들어갔다)' + note];
+  const mr = mergedMrSha(t.branch);
+  if (mr.shas && mr.shas.includes(tip)) return ['정리 가능', 'B 머지된 MR 의 sha 와 브랜치 끝이 같다' + note];
+  return ['보류', mr.unknown ? 'main 에 없는 변경이 있다 · MR 상태는 조회 못 함(판정 불능)' : 'main 에 없는 변경이 있다(푸시·머지 안 된 일)'];
+}
+
 const rows = [];
 for (const t of trees) {
   const where = `${t.path}${t.branch ? '  ' + t.branch : ''}`;
-  if (t.bare || t.detached || !t.branch) { rows.push(['보류', where, '브랜치가 없다(분리된 HEAD) — 사람이 본다']); continue; }
-  let dirty;
-  try { dirty = git(t.path, 'status', '--short').trim(); } catch (e) { rows.push(['보류', where, '폴더를 못 읽는다(이미 지워졌나) — `git worktree prune` 후보']); continue; }
-  if (dirty) { rows.push(['보류', where, `저장 안 된 변경 ${dirty.split('\n').length}건`]); continue; }
-  if (inUse(t.path)) { rows.push(['보류', where, '다른 세션이 쓰는 중']); continue; }
-  const tip = git(t.path, 'rev-parse', 'HEAD').trim();
-  if (gitOk(t.path, 'merge-base', '--is-ancestor', tip, 'origin/main')) { rows.push(['정리 가능', where, 'A 브랜치 끝이 main 에 들어 있다']); continue; }
-  const c = contentInMain(t.path, tip);
-  if (c === true) { rows.push(['정리 가능', where, 'C 바꾼 파일이 전부 main 과 같은 내용(다른 경로로 들어갔다)']); continue; }
-  const mr = mergedMrSha(t.branch);
-  if (mr.shas && mr.shas.includes(tip)) { rows.push(['정리 가능', where, 'B 머지된 MR 의 sha 와 브랜치 끝이 같다']); continue; }
-  const why = mr.unknown ? 'main 에 없는 변경이 있다 · MR 상태는 조회 못 함(판정 불능)' : 'main 에 없는 변경이 있다(푸시·머지 안 된 일)';
-  rows.push(['보류', where, why]);
+  let v;
+  try { v = judge(t); } catch (e) { v = ['보류', `판정 중 오류 — 점검 불능으로 본다: ${String(e.message).split('\n')[0]}`]; }
+  rows.push([v[0], where, v[1]]);
 }
 
 const ok = rows.filter((r) => r[0] === '정리 가능').length;
