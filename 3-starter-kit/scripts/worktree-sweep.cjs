@@ -10,6 +10,7 @@
 //   ※커밋 포함 여부(A)만 보면 C 를 놓친다. 내용이 main 에 없으면(= 푸시 안 된 일이 있다) 반드시 «보류».
 // 먼저 `git fetch origin` 을 해 둬라(안 하면 origin/main 이 낡아 «main 에 없음» 으로 오판한다).
 //   ※만든 지 1일 안인 워크트리(머지 직후여도) · 잠긴 워크트리는 «보류». git 이 안 보는 파일(.env 등)이 있으면 «정리 가능» 줄에 경고를 단다.
+//   ※워크트리 없이 남은 [gone] 브랜치(끝이 main 에 들어 있음)는 마지막에 «브랜치 정리 가능» 줄로 따로 보고한다(`git fetch --prune` 뒤).
 // 종료 코드: 0 = 점검 끝(정리 가능 0개여도 · 한 워크트리의 판정 오류는 그 줄만 «보류») · 2 = 점검 불능(git 이 안 돈다 · origin/main 이 없다) · 그 밖의 값도 점검 불능 — «정리할 것 없음» 이 아니다
 'use strict';
 const { execFileSync } = require('child_process');
@@ -41,6 +42,7 @@ for (const line of list.split('\n')) {
   else if (cur && /^locked(\s|$)/.test(line)) cur.locked = true;
   else if (cur && line === 'bare') cur.bare = true;
 }
+const checkedOut = new Set(trees.filter((t) => t.branch).map((t) => t.branch)); // 본 클론 포함 — 아래 «브랜치만 남은 것» 점검이 쓴다
 const main = trees.shift(); // 첫 항목 = 본 클론
 // origin/main 이 없으면 «main 에 들어 있나» 를 아무도 못 재다 — 분리 HEAD·잠금 행이 섞여 «보류 N개» 로 보이기 전에 점검 불능으로 끝낸다
 if (!gitOk(REPO, 'rev-parse', '--verify', '-q', 'origin/main')) { console.error('⛔ origin/main 이 없다(fetch 안 함? 원격 이름이 다름?) — 점검 불능, «정리할 것 없음» 이 아니다'); process.exit(2); }
@@ -126,4 +128,19 @@ for (const t of trees) {
 const ok = rows.filter((r) => r[0] === '정리 가능').length;
 for (const r of rows) console.log(`${r[0]}\t${r[1]}\t${r[2]}`);
 console.log(`워크트리 ${rows.length}개 중 정리 가능 ${ok}개 · 보류 ${rows.length - ok}개 (이 도구는 지우지 않는다 — 지우는 순서는 /done 단계상세 §4)`);
+
+// 워크트리 없이 브랜치만 남은 것 — 워크트리는 지웠는데 `branch -d` 가 빠진 모양(배포처 bnsone 2026-10-16: feature/503-… 둘).
+// 셋 다일 때만 보고한다: ①어느 워크트리에도 체크아웃 안 됨(본 클론 포함) ②원격 추적이 [gone] ③끝이 origin/main 의 조상.
+//   ※스쿼시 머지는 ③에 안 걸려 보고되지 않는다(보수적) · [gone] 은 `git fetch --prune` 뒤에야 나타난다 · 이것도 지우지 않는다.
+let refs;
+try { refs = git(REPO, 'for-each-ref', '--format=%(refname:short)%09%(upstream:track)%09%(objectname)', 'refs/heads'); }
+catch (e) { console.error('⛔ 브랜치 목록 실패 — 브랜치 점검 불능(남은 브랜치가 없다는 뜻이 아니다):', String(e.message).split('\n')[0]); process.exit(2); }
+const stale = [];
+for (const l of refs.split('\n').filter(Boolean)) {
+  const [name, track, sha] = l.split('\t');
+  if (checkedOut.has(name) || track !== '[gone]') continue;
+  if (gitOk(REPO, 'merge-base', '--is-ancestor', sha, 'origin/main')) stale.push(name);
+}
+for (const b of stale) console.log(`브랜치 정리 가능\t${b}\t워크트리 없음 · 원격 upstream 이 gone · 끝이 main 에 들어 있다`);
+console.log(`브랜치 ${stale.length}개 정리 가능 (워크트리 없이 남은 [gone] 브랜치 — 지우는 건 사용자 OK 뒤 git branch -d)`);
 process.exit(0);

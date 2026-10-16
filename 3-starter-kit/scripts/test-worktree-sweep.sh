@@ -70,6 +70,17 @@ g -C "$T/main" commit -q -m "main moves"
 g -C "$T/main" push -q origin main 2>/dev/null
 g -C "$T/main" fetch -q origin 2>/dev/null
 
+# 브랜치만 남은 것(워크트리 없음): 원격에 올렸다가 원격 쪽을 지우고 prune 하면 로컬 upstream 이 [gone] 이 된다
+g -C "$T/main" branch --no-track gone-ok origin/main # 보고 대상: [gone] + 끝이 main 에 들어 있음 + 체크아웃 없음
+g -C "$T/main" branch gone-uniq uniq-br              # 아님: [gone] 이지만 main 에 없는 일이 있다
+g -C "$T/main" branch --no-track nogone-ok origin/main # 아님: 끝은 main 에 있지만 upstream 이 아예 없다
+for b in gone-ok gone-uniq merged-br; do            # merged-br 는 w1 이 체크아웃 중 — 아님(워크트리 줄이 맡는다)
+  g -C "$T/main" push -q origin "$b:$b" 2>/dev/null
+  g -C "$T/main" branch -q --set-upstream-to="origin/$b" "$b"
+  g -C "$T/main" push -q origin --delete "$b" 2>/dev/null
+done
+g -C "$T/main" fetch -q --prune origin 2>/dev/null
+
 # 판정 본 시험은 «만든 지 1일 안 보류»를 끄고(FRESH_SECS=0) 돈다 — 이 시험 폴더들은 방금 만들어져서 안 끄면 전부 보류다.
 OUT=$(WORKTREE_SWEEP_FRESH_SECS=0 WORKTREE_SWEEP_NO_GLAB=1 node "$SWEEP" --repo "$T/main" 2>&1); RC=$?
 pass=0; fail=0
@@ -89,6 +100,13 @@ chk "보류" w9
 case "$OUT" in *"9개 중 정리 가능 3개"*) pass=$((pass+1));; *) echo "FAIL(요약 줄: 9개 중 정리 가능 3개)"; fail=$((fail+1));; esac
 # .env 경고
 printf '%s\n' "$OUT" | grep -a "$T/w1[[:space:]]" | grep -q 'git 이 안 보는' && pass=$((pass+1)) || { echo "FAIL(w1 의 .env 경고가 없다)"; fail=$((fail+1)); }
+# 브랜치만 남은 것: 셋 다일 때만 보고한다(위 픽스처) — 하나라도 어긋난 셋은 보고하면 안 된다
+printf '%s\n' "$OUT" | grep -a -q "^브랜치 정리 가능.gone-ok." && pass=$((pass+1)) || { echo "FAIL(gone-ok 가 브랜치 정리 가능으로 안 나왔다)"; fail=$((fail+1)); }
+for nb in gone-uniq nogone-ok merged-br; do
+  if printf '%s\n' "$OUT" | grep -a -q "^브랜치 정리 가능.$nb."; then echo "FAIL($nb 는 브랜치 정리 가능이면 안 된다)"; fail=$((fail+1)); else pass=$((pass+1)); fi
+done
+case "$OUT" in *"브랜치 1개 정리 가능"*) pass=$((pass+1));; *) echo "FAIL(브랜치 요약 줄: 브랜치 1개 정리 가능)"; fail=$((fail+1));; esac
+git -C "$T/main" show-ref --verify -q refs/heads/gone-ok && pass=$((pass+1)) || { echo "FAIL(gone-ok 브랜치가 지워졌다 — 점검기는 보고만 한다)"; fail=$((fail+1)); }
 # ★신선도 방어: 기본값(1일)이면 방금 만든 이 폴더들은 main 이 움직인 뒤에도 전부 «보류» — 정리 가능 0개
 OUT3=$(WORKTREE_SWEEP_NO_GLAB=1 node "$SWEEP" --repo "$T/main" 2>&1)
 case "$OUT3" in *"9개 중 정리 가능 0개"*) pass=$((pass+1));; *) echo "FAIL(기본 신선도면 정리 가능 0개여야 한다): $(printf '%s' "$OUT3" | tail -1)"; fail=$((fail+1));; esac
@@ -117,4 +135,4 @@ if [ "$RC2" -eq 2 ]; then pass=$((pass+1)); else echo "FAIL(저장소 아님 →
 for d in w1 w2 w3 w4 w5 w6 w7 w8 w9; do [ -d "$T/$d" ] && pass=$((pass+1)) || { echo "FAIL($d 가 지워졌다 — 점검기는 보고만 한다)"; fail=$((fail+1)); }; done
 
 echo "worktree-sweep: ${pass} 통과 / ${fail} 실패"
-[ "$fail" -eq 0 ] && [ "$pass" -ge 28 ] || exit 1
+[ "$fail" -eq 0 ] && [ "$pass" -ge 34 ] || exit 1
