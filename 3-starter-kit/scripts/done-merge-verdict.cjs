@@ -129,7 +129,8 @@ if (mode === 'after-merge') {
     return line || null;
   };
   const hunkRanges = (a, b, f) => { // a→b 에서 바뀐 구간, a(옛) 쪽 줄번호 [시작,끝] — 줄을 «끼운» 곳은 앞뒤 줄을 모두 덮는다
-    const out = git('diff', '-U0', '--no-renames', a, b, '--', f);
+    // --literal-pathspecs: 파일 이름의 [id]·* 가 글롭으로 읽혀 다른 파일의 줄을 끌어오지 않게(독립 검토가 재현)
+    const out = git('--literal-pathspecs', 'diff', '-U0', '--no-renames', a, b, '--', f);
     const rs = [];
     for (const l of out.split('\n')) {
       const m = /^@@ -(\d+)(?:,(\d+))? \+\d+(?:,\d+)? @@/.exec(l);
@@ -161,6 +162,14 @@ if (mode === 'after-merge') {
     const r = whyChanged(p);
     if (r) bad.push(`${p} (${r})`);
     else apart.push(p);
+  }
+  // 반대 방향 구멍: main 이 고친 «리뷰받은 내 파일»을 내 쪽으로 통째로 채택하면(-s ours·--ours 해결·main 이 지운 파일 되살리기)
+  //   HEAD 가 리뷰한 커밋과 같아 위 목록(changed)에 안 잡히는데 main 의 변경은 사라진다. 기계적 병합 결과와 다르면 재리뷰.
+  const mainTouched = names(bl, lastMain);
+  for (const p of mine) {
+    if (!mainTouched.has(p) || myTouched.includes(p)) continue;
+    // 삭제↔수정 충돌은 병합 결과 트리가 내 쪽 파일을 그대로 담는다 → main 이 지운 파일이 HEAD 에 남았는지를 따로 본다
+    if (!T || blob('HEAD', p) !== blob(T, p) || (blob(lastMain, p) === null && blob('HEAD', p) !== null)) bad.push(`${p} (main 의 변경이 버려짐 — 내 쪽만 채택·되살림)`);
   }
   if (!bad.length && !extra.length) {
     console.log('리뷰유효');

@@ -177,6 +177,21 @@ t '같은 파일을 자동 병합·고친 곳이 멀다(1행 vs 14행) → 리�
 setup; sedx feat docs/x.md 's/^L1$/L1mine/'; REV=$(head_sha); sedx main docs/x.md 's/^L14$/L14theirs/'
 G checkout -q feat; G merge -q --no-commit --no-ff main >/dev/null 2>&1; chmod +x "$R/docs/x.md"; G add docs/x.md; G commit -q -m chmod
 t '병합 커밋에서 같은 파일의 실행권한(mode)만 바꿈 → 재리뷰(독립 검토가 재현한 구멍)' 0 재리뷰 '기계적 병합과 다름' after-merge "$REV" main
+echo "── E3. after-merge — main 의 변경을 통째로 버린 병합은 재리뷰 (옛 판부터 있던 구멍)"
+setup; sedx feat docs/x.md 's/^L1$/L1mine/'; REV=$(head_sha); sedx main docs/x.md 's/^L14$/L14theirs/'
+G checkout -q feat; G merge -q -s ours --no-edit main >/dev/null 2>&1
+t '병합을 -s ours 로 해 main 이 고친 같은 파일 변경이 사라짐 → 재리뷰' 0 재리뷰 'main 의 변경이 버려짐' after-merge "$REV" main
+setup; sedx feat docs/x.md 's/^L1$/L1mine/'; REV=$(head_sha); sedx main docs/x.md 's/^L1$/L1theirs/'
+G checkout -q feat; G merge -q --no-commit --no-ff main >/dev/null 2>&1; G checkout -q --ours docs/x.md; G add docs/x.md; G commit -q -m ours-resolve
+t '같은 줄 충돌을 --ours 로 풀어 main 변경이 사라짐 → 재리뷰' 0 재리뷰 'docs/x.md' after-merge "$REV" main
+setup; sedx feat docs/x.md 's/^L1$/L1mine/'; REV=$(head_sha); rmf main docs/x.md
+G checkout -q feat; G merge -q -s ours --no-edit main >/dev/null 2>&1
+t 'main 이 지운 파일을 내 쪽으로 되살림 → 재리뷰' 0 재리뷰 'docs/x.md' after-merge "$REV" main
+echo "── E4. after-merge — 파일 이름에 글롭 글자([id])가 있어도 다른 파일의 줄을 끌어오지 않는다"
+BODY=$(echo L1; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do echo mid$i; done; echo L14)
+setup; put main docs/i.md "$BODY"; put main 'docs/[id].md' "$BODY"; merge_main
+sedx feat 'docs/[id].md' 's/^L1$/L1mine/'; REV=$(head_sha); sedx main 'docs/[id].md' 's/^L14$/L14theirs/'; sedx main docs/i.md 's/^mid1$/mid1theirs/'; merge_main
+t '파일 이름이 [id].md·곁 파일 i.md 의 가까운 줄을 main 이 고침 → 리뷰유효(글롭이 끌어오지 않는다)' 0 리뷰유효 '4줄 이상 떨어져' after-merge "$REV" main
 echo "── E2. after-merge — 같은 파일: 가까우면·손댔으면·충돌이면 재리뷰, 4줄 이상 멀고 기계적 병합이면 유효 (경계)"
 setup; sedx feat docs/x.md 's/^L1$/L1mine/'; REV=$(head_sha); sedx main docs/x.md 's/^mid3$/mid3theirs/'; merge_main
 t '같은 파일·main 이 내 줄(1행)에서 3줄 떨어진 4행을 고침 → 재리뷰(가깝다)' 0 재리뷰 '줄 안' after-merge "$REV" main
