@@ -173,7 +173,23 @@ t '병합 커밋에서 main 이 바꾼 파일을 손으로 고침(evil merge) �
 setup; put feat docs/mine.md m; REV=$(head_sha); put main docs/other.md o; merge_main; put feat docs/other.md changed
 t '깨끗한 병합 뒤 main 이 바꾼 파일을 직선 커밋으로 고침 → 재리뷰' 0 재리뷰 '손댄 파일: docs/other.md' after-merge "$REV" main
 setup; sedx feat docs/x.md 's/^L1$/L1mine/'; REV=$(head_sha); sedx main docs/x.md 's/^L14$/L14theirs/'; merge_main
-t '같은 파일을 자동 병합(충돌 없음) → 재리뷰(보수적)' 0 재리뷰 'docs/x.md' after-merge "$REV" main
+t '같은 파일을 자동 병합·고친 곳이 멀다(1행 vs 14행) → 리뷰유효(#677)' 0 리뷰유효 '4줄 이상 떨어져' after-merge "$REV" main
+setup; sedx feat docs/x.md 's/^L1$/L1mine/'; REV=$(head_sha); sedx main docs/x.md 's/^L14$/L14theirs/'
+G checkout -q feat; G merge -q --no-commit --no-ff main >/dev/null 2>&1; chmod +x "$R/docs/x.md"; G add docs/x.md; G commit -q -m chmod
+t '병합 커밋에서 같은 파일의 실행권한(mode)만 바꿈 → 재리뷰(독립 검토가 재현한 구멍)' 0 재리뷰 '기계적 병합과 다름' after-merge "$REV" main
+echo "── E2. after-merge — 같은 파일: 가까우면·손댔으면·충돌이면 재리뷰, 4줄 이상 멀고 기계적 병합이면 유효 (경계)"
+setup; sedx feat docs/x.md 's/^L1$/L1mine/'; REV=$(head_sha); sedx main docs/x.md 's/^mid3$/mid3theirs/'; merge_main
+t '같은 파일·main 이 내 줄(1행)에서 3줄 떨어진 4행을 고침 → 재리뷰(가깝다)' 0 재리뷰 '줄 안' after-merge "$REV" main
+setup; sedx feat docs/x.md 's/^L1$/L1mine/'; REV=$(head_sha); sedx main docs/x.md 's/^mid4$/mid4theirs/'; merge_main
+t '같은 파일·main 이 4줄 떨어진 5행을 고침 → 리뷰유효(경계)' 0 리뷰유효 '4줄 이상 떨어져' after-merge "$REV" main
+setup; sedx feat docs/x.md 's/^L1$/L1mine/'; REV=$(head_sha); sedx main docs/x.md 's/^L14$/L14theirs/'; merge_main; sedx feat docs/x.md 's/^mid6$/mid6hand/'
+t '같은 파일 멀리 병합했지만 그 뒤 직선 커밋으로 손댐 → 재리뷰(기계적 병합과 다름)' 0 재리뷰 '기계적 병합과 다름' after-merge "$REV" main
+setup; sedx feat docs/x.md 's/^L1$/L1mine/'; REV=$(head_sha); sedx main docs/x.md 's/^L14$/L14theirs/'
+G checkout -q feat; G merge -q --no-commit --no-ff main >/dev/null 2>&1; sed 's/^mid6$/mid6evil/' "$R/docs/x.md" > "$R/docs/x.md.tmp"; mv "$R/docs/x.md.tmp" "$R/docs/x.md"; G add docs/x.md; G commit -q -m evil
+t '병합 커밋 안에서 같은 파일의 다른 곳을 몰래 고침(evil merge) → 재리뷰' 0 재리뷰 '기계적 병합과 다름' after-merge "$REV" main
+setup; sedx feat docs/x.md 's/^L1$/L1mine/'; REV=$(head_sha); sedx main docs/x.md 's/^L1$/L1theirs/'
+G checkout -q feat; G merge -q --no-commit --no-ff main >/dev/null 2>&1; { echo L1resolved; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do echo mid$i; done; echo L14; } > "$R/docs/x.md"; G add docs/x.md; G commit -q -m resolved
+t '같은 줄을 둘이 고쳐 손으로 충돌을 해결 → 재리뷰' 0 재리뷰 'docs/x.md' after-merge "$REV" main
 setup; put feat docs/mine.md m; REV=$(head_sha); G checkout -q --orphan other >/dev/null 2>&1; G commit -q --allow-empty -m other; G branch -q -f feat other; G checkout -q feat
 t '리뷰한 커밋이 조상이 아님(이력 갈아엎음) → 재리뷰' 0 재리뷰 '조상이 아니다' after-merge "$REV" main
 

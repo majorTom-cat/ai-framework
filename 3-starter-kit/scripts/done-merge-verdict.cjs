@@ -9,7 +9,7 @@
 //   node scripts/done-merge-verdict.cjs after-merge <리뷰한SHA 40자> [mainRef=origin/main]
 // 출력: 1행 = 판정 토큰 — 스킬은 이 1행만 파싱한다. 사유는 2행부터.
 //   main-moved : 최신(main 이 안 움직임) | 그대로(안 겹침 — 합치지 않고 머지 가능) | 합치기(합치고 다시 시험)
-//   after-merge: 리뷰유효(병합이 main 쪽 파일만 바꿨다) | 재리뷰(내 파일이 바뀌었거나 병합 중 손댔다)
+//   after-merge: 리뷰유효(병합이 main 쪽 파일만 바꿨다 · 같은 파일이면 main 이 고친 줄이 내 줄과 4줄 이상 떨어지고 기계적 병합과 같다) | 재리뷰(내 파일이 바뀌었거나 병합 중 손댔다)
 // 종료코드: 0=판정함(내용 무관) / 2=판정 불능(git 실패·인자 오류 — «모름»을 어느 토큰으로도 위장하지 않는다)
 const { execFileSync, spawnSync } = require('child_process');
 
@@ -115,12 +115,63 @@ if (mode === 'after-merge') {
   // «main 이 바꾼 파일»이라고 통과시키지 않는다 — 합친 main 지점과 HEAD 가 다른 파일은 전부 리뷰받은 내 변경이어야 한다.
   // (병합 커밋에서 손으로 고친 것·병합 뒤 직선 커밋으로 고친 것이 main 이 건드린 파일이어도 여기서 걸린다)
   const extra = [...names(lastMain, 'HEAD')].filter((p) => !mine.has(p));
-  if (!myTouched.length && !extra.length) {
+
+  // 리뷰받은 내 파일을 main 이 «같은 파일의 다른 곳만» 고쳤으면 리뷰는 아직 유효하다(배포처 bnsone #677 — 매번 손으로 대조해 우회했다).
+  // 둘 다 맞을 때만 면제한다: ①HEAD 의 그 파일이 «리뷰한 커밋 + main 의 변경»을 git 이 기계적으로 합친 결과와 바이트까지 같다(손으로 고친 흔적 0)
+  //   ②main 이 고친 줄이 내가 고친 줄과 MARGIN 줄 안에 없다(둘 다 합친 기준점 줄번호). 읽을 수 없는 건 전부 «재리뷰» — fail-closed.
+  // 한계: 줄이 멀어도 뜻이 이어질 수 있다(함수 이름을 바꾸고 다른 곳의 옛 이름 호출이 늘어남) — 이 판정기는 줄만 본다.
+  //   그 길목은 위험 경로·머지 뒤 main 파이프라인이 막는다(위 한계 절).
+  const MARGIN = 3;
+  // 파일 항목 = «권한 종류 해시» — blob 해시만 비교하면 실행권한(100644↔100755) 변경이 가려진다(독립 검토가 재현).
+  const blob = (ref, f) => {
+    const r = spawnSync('git', ['ls-tree', ref, '--', f], { encoding: 'utf8', timeout: 60000 });
+    const line = r.status === 0 ? String(r.stdout).split('\n')[0].split('\t')[0].trim() : '';
+    return line || null;
+  };
+  const hunkRanges = (a, b, f) => { // a→b 에서 바뀐 구간, a(옛) 쪽 줄번호 [시작,끝] — 줄을 «끼운» 곳은 앞뒤 줄을 모두 덮는다
+    const out = git('diff', '-U0', '--no-renames', a, b, '--', f);
+    const rs = [];
+    for (const l of out.split('\n')) {
+      const m = /^@@ -(\d+)(?:,(\d+))? \+\d+(?:,\d+)? @@/.exec(l);
+      if (!m) continue;
+      const s = Number(m[1]);
+      const n = m[2] === undefined ? 1 : Number(m[2]);
+      rs.push(n === 0 ? [s, s + 1] : [s, s + n - 1]);
+    }
+    return rs;
+  };
+  const mt = spawnSync('git', ['merge-tree', '--write-tree', reviewed, lastMain], { encoding: 'utf8', timeout: 60000 });
+  const treeLine = mt.error ? '' : String(mt.stdout).split('\n')[0].trim();
+  const T = (mt.status === 0 || mt.status === 1) && /^[0-9a-f]{40,64}$/.test(treeLine) ? treeLine : '';
+  const bl = git('merge-base', reviewed, lastMain).trim() || die('merge-base 없음');
+  const whyChanged = (f) => { // null = 면제(리뷰 유효), 문자열 = 재리뷰 사유
+    if (!T) return '병합 결과를 만들지 못해 줄 단위 판정 불능';
+    const h = blob('HEAD', f);
+    if (h === null || blob(T, f) !== h) return '기계적 병합과 다름(손으로 고침·충돌 해결·main 변경 없음)';
+    if (blob(bl, f) === null) return '파일이 새로 생김';
+    const mi = hunkRanges(bl, reviewed, f);
+    const ma = hunkRanges(bl, lastMain, f);
+    if (!mi.length || !ma.length) return '바뀐 줄을 못 읽음(바이너리 등)';
+    for (const x of mi) for (const y of ma) if (x[0] - MARGIN <= y[1] && y[0] - MARGIN <= x[1]) return `main 이 고친 줄이 내 줄과 ${MARGIN}줄 안`;
+    return null;
+  };
+  const bad = [];
+  const apart = [];
+  for (const p of myTouched) {
+    const r = whyChanged(p);
+    if (r) bad.push(`${p} (${r})`);
+    else apart.push(p);
+  }
+  if (!bad.length && !extra.length) {
     console.log('리뷰유효');
-    console.log(`병합이 main 쪽 파일 ${changed.size}개만 바꿨고 리뷰받은 내 파일은 그대로다`);
+    if (apart.length) {
+      console.log(`병합이 main 쪽 파일을 바꿨고, 리뷰받은 내 파일 ${apart.length}개는 main 이 고친 곳이 내 줄과 ${MARGIN + 1}줄 이상 떨어져 있고 기계적 병합과 같다: ${apart.slice(0, 8).join(', ')}`);
+    } else {
+      console.log(`병합이 main 쪽 파일 ${changed.size}개만 바꿨고 리뷰받은 내 파일은 그대로다`);
+    }
   } else {
     console.log('재리뷰');
-    if (myTouched.length) console.log('리뷰받은 내 파일이 바뀜: ' + myTouched.slice(0, 8).join(', '));
+    if (bad.length) console.log('리뷰받은 내 파일이 바뀜: ' + bad.slice(0, 8).join(', '));
     if (extra.length) console.log('리뷰받지 않은 내 변경 — 병합 중·뒤에 손댄 파일: ' + extra.slice(0, 8).join(', '));
   }
   process.exit(0);
