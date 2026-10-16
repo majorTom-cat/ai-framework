@@ -110,7 +110,38 @@ git -C "$T/main" show-ref --verify -q refs/heads/gone-ok && pass=$((pass+1)) || 
 # ★신선도 방어: 기본값(1일)이면 방금 만든 이 폴더들은 main 이 움직인 뒤에도 전부 «보류» — 정리 가능 0개
 OUT3=$(WORKTREE_SWEEP_NO_GLAB=1 node "$SWEEP" --repo "$T/main" 2>&1)
 case "$OUT3" in *"9개 중 정리 가능 0개"*) pass=$((pass+1));; *) echo "FAIL(기본 신선도면 정리 가능 0개여야 한다): $(printf '%s' "$OUT3" | tail -1)"; fail=$((fail+1));; esac
-printf '%s\n' "$OUT3" | grep -a "$T/w7[[:space:]]" | grep -q '머지 직후여도' && pass=$((pass+1)) || { echo "FAIL(w7 보류 사유에 «머지 직후여도» 가 없다)"; fail=$((fail+1)); }
+printf '%s\n' "$OUT3" | grep -a "$T/w7[[:space:]]" | grep -q '일치하지 않으면' && pass=$((pass+1)) || { echo "FAIL(w7 보류 사유에 «머지된 MR 이 끝과 일치하지 않으면» 이 없다)"; fail=$((fail+1)); }
+# ★면제: 머지된 MR 의 sha == 끝이면 만든 지 1일 안이어도 «정리 가능». 면제가 뚫으면 안 되는 것(MR 없음·sha 다름·쓰는 중·변경 있음)은 그대로 «보류»
+g init -q --bare "$T/xo.git"
+g clone -q "$T/xo.git" "$T/xm" 2>/dev/null
+g -C "$T/xm" checkout -q -b main
+printf '%s\n' '.claude/.session-lock' > "$T/xm/.gitignore"
+echo a > "$T/xm/a.txt"; g -C "$T/xm" add a.txt .gitignore; g -C "$T/xm" commit -q -m c1
+echo b > "$T/xm/b.txt"; g -C "$T/xm" add b.txt; g -C "$T/xm" commit -q -m c2
+g -C "$T/xm" push -q origin main 2>/dev/null
+g -C "$T/xm" fetch -q origin 2>/dev/null
+XTIP=$(g -C "$T/xm" rev-parse HEAD); XOLD=$(g -C "$T/xm" rev-parse HEAD~1)
+for s in e1 e2 e3 e4 e5; do g -C "$T/xm" worktree add -q -b $s "$T/$s" main; done
+mkdir -p "$T/e4/.claude"; printf '%s\te4\t0\t%s\n' "$$" "$T/e4" > "$T/e4/.claude/.session-lock"
+echo wip > "$T/e5/wip.txt"
+mkdir -p "$T/bin"
+cat > "$T/bin/glab" <<EOF
+#!/usr/bin/env bash
+b=\$(printf '%s' "\$2" | sed -n 's/.*source_branch=\([^&]*\).*/\1/p')
+case "\$b" in
+  e1|e4|e5) echo '[{"sha":"$XTIP"}]';;
+  e3) echo '[{"sha":"$XOLD"}]';;
+  *) echo '[]';;
+esac
+EOF
+chmod +x "$T/bin/glab"
+OUTX=$(PATH="$T/bin:$PATH" node "$SWEEP" --repo "$T/xm" 2>&1)
+xchk() { if printf '%s\n' "$OUTX" | grep -a -q "^$1.*$T/$2[[:space:]]"; then pass=$((pass+1)); else echo "FAIL(면제 시험: $2 는 $1 이어야 한다)"; fail=$((fail+1)); fi; }
+xchk "정리 가능" e1   # 머지된 MR sha == 끝 → 1일 안이어도 면제
+xchk "보류" e2        # 막 만든 빈 작업(머지된 MR 없음)
+xchk "보류" e3        # 머지된 MR 은 있지만 sha 가 다름
+xchk "보류" e4        # 다른 세션이 쓰는 중
+xchk "보류" e5        # 저장 안 된 변경
 # 숫자가 아닌 값(abc)은 방어를 끄지 못한다 — 기본값으로 돌아가 여전히 0개
 OUT4=$(WORKTREE_SWEEP_FRESH_SECS=abc WORKTREE_SWEEP_NO_GLAB=1 node "$SWEEP" --repo "$T/main" 2>&1)
 case "$OUT4" in *"9개 중 정리 가능 0개"*) pass=$((pass+1));; *) echo "FAIL(FRESH_SECS=abc 가 방어를 껐다): $(printf '%s' "$OUT4" | tail -1)"; fail=$((fail+1));; esac
@@ -135,4 +166,4 @@ if [ "$RC2" -eq 2 ]; then pass=$((pass+1)); else echo "FAIL(저장소 아님 →
 for d in w1 w2 w3 w4 w5 w6 w7 w8 w9; do [ -d "$T/$d" ] && pass=$((pass+1)) || { echo "FAIL($d 가 지워졌다 — 점검기는 보고만 한다)"; fail=$((fail+1)); }; done
 
 echo "worktree-sweep: ${pass} 통과 / ${fail} 실패"
-[ "$fail" -eq 0 ] && [ "$pass" -ge 34 ] || exit 1
+[ "$fail" -eq 0 ] && [ "$pass" -ge 39 ] || exit 1

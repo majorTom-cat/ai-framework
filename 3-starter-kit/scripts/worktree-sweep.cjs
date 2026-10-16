@@ -9,7 +9,7 @@
 //     C 브랜치가 main 과 갈라진 뒤 바꾼 파일이 전부 origin/main 에서 같은 내용(닫힌 MR 뒤 다른 브랜치로 들어간 경우)
 //   ※커밋 포함 여부(A)만 보면 C 를 놓친다. 내용이 main 에 없으면(= 푸시 안 된 일이 있다) 반드시 «보류».
 // 먼저 `git fetch origin` 을 해 둬라(안 하면 origin/main 이 낡아 «main 에 없음» 으로 오판한다).
-//   ※만든 지 1일 안인 워크트리(머지 직후여도) · 잠긴 워크트리는 «보류». git 이 안 보는 파일(.env 등)이 있으면 «정리 가능» 줄에 경고를 단다.
+//   ※만든 지 1일 안인 워크트리(머지된 MR 의 sha 가 끝과 같으면 예외) · 잠긴 워크트리는 «보류». git 이 안 보는 파일(.env 등)이 있으면 «정리 가능» 줄에 경고를 단다.
 //   ※워크트리 없이 남은 [gone] 브랜치(끝이 main 에 들어 있음)는 마지막에 «브랜치 정리 가능» 줄로 따로 보고한다(`git fetch --prune` 뒤).
 // 종료 코드: 0 = 점검 끝(정리 가능 0개여도 · 한 워크트리의 판정 오류는 그 줄만 «보류») · 2 = 점검 불능(git 이 안 돈다 · origin/main 이 없다) · 그 밖의 값도 점검 불능 — «정리할 것 없음» 이 아니다
 'use strict';
@@ -81,7 +81,7 @@ function mergedMrSha(branch) {
 // 방금 만든 워크트리(끝 == origin/main)는 «일을 아직 시작 안 한 것»과 «FF 로 머지된 것»이 같은 모양이다 —
 // 만든 지 FRESH_SECS(기본 1일) 안이면 보류한다(.session-lock 에 안 잡히는 세션이 있다: 본 클론에서 켜고 `git -C` 로 일하는 경우).
 // ★main 이 움직여도 풀리지 않게 «끝 == origin/main» 조건은 두지 않는다 — 정리 가능으로 판정할 때마다 이 창을 먼저 본다(오너 결정 2026-10-16).
-//   대가: 방금 머지한 작업도 만든 지 1일 안이면 하루 동안 «보류». /done 이 직접 지우는 경로는 이 도구를 안 거치니 영향 없다.
+//   예외: 머지된 MR 의 sha 가 브랜치 끝과 같으면 이 창을 안 건다(배포처 bnsone 2026-10-16: 킷동기 워크트리가 머지 3시간 뒤에도 보류 — /done 을 안 거쳐 방치로 이어졌다, 오너 OK).
 const rawFresh = process.env.WORKTREE_SWEEP_FRESH_SECS;
 const envFresh = Number(rawFresh);
 // 빈 문자열·숫자가 아닌 값·음수는 기본값(방어가 꺼지면 안 된다 — Number('') 은 0 이다)
@@ -108,8 +108,11 @@ function judge(t) {
   const note = ignored ? ` · ⚠️git 이 안 보는 파일 ${ignored}개(.env·node_modules 등) — 지우면 함께 사라진다` : '';
   const tip = git(t.path, 'rev-parse', 'HEAD').trim();
   git(t.path, 'rev-parse', 'origin/main'); // 없으면 던진다 → 이 줄은 «판정 중 오류»(점검 불능)
-  const fresh = ageSecs(t.path) < FRESH_SECS;
-  const can = (r) => fresh ? ['보류', '만든 지 1일 안이면 머지 직후여도 보류 — 아직 시작 안 했거나 막 끝난 일일 수 있다'] : ['정리 가능', r + note];
+  // 면제: 머지된 MR 의 sha 가 브랜치 끝과 같으면(= 이 끝이 머지됐다고 GitLab 이 말한다) 1일 보류를 안 건다 — A·C·B 어느 길로 걸렸든.
+  //   막 만든 빈 워크트리는 머지된 MR 이 없어 그대로 보류된다. 못 가려내는 것: 머지된 브랜치 이름을 다시 써 막 연 세션(잃는 일은 없다).
+  const mrFresh = ageSecs(t.path) < FRESH_SECS ? mergedMrSha(t.branch) : null;
+  const fresh = mrFresh !== null && !(mrFresh.shas && mrFresh.shas.includes(tip));
+  const can = (r) => fresh ? ['보류', '만든 지 1일 안이고 머지된 MR 이 끝과 일치하지 않으면 보류 — 아직 시작 안 한 일일 수 있다'] : ['정리 가능', r + note];
   if (gitOk(t.path, 'merge-base', '--is-ancestor', tip, 'origin/main')) return can('A 브랜치 끝이 main 에 들어 있다');
   if (contentInMain(t.path, tip) === true) return can('C 바꾼 파일이 전부 main 과 같은 내용(다른 경로로 들어갔다)');
   const mr = mergedMrSha(t.branch);
