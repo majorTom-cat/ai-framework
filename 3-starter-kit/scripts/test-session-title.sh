@@ -36,8 +36,11 @@ t -          '/dev 이슈'
 t -          '/devx 660'
 t -          '그냥 말'
 t -          '/inspect 660'
-# 사람이 준 제목은 덮어쓰지 않는다
-t -          '/dev 660' '근태 연차 화면'
+# 번호 있는 명령은 어떤 제목이든 덮어쓴다(직접 지은 제목·Orca 자동 제목 «1 3» 포함)
+t "dev 660"  '/dev 660' '근태 연차 화면'
+t "dev 680"  '/dev 680' '1 3'
+# 번호 없는 명령은 사람이 지은 제목을 건드리지 않는다
+t -          '/todo' '근태 연차 화면'
 # 우리가 붙인 제목: 같은 카드면 처음 제목 유지, 카드가 다르면 갱신
 t -          '/done 660' 'dev 660'
 t "dev 700"  '/dev 700'  'done 660'
@@ -46,4 +49,4 @@ OUT=$(printf 'not json' | node "$HOOK" 2>/dev/null); RC=$?
 if [ "$RC" -eq 0 ] && [ -z "$OUT" ]; then pass=$((pass+1)); else echo "FAIL(깨진 입력): exit $RC → $OUT"; fail=$((fail+1)); fi
 
 echo "session-title: ${pass} 통과 / ${fail} 실패"
-[ "$fail" -eq 0 ] && [ "$pass" -ge 15 ] || exit 1
+[ "$fail" -eq 0 ] && [ "$pass" -ge 17 ] || exit 1
