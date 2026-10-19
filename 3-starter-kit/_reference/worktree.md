@@ -16,7 +16,7 @@
    - 화면 검사용이면 **재시드**(`SEED_SAMPLE=1` 류)까지, 첨부·서명 올리기를 볼 거면 `.env` 에 **`ATTACH_DIR=<이 트리 전용 임시 폴더>`** 도(없으면 저장이 실패하고 서버 로그에만 «ATTACH_DIR 미설정» — 2026-10-02 bnsone #442)
    - 정한 포트·DB명을 `CLAUDE.local.md` 에 적어 둔다(다음 트리가 같은 번호를 안 쓰도록)
    ⚠️**왜 `.env` 가 급소인가**: 테스트 준비 단계가 흔히 «시험용 DB 를 지우고 다시 만든다»로 시작한다 — 공용 DB 를 가리킨 채 돌리면 **다른 세션의 시험용 DB 가 통째로 사라진다**(2026-09-10 실측).
-4. 그 폴더에서 `claude -n issue-13` → 끝나면 **링크를 먼저 지우고**(`rm node_modules`) `git worktree remove ../issue-13`. 순서를 바꾸면 **링크 대상(본 클론 의존성)까지 지워질 수 있다**(아래 Windows 주의).
+4. 그 폴더에서 `claude -n issue-13` → 끝나면 **링크를 먼저 지우고**(`rm node_modules`) `git worktree remove ../issue-13`. DB 볼륨 `issue-13_pgdata` 는 `/done` 정리가 조건(머지됨·쓰는 컨테이너 없음·내 프로젝트 이름)을 확인하고 이름 하나만 `docker volume rm` 한다(수동 정리도 `prune` 말고 이름으로). 순서를 바꾸면 **링크 대상(본 클론 의존성)까지 지워질 수 있다**(아래 Windows 주의).
    - ★**새 워크트리 «안» 쓰기도 울타리 밖이다** — 쓰기 허용 목록에 `../issue-*` 가 없으면 `.env` 복사(`cp`)가 `Operation not permitted` 로 죽고, 이어 `npm ci`·`prisma`·`vitest`·`git add/commit` 도 줄줄이 막힌다(bnsone #390 실측). 첫 `cp` 에서야 알게 되지 말고 **걸음 1 직후부터 이 트리를 건드리는 명령은 처음부터 밖에서** 돌려라(Edit·Write 도구는 울타리와 무관). 쓰기 허용 목록에 `Edit(…/issue-*/**)` 를 이미 넣어 둔 환경이면 해당 없다(bnsone 은 2026-10-12 전역 설정에 더해 풀림) — 그 설정이 없는 팀원용 레시피다. 허용 목록에 넣는 것은 사람이 `/permissions` 로 정할 일이다.
    - ★**워크트리를 repo 밖에 만들면 Read·Edit 가 «허용 폴더 밖»으로 거절될 수 있다**(`blockReadsOutsideWorkingDirectories`, bnsone #617) — 사람이 그 폴더를 허용 폴더에 먼저 추가해야 한다(AI 는 자기 허가를 못 넓힌다). 그리고 시험 출력 첫 줄의 `RUN` 경로가 이 워크트리인지 봐라 — 아니면 본 클론에서 돈 것이다.
    - ★**워크트리 추가·삭제·`git branch -D` 는 처음부터 울타리(샌드박스) 밖에서** — 안에서는 `.git/worktrees/`·`.git/config` 쓰기가 EPERM 이라 **반쪽**으로 멈춘다(폴더만 남고 git 연결이 끊김 · 브랜치는 지워지고 설정 절만 남음). 이미 반쪽이면 밖에서 `git worktree prune` → 남은 폴더 삭제 / `git config --remove-section branch.{이름}`(2026-09-21·09-23 bnsone 실측 — 거기서 먼저 고쳐 킷으로 거꾸로 왔다).
