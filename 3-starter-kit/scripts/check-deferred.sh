@@ -30,6 +30,10 @@ if [ -n "$PREFIX" ]; then
   echo "⛔ 판정 불능 — repo 루트가 아니라 '$PREFIX' 에서 돌았다(대상 경로는 루트 기준이다). 루트로 옮겨 다시 돌려라."
   exit 2
 fi
+# `command -v` 로 보지 마라 — Windows 스토어 바로가기 python3 은 «있다»로 보이고 실행하면 exit 49 다(배포처 bnsone).
+python3 -c 'import sys' >/dev/null 2>&1 || { echo "⛔ 판정 불능 — python3 이 실행되지 않는다(없거나 Windows 스토어 바로가기). 파이썬을 설치하라."; exit 2; }
+# Windows 는 파이썬 기본 인코딩이 cp949 라 UTF-8 줄 파일을 잘못 읽어 조각 이름이 깨진다(배포처 bnsone) — 입출력을 UTF-8 로.
+export PYTHONUTF8=1
 
 # 대상 경로 판정 — 표준입력으로 경로를 받아 대상만 내보낸다.
 filter_paths() {

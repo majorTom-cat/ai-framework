@@ -10,7 +10,7 @@ TOOL="$HERE/check-append-only-git.sh"
 OK=0; FAIL=0
 
 [ -f "$TOOL" ] || { echo "⛔ 검사기가 없다: $TOOL"; exit 1; }
-command -v python3 >/dev/null 2>&1 || {
+python3 -c 'import sys' >/dev/null 2>&1 || {
   echo "⛔ python3 이 없다 — 이 시험은 python3 이 있어야 성립한다(«건너뜀»이 아니라 실패다)."
   echo "   CI 라면 그 잡의 이미지에 python3 를 깔아라(킷 self-tests = alpine: \`apk add python3\`)."
   exit 1; }

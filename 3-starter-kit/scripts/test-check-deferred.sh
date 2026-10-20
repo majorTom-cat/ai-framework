@@ -9,7 +9,7 @@ TOOL="$HERE/check-deferred.sh"
 OK=0; FAIL=0
 
 [ -f "$TOOL" ] || { echo "⛔ 검사기가 없다: $TOOL"; exit 1; }
-command -v python3 >/dev/null 2>&1 || {
+python3 -c 'import sys' >/dev/null 2>&1 || {
   echo "⛔ python3 이 없다 — 이 시험은 python3 이 있어야 성립한다(«건너뜀»이 아니라 실패다)."; exit 1; }
 
 TMP="${TMPDIR:-/tmp}/cdef.$$"; mkdir -p "$TMP" || { echo "⛔ 임시 폴더를 못 만든다: $TMP"; exit 1; }

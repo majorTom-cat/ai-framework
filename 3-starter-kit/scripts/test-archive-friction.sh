@@ -15,7 +15,7 @@ OK=0; FAIL=0
 #   2026-09-10 실측: bnsone `self-tests` 잡 이미지(node:24-slim)에 python3 가 없어 이 시험이 **7케이스
 #   전부 «기대와 다름»으로 떨어졌는데, 로그 어디에도 «python3 가 없다»는 말이 없었다** — 원인을
 #   「검사기가 틀렸다」로 오독하게 만든다. 그래서 여기서 먼저 이름을 대고 죽는다.
-command -v python3 >/dev/null 2>&1 || {
+python3 -c 'import sys' >/dev/null 2>&1 || {
   echo "⛔ python3 가 없다 — archive-friction.py 는 python 스크립트다."
   echo "   «도구가 없어서 안 돌았다»를 초록으로 넘기지 않는다. CI 라면 그 잡의 이미지에 python3 를 깔아라"
   echo "   (킷 self-tests = alpine: \`apk add python3\` · 배포처 self-tests = node:24-slim: \`apt-get install -y python3\`)."

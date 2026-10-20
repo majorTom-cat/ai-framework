@@ -33,6 +33,10 @@ if [ -n "$PREFIX" ]; then
   echo "⛔ 판정 불능 — repo 루트가 아니라 '$PREFIX' 에서 돌았다. 루트로 옮겨 다시 돌려라." >&2; exit 2
 fi
 [ -d docs ] || { echo "⛔ 판정 불능 — docs/ 가 없다." >&2; exit 2; }
+# `command -v` 로 보지 마라 — Windows 스토어 바로가기 python3 은 «있다»로 보이고 실행하면 exit 49 다(배포처 bnsone).
+python3 -c 'import sys' >/dev/null 2>&1 || { echo "⛔ 판정 불능 — python3 이 실행되지 않는다(없거나 Windows 스토어 바로가기). 파이썬을 설치하라." >&2; exit 2; }
+# Windows 콘솔 코드페이지(cp949)로 찍으면 «·»·«—» 에서 UnicodeEncodeError 로 죽는다(배포처 bnsone #693) — 입출력을 UTF-8 로.
+export PYTHONUTF8=1
 # 기본은 표준출력 그대로 — `> /dev/stdout` 은 울타리(샌드박스) 안에서 EPERM 이다(#298).
 # 출력 파일 리다이렉트가 실패하면 셸이 1 을 내 «후보 있음»과 구분이 안 된다 — 미리 재서 2 로.
 if [ -n "$OUT" ]; then

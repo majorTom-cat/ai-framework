@@ -25,6 +25,9 @@ REF="${1:-origin/main}"
 PAIRS='docs/friction.md:docs/friction-보관.md
 docs/friction-보관.md:'
 
+# `command -v` 로 보지 마라 — Windows 스토어 바로가기 python3 은 «있다»로 보이고 실행하면 exit 49 다(배포처 bnsone).
+python3 -c 'import sys' >/dev/null 2>&1 || { echo "⛔ 판정 불능 — python3 이 실행되지 않는다(없거나 Windows 스토어 바로가기). 파이썬을 설치하라."; exit 2; }
+
 HERE=$(cd "$(dirname "$0")" && pwd) || exit 2
 TOOL="$HERE/check-append-only.py"
 [ -f "$TOOL" ] || { echo "⛔ 판정 불능 — 검사기가 없다: $TOOL"; exit 2; }
