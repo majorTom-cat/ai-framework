@@ -9,6 +9,8 @@
 //   node scripts/done-merge-verdict.cjs after-merge <리뷰한SHA 40자> [mainRef=origin/main]
 // 출력: 1행 = 판정 토큰 — 스킬은 이 1행만 파싱한다. 사유는 2행부터.
 //   main-moved : 최신(main 이 안 움직임) | 그대로(안 겹침 — 합치지 않고 머지 가능) | 합치기(합치고 다시 시험)
+//     «합치기» 사유 = 같은 파일 · 글자 충돌 · ADR 번호 겹침 · main 의 package·lock·CI · 내가 스키마·마이그레이션을 건드릴 때 main 의 새 마이그레이션 ·
+//     shared(시험 파일 제외) · «내 코드가 쓰는 모듈의 index.ts 에서 있던 줄이 지워지거나 바뀜». 같은 모듈 다른 파일만으로는 아니다(#716).
 //   after-merge: 리뷰유효(병합이 main 쪽 파일만 바꿨다 · 같은 파일이면 main 이 고친 줄이 내 줄과 4줄 이상 떨어지고 기계적 병합과 같다) | 재리뷰(내 파일이 바뀌었거나 병합 중 손댔다)
 // 종료코드: 0=판정함(내용 무관) / 2=판정 불능(git 실패·인자 오류 — «모름»을 어느 토큰으로도 위장하지 않는다)
 const { execFileSync, spawnSync } = require('child_process');
@@ -50,18 +52,6 @@ if (mode === 'main-moved') {
   const why = [];
   const overlap = [...mine].filter((p) => mainNew.has(p));
   if (overlap.length) why.push('같은 파일: ' + overlap.slice(0, 5).join(', '));
-  const mineMods = new Set([...mine].map(moduleOf).filter(Boolean));
-  const modHit = [...new Set([...mainNew].map(moduleOf).filter((m) => m && mineMods.has(m)))];
-  if (modHit.length) why.push('같은 모듈: ' + modHit.join(', '));
-  const risky = [...mainNew].filter(
-    (p) =>
-      /(^|\/)migrations\//.test(p) ||
-      p === 'package.json' ||
-      p === 'package-lock.json' ||
-      /^src\/shared\//.test(p) ||
-      /^src\/modules\/[^/]+\/index\.ts$/.test(p) ||
-      p === '.gitlab-ci.yml'
-  );
   // 위험 경로는 «내 변경에 코드가 있을 때만» 사유다 — 남의 마이그레이션·package·shared·CI 변경이 깨뜨릴 수 있는 건 코드뿐이다.
   // 문서만 바꾸는 MR 이 그 때문에 계속 «합치기» 가 되던 것이 이 카드(#610)의 실제 사례다.
   // ★fail-closed: «문서로 확인된 것만 비코드» 이고 나머지는 전부 코드다. 목록에 빠진 파일이 문서로 떨어지면(fail-open) 안 된다 —
@@ -71,6 +61,37 @@ if (mode === 'main-moved') {
   const isDoc = (p) => /\.(md|txt)$/i.test(p) || (/^docs\//.test(p) && !/\.(json|ya?ml|[cm]?[jt]sx?|sh|py)$/i.test(p));
   const appCode = (p) => !isDoc(p);
   const myCode = [...mine].filter(appCode);
+
+  // 위험 경로를 «내 변경이 실제로 쓰는 것»으로 좁힌다(배포처 bnsone #716 — #708 에서 남의 무관한 변경 때문에 합치기가 세 바퀴(바퀴당 약 40분) 돌았다).
+  // ① 같은 모듈이어도 다른 파일이면 사유가 아니다 — 같은 파일은 위 overlap, 글자 충돌은 아래 merge-tree 가 잡는다.
+  //    한계: 같은 모듈 안에서 함수 이름을 바꾸고 다른 파일에서 옛 이름 호출이 늘어나는 길은 머지 뒤 main 파이프라인 + revert 가 막는다.
+  const mineMods = new Set([...mine].map(moduleOf).filter(Boolean));
+  const isTest = (p) => /\.(test|spec)\.[cm]?[jt]sx?$/.test(p) || /(^|\/)__tests__\//.test(p);
+  // ② 모듈 index.ts 는 «있던 줄이 지워지거나 바뀔 때»만 위험하다 — export 를 더하기만 한 변경은 내 코드의 기존 import 를 못 깨뜨린다.
+  const indexShrunk = (f) =>
+    git('--literal-pathspecs', 'diff', '-U0', '--no-renames', base, mainSha, '--', f)
+      .split('\n')
+      .some((l) => l.startsWith('-') && !l.startsWith('---'));
+  // 그리고 내 코드가 그 모듈을 쓸 때만이다(내 모듈이면 쓴다고 본다). 지워진 파일은 쓰지 않는 것으로 치고, 읽기 오류는 판정 불능이다.
+  // «쓴다» = 내 파일 본문에 `modules/<이름>` 이 나온다(별칭 `@/modules/x`·상대경로·`src/modules/x` 모두). import 방식이 다른 repo 면 이 정규식을 고쳐라.
+  const usesModule = (m) =>
+    mineMods.has(m) ||
+    myCode.some((p) => {
+      const r = spawnSync('git', ['show', 'HEAD:' + p], { encoding: 'utf8', timeout: 60000, maxBuffer: 64 * 1024 * 1024 });
+      // 읽기 «실패»(버퍼 초과·시간 초과·git 실행 오류)는 «안 쓴다» 가 아니다 — 판정 불능(fail-closed). 지워진 파일은 git show 가 비정상 종료할 뿐 r.error 가 없다.
+      if (r.error) die(`내 파일 ${p} 를 못 읽었다 — ${r.error.message}`);
+      return r.status === 0 && new RegExp('modules/' + m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\w-])').test(r.stdout);
+    });
+  // ③ 남의 새 마이그레이션은 내가 스키마·마이그레이션을 건드릴 때만(마이그레이션 순서·스키마 충돌) 사유다. ④ src/shared 의 시험 파일은 뺀다.
+  const touchesSchema = [...mine].some((p) => /^prisma\//.test(p) || /(^|\/)migrations\//.test(p));
+  const risky = [...mainNew].filter((p) => {
+    if (/(^|\/)migrations\//.test(p)) return touchesSchema;
+    if (p === 'package.json' || p === 'package-lock.json' || p === '.gitlab-ci.yml') return true;
+    if (/^src\/shared\//.test(p)) return !isTest(p);
+    const im = /^src\/modules\/([^/]+)\/index\.ts$/.exec(p);
+    if (im) return usesModule(im[1]) && indexShrunk(p);
+    return false;
+  });
   let riskNote = '';
   if (risky.length && myCode.length) why.push('main 의 위험 경로(마이그레이션·package·lock·shared·모듈 index·CI): ' + risky.slice(0, 5).join(', '));
   else if (risky.length) riskNote = '참고: main 의 위험 경로 변경(' + risky.slice(0, 3).join(', ') + ')은 내 변경이 문서뿐이라 사유에서 뺐다';

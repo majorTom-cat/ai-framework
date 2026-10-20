@@ -64,11 +64,11 @@ t '번호가 같은 기존 ADR 을 각자 «수정»만 함(새로 만든 게 �
 echo "── B. main-moved — 겹치거나 위험하면 합치기 (막아야 하는 쪽)"
 setup; sedx feat docs/x.md 's/^L1$/L1mine/'; sedx main docs/x.md 's/^L14$/L14theirs/'
 t '같은 파일(글자 충돌은 없음) → 합치기' 0 합치기 '같은 파일' main-moved main
-setup; put feat src/modules/people/a.ts mine; put main src/modules/people/c.ts new
-t '같은 모듈 다른 파일 → 합치기' 0 합치기 '같은 모듈: people' main-moved main
-setup; put feat src/modules/people/a.ts mine; put main prisma/schema/migrations/20260102_000000_b/migration.sql sql
-t 'main 에 새 마이그레이션 → 합치기' 0 합치기 '위험 경로' main-moved main
-setup; put feat src/modules/people/a.ts mine; put main db/migrations/20260102_000000_b.sql sql
+setup; put feat prisma/schema/a.prisma mine; put main prisma/schema/migrations/20260102_000000_b/migration.sql sql
+t 'main 에 새 마이그레이션 + 나도 prisma/ 를 바꿈 → 합치기' 0 합치기 '위험 경로' main-moved main
+setup; put feat prisma/schema/migrations/20260103_000000_mine/migration.sql sql; put main prisma/schema/migrations/20260102_000000_b/migration.sql sql
+t 'main 에 새 마이그레이션 + 나도 새 마이그레이션(순서) → 합치기' 0 합치기 '위험 경로' main-moved main
+setup; put feat db/migrations/20260103_000000_mine.sql sql; put main db/migrations/20260102_000000_b.sql sql
 t '킷 일반형 마이그레이션 폴더(db/migrations) 도 위험 경로 → 합치기' 0 합치기 '위험 경로' main-moved main
 setup; put feat src/modules/people/a.ts mine; put main package.json '{"a":1}'
 t 'package.json 변경 → 합치기' 0 합치기 '위험 경로' main-moved main
@@ -76,8 +76,12 @@ setup; put feat src/modules/people/a.ts mine; put main package-lock.json '{"a":1
 t 'package-lock 변경 → 합치기' 0 합치기 '위험 경로' main-moved main
 setup; put feat src/modules/people/a.ts mine; put main src/shared/s.ts changed
 t 'shared 변경 → 합치기' 0 합치기 '위험 경로' main-moved main
-setup; put feat src/modules/people/a.ts mine; put main src/modules/approval/index.ts changed
-t '다른 모듈 index.ts(공개 export) 변경 → 합치기' 0 합치기 '위험 경로' main-moved main
+setup; put feat src/modules/people/a.ts 'import x from "@/modules/approval";'; put main src/modules/approval/index.ts changed
+t '내가 쓰는 모듈의 index.ts 에서 export 줄이 바뀜 → 합치기' 0 합치기 '위험 경로' main-moved main
+setup; put feat src/modules/people/a.ts 'import x from "@/modules/approval";'; rmf main src/modules/approval/index.ts
+t '내가 쓰는 모듈의 index.ts 가 지워짐 → 합치기' 0 합치기 '위험 경로' main-moved main
+setup; G checkout -q main; put main src/modules/people/index.ts x; merge_main; put feat src/modules/people/a.ts mine; put main src/modules/people/index.ts changed
+t '내 모듈의 index.ts 에서 export 줄이 바뀜(상대경로로 쓴다) → 합치기' 0 합치기 '위험 경로' main-moved main
 setup; put feat src/modules/people/a.ts mine; put main .gitlab-ci.yml changed
 t 'CI 파일 변경 → 합치기' 0 합치기 '위험 경로' main-moved main
 setup; put feat docs/adr/0002-mine.md m; put main docs/adr/0002-theirs.md t
@@ -87,9 +91,9 @@ t '같은 줄 수정(글자 충돌) → 합치기' 0 합치기 '글자 충돌' m
 
 echo "── B2. main-moved — 내 변경이 문서뿐이면 남의 위험 경로는 사유가 아니다 (#610 후속 · 통과해야 하는 쪽)"
 setup; put feat docs/mine.md m; put main prisma/schema/migrations/20260102_000000_b/migration.sql sql
-t '문서만 바꿈 + main 새 마이그레이션 → 그대로(참고 줄)' 0 그대로 '문서뿐이라 사유에서 뺐다' main-moved main
+t '문서만 바꿈 + main 새 마이그레이션 → 그대로' 0 그대로 '' main-moved main
 setup; put feat docs/mine.md m; put main package.json '{"a":1}'
-t '문서만 바꿈 + main package.json → 그대로' 0 그대로 '' main-moved main
+t '문서만 바꿈 + main package.json → 그대로(참고 줄)' 0 그대로 '문서뿐이라 사유에서 뺐다' main-moved main
 setup; put feat docs/mine.md m; put main package-lock.json '{"a":1}'
 t '문서만 바꿈 + main package-lock → 그대로' 0 그대로 '' main-moved main
 setup; put feat docs/mine.md m; put main src/shared/s.ts changed
@@ -145,6 +149,34 @@ setup; put feat docs/mine.md m; sedx feat docs/x.md 's/^L1$/L1mine/'; sedx main 
 t '문서만 바꿔도 글자 충돌이면 여전히 합치기' 0 합치기 '글자 충돌' main-moved main
 setup; put feat docs/mine.md m; put main docs/mine.md changed
 t '문서만 바꿔도 같은 파일이면 여전히 합치기' 0 합치기 '같은 파일' main-moved main
+
+echo "── B4. main-moved — 내 변경이 실제로 안 쓰는 남의 변경은 사유가 아니다 (#716 · 통과해야 하는 쪽)"
+setup; put feat src/modules/people/a.ts mine; put main src/modules/people/c.ts new
+t '같은 모듈 다른 파일 → 그대로' 0 그대로 '안 겹친다' main-moved main
+setup; put feat src/modules/people/a.ts mine; put main prisma/schema/migrations/20260102_000000_b/migration.sql sql
+t 'main 새 마이그레이션·나는 스키마를 안 건드림 → 그대로' 0 그대로 '' main-moved main
+setup; put feat src/modules/people/a.ts mine; put main src/modules/approval/index.ts changed
+t '내가 안 쓰는 모듈의 index.ts 가 바뀜 → 그대로' 0 그대로 '' main-moved main
+setup; put feat src/modules/people/a.ts 'import x from "@/modules/approval-extra";'; put main src/modules/approval/index.ts changed
+t '이름이 접두사만 같은 모듈(approval-extra)을 씀 → approval 은 안 쓰는 것 → 그대로' 0 그대로 '' main-moved main
+setup; G checkout -q feat; mkdir -p "$R/src/modules/people"
+{ echo 'import x from "@/modules/approval";'; head -c 70000000 /dev/zero | tr '\0' a; echo; } > "$R/src/modules/people/big.ts"; G add src/modules/people/big.ts; G commit -q -m big
+put main src/modules/approval/index.ts changed
+t '내 파일이 너무 커서 못 읽음(버퍼 초과) → 그대로로 위장하지 않고 판정 불능(fail-closed)' 2 - '못 읽었다' main-moved main
+setup; put feat src/modules/people/a.ts 'import x from "@/modules/approval";'; put main src/modules/approval/index.ts $'x\nexport y'
+t '내가 쓰는 모듈의 index.ts 에 export 만 더해짐 → 그대로' 0 그대로 '' main-moved main
+setup; put feat src/modules/people/a.ts mine; put main src/shared/ui/tokens.test.ts t
+t 'src/shared 의 시험 파일만 바뀜 → 그대로' 0 그대로 '' main-moved main
+echo "── B5. #708 에서 실제로 «합치기» 가 세 바퀴 난 모양 — 완화 후 «그대로»"
+setup; put feat src/modules/attendance/a.ts 'import x from "@/modules/people";'
+put main src/modules/attendance/b.ts new; put main src/modules/people/index.ts $'a\nexport z'
+t '#708 ① 같은 모듈 다른 파일 + 쓰는 모듈 index 에 export 추가 → 그대로' 0 그대로 '' main-moved main
+setup; put feat src/modules/attendance/a.ts 'import x from "@/modules/people";'
+put main prisma/schema/migrations/20260102_000000_b/migration.sql sql; put main src/modules/approval/index.ts changed; put main src/modules/reservation/index.ts changed
+t '#708 ② 새 마이그레이션 + 안 쓰는 모듈 둘의 index → 그대로' 0 그대로 '' main-moved main
+setup; put feat src/modules/attendance/a.ts 'import x from "@/modules/people";'
+put main src/modules/approval/index.ts changed; put main src/shared/ui/tokens.test.ts t
+t '#708 ③ 안 쓰는 모듈의 index + shared 시험 파일 → 그대로' 0 그대로 '' main-moved main
 
 echo "── C. main-moved — 이미 합친 적이 있는 브랜치 (두 번째 이동)"
 setup; put feat src/modules/people/a.ts mine; put main docs/o1.md 1; merge_main; put main docs/o2.md 2
