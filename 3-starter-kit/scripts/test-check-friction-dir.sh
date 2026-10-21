@@ -16,7 +16,7 @@ git init -q -b main . || { echo "⛔ git init 실패 — 검증 불능."; exit 1
 git config user.email t@t; git config user.name t
 mkdir -p docs/friction scripts
 cp "$CHECK" scripts/check-friction-dir.py; cp "$HERE/check-append-only.py" "$HERE/check-append-only-git.sh" scripts/ 2>/dev/null
-pass=0; fail=0
+pass=0; fail=0; skipped=0
 ok() { pass=$((pass+1)); }
 no() { echo "FAIL: $1"; fail=$((fail+1)); }
 run() { python3 scripts/check-friction-dir.py "$1" 2>&1; }
@@ -157,6 +157,7 @@ git checkout -q -f main; git reset -q --hard base; git clean -fdq
 chmod 000 docs/friction/2026-10-21-776-bbbbbb.md
 if [ -r docs/friction/2026-10-21-776-bbbbbb.md ]; then
   echo "· 건너뜀 — 이 환경은 chmod 000 파일도 읽는다(root 등): 읽기 실패 시험 생략"
+  skipped=$((skipped+2))  # expect 한 번 = 단언 둘(종료코드·문구) — 건너뛴 만큼 센다
 else
   expect "읽을 수 없는 파일" 2 "판정 불능"
 fi
@@ -200,5 +201,5 @@ OUT=$(bash scripts/check-append-only-git.sh nf 2>&1); RC=$?
 case "$OUT" in *"docs/friction/ 가 기준에도 이 트리에도 없음"*) ok;; *) no "연결: 폴더가 없는 repo 에서 건너뜀 안내가 없다: $OUT";; esac
 
 cd / && rm -r "$D"
-echo "통과 $pass / 실패 $fail"
-[ "$fail" -eq 0 ] && [ "$pass" -ge 72 ]
+echo "통과 $pass / 실패 $fail / 건너뜀 $skipped"
+[ "$fail" -eq 0 ] && [ $((pass + skipped)) -ge 72 ]
