@@ -200,6 +200,47 @@ git rm -rq docs/friction; git commit -q -m nofolder; git branch -q -f nf
 OUT=$(bash scripts/check-append-only-git.sh nf 2>&1); RC=$?
 case "$OUT" in *"docs/friction/ 가 기준에도 이 트리에도 없음"*) ok;; *) no "연결: 폴더가 없는 repo 에서 건너뜀 안내가 없다: $OUT";; esac
 
+# ── 오래된 브랜치(대상 tip 을 아직 안 품음): 갈라진 뒤 main 이 더한·닫은·보관한 기록을 «삭제·덮어쓰기» 로 세면 안 된다 (bnsone dev 776)
+expect_ref() {   # $1=이름 $2=ref $3=기대코드 $4=문구
+  OUT=$(run "$2"); RC=$?
+  [ "$RC" = "$3" ] && ok || no "$1: 종료코드 $RC (기대 $3) — $OUT"
+  if [ "$4" != - ]; then case "$OUT" in *"$4"*) ok;; *) no "$1: 문구 «$4» 없음 — $OUT";; esac; fi
+}
+git checkout -q -f main; git reset -q --hard base; git clean -fdq
+SL='2026-10-20 /dev — 오래된 브랜치 시험용 열린 기록'
+printf '%s\n' "$SL" > docs/friction/2026-10-20-0-eeeeee.md
+git add docs/friction/2026-10-20-0-eeeeee.md; git commit -q -m "시험 기준"; git branch -q -f sb
+git checkout -q -b stale sb
+printf '무관\n' > unrelated.txt; git add unrelated.txt; git commit -q -m "무관한 변경"
+git checkout -q -b tip1 sb
+printf '%s\n' '2026-10-23 /todo — main 이 나중에 더한 줄' > docs/friction/2026-10-23-0-dddddd.md
+git add docs/friction/2026-10-23-0-dddddd.md; git commit -q -m "main: 새 기록"
+git checkout -q stale
+expect_ref "오래된 브랜치 — main 이 새 기록을 더함" tip1 0 "오래된 브랜치"
+git checkout -q -b tip2 sb
+printf '%s\n' "$SL [닫힘:#12]" > docs/friction/2026-10-20-0-eeeeee.md
+git add docs/friction/2026-10-20-0-eeeeee.md; git commit -q -m "main: 닫음"
+git checkout -q stale
+expect_ref "오래된 브랜치 — main 이 기록을 닫음" tip2 0 "오래된 브랜치"
+git checkout -q -b tip3 sb
+mkdir -p docs/friction/보관/2026-10
+git mv docs/friction/2026-10-20-0-eeeeee.md docs/friction/보관/2026-10/
+git commit -q -m "main: 보관 이동"
+git checkout -q stale
+expect_ref "오래된 브랜치 — main 이 기록을 보관으로 옮김" tip3 0 "오래된 브랜치"
+# 막아야 하는 짝: 오래된 브랜치라도 갈라진 시점에 있던 기록을 지우면 막힌다
+git rm -q docs/friction/2026-10-20-0-eeeeee.md; git commit -q -m "stale: 삭제"
+expect_ref "오래된 브랜치가 갈라진 시점의 기록을 지움" tip1 1 "삭제:"
+git reset -q --hard HEAD~1
+printf '%s\n' '2026-10-20 /dev — 완전히 다른 내용' > docs/friction/2026-10-20-0-eeeeee.md; git commit -q -am "stale: 덮어씀"
+expect_ref "오래된 브랜치가 갈라진 시점의 기록을 덮어씀" tip1 1 "덮어쓰기:"
+git reset -q --hard HEAD~1
+# 막아야 하는 짝: tip 을 품은 브랜치는 tip 기준 그대로 엄격 — main 의 기록을 버리면 막힌다
+git merge -q --no-edit tip1
+git rm -q docs/friction/2026-10-23-0-dddddd.md; git commit -q -m "tip 품은 뒤 main 기록 삭제"
+expect_ref "tip 을 품은 브랜치가 main 의 기록을 지움" tip1 1 "삭제:"
+git checkout -q -f main; git reset -q --hard base; git clean -fdq
+
 cd / && rm -r "$D"
 echo "통과 $pass / 실패 $fail / 건너뜀 $skipped"
-[ "$fail" -eq 0 ] && [ $((pass + skipped)) -ge 72 ]
+[ "$fail" -eq 0 ] && [ $((pass + skipped)) -ge 84 ]

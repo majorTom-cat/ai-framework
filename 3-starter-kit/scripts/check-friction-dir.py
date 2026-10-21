@@ -15,7 +15,8 @@
     기준에 없던 항목 줄이 더해졌다. 새 기록은 `friction.py add` 로 폴더에 적는다. (줄 앞머리를 고친 정상 편집은 통과)
 허용: 새 폴더 파일 · 줄 끝에 `[닫힘:값]` 추가 · 닫힌 파일을 `보관/` 또는 `보관/<YYYY-MM>/` 으로 이동(내용 그대로) ·
   옛 파일의 줄을 닫기 · 옛 파일에서 옛 보관 파일로 옮기기(기준에 있던 줄이므로 «새 줄»이 아니다).
-읽기 실패(utf-8 아님 등)·git 조회 실패는 «통과»가 아니라 **판정 불능(종료 2)**.
+오래된 브랜치(대상 tip 을 아직 안 품음)는 갈라진 지점의 기록만 기준으로 본다 — main 이 나중에 더한·닫은·보관한 기록은 막지 않는다.
+옛 파일·입출력·git 조회 실패는 «통과»가 아니라 **판정 불능(종료 2)**. 새 폴더 파일이 utf-8 이 아닌 것은 형식 오류(종료 1).
 
 사용: python3 check-friction-dir.py <대상ref>      (repo 루트에서)
 """
@@ -101,16 +102,32 @@ def main():
     if git("rev-parse", "--verify", "--quiet", ref) is None:
         unreadable(f"기준 ref '{ref}' 를 못 찾았다")
 
-    # ── 기준(대상 브랜치 tip)의 파일들
+    # ── 기준 = 대상 브랜치 tip. 단 tip 을 아직 안 품은 «오래된 브랜치»는 갈라진 시점(merge base)에 있던 기록만 «지켰나» 로 본다
+    #    (그 뒤 main 이 더한·닫은·보관한 기록은 브랜치 탓이 아니고 git 병합이 그대로 살린다 — bnsone dev 776). tip 을 품은 브랜치는 그대로 엄격하게 tip 기준.
+    rc = subprocess.run(["git", "merge-base", "--is-ancestor", ref, "HEAD"], capture_output=True).returncode
+    if rc == 0:
+        basis = ref
+    elif rc == 1:
+        mb = git("merge-base", ref, "HEAD")
+        if mb is None or not mb.strip():
+            unreadable(f"'{ref}' 와 HEAD 의 갈라진 지점을 못 찾았다(얕은 clone 이면 이력을 더 받아라)")
+        basis = mb.decode().strip()
+        print(f"· 오래된 브랜치 — {ref} 를 품고 있지 않아 갈라진 지점({basis[:8]})의 기록을 기준으로 본다")
+    else:
+        unreadable(f"git merge-base --is-ancestor {ref} HEAD 실패")
+
     # ★`-z`: 없으면 git 이 한글 경로(`보관/`)를 «"\353\263…"» 로 따옴표 쳐 내서 `.md` 끝맺음이 깨지고 보관 안 파일이 통째로 검사에서 빠진다.
-    ls = git("ls-tree", "-r", "-z", "--name-only", ref, "--", D)
-    if ls is None:
+    tip_ls = git("ls-tree", "-r", "-z", "--name-only", ref, "--", D)
+    if tip_ls is None:
         unreadable(f"git ls-tree {ref} 실패")
+    ls = git("ls-tree", "-r", "-z", "--name-only", basis, "--", D)
+    if ls is None:
+        unreadable(f"git ls-tree {basis} 실패")
     base = {}      # 경로 → 줄
     for p in ls.decode("utf-8").split("\0"):
         if not p.endswith(".md"):
             continue
-        raw = git("show", f"{ref}:{p}")
+        raw = git("show", f"{basis}:{p}")
         if raw is None:
             unreadable(f"기준 파일을 못 읽었다: {p}")
         line, err = parse_line(raw)
@@ -118,7 +135,7 @@ def main():
             print(f"· 기준에서 이미 형식이 어긋난 파일(비교 제외): {p} — {err}")
             continue
         base[p] = line
-    adopted = bool(ls.strip())      # 기준 tip 에 폴더가 이미 있다 = 이 repo 는 새 방식을 쓴다
+    adopted = bool(tip_ls.strip())      # 기준 tip 에 폴더가 이미 있다 = 이 repo 는 새 방식을 쓴다
 
     # ── 새 트리(작업 폴더)의 파일들 — 열린 쪽은 바로 아래만, 보관은 월별 하위 폴더까지
     cur = {}
@@ -204,7 +221,7 @@ def main():
     if adopted:
         pool = []
         for lp in LEGACY:
-            raw = git("show", f"{ref}:{lp}")
+            raw = git("show", f"{basis}:{lp}")
             if raw is not None:
                 pool += legacy_entries_text(raw, f"기준의 {lp}")
         for lp in LEGACY:
