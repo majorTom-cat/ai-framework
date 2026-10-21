@@ -239,8 +239,21 @@ git reset -q --hard HEAD~1
 git merge -q --no-edit tip1
 git rm -q docs/friction/2026-10-23-0-dddddd.md; git commit -q -m "tip 품은 뒤 main 기록 삭제"
 expect_ref "tip 을 품은 브랜치가 main 의 기록을 지움" tip1 1 "삭제:"
+# 옛 파일 판정도 같은 기준: main 이 옛 파일에서 줄을 걷어 냈는데(보관 정리 등) 오래된 브랜치가 그 줄을 그대로 둔 경우 «새 줄» 이 아니다
+git checkout -q -f sb
+LX='2026-10-03 /fix — 옛 파일에 있다가 main 이 걷어 낸 줄'
+printf '%s\n' "$LX" >> docs/friction.md; git commit -q -am "옛 파일 줄 추가"; git branch -q -f sb2
+git checkout -q -b stale2 sb2
+printf '무관2\n' > unrelated2.txt; git add unrelated2.txt; git commit -q -m "무관한 변경 2"
+git checkout -q -b tip4 sb2
+grep -v -F "$LX" docs/friction.md > friction.tmp; mv friction.tmp docs/friction.md; git commit -q -am "main: 옛 파일 줄 정리"
+git checkout -q stale2
+expect_ref "오래된 브랜치 — main 이 옛 파일 줄을 걷어 냄" tip4 0 "오래된 브랜치"
+# 갈라진 지점을 못 찾으면(얕은 clone·무관한 이력) 통과가 아니라 판정 불능
+git checkout -q --orphan orph; git rm -rfq docs; git commit -q --allow-empty -m "무관한 이력"
+expect_ref "갈라진 지점이 없음" tip1 2 "갈라진 지점을 못 찾았다"
 git checkout -q -f main; git reset -q --hard base; git clean -fdq
 
 cd / && rm -r "$D"
 echo "통과 $pass / 실패 $fail / 건너뜀 $skipped"
-[ "$fail" -eq 0 ] && [ $((pass + skipped)) -ge 84 ]
+[ "$fail" -eq 0 ] && [ $((pass + skipped)) -ge 88 ]
