@@ -11,6 +11,6 @@ M="${CLAUDE_MEMORY_INDEX:-$HOME/.claude/projects/$ENC/memory/MEMORY.md}"
 lines="$(wc -l < "$M" | tr -d ' ')"
 bytes="$(wc -c < "$M" | tr -d ' ')"
 if [ "$lines" -ge "${MEMORY_WARN_LINES:-170}" ] || [ "$bytes" -ge "${MEMORY_WARN_BYTES:-36000}" ]; then
-  echo "⚠️ 메모리 목차가 ${lines}줄·${bytes}바이트로 커졌다(200줄이 넘으면 뒤가 잘려 읽힌다). 사용자에게 한 줄로 알리고 /tidy 를 제안하라."
+  echo "⚠️ 메모리 목차가 ${lines}줄·${bytes}바이트로 커졌다(200줄이 넘으면 뒤가 잘려 읽힌다). 사용자에게 한 줄로 알리고, 좋다고 하면 _reference/memory-tidy.md 의 읽기 단계(백업·조회·후보 표)를 네가 하라. 삭제는 사용자가 항목을 고른 뒤에만."
 fi
 exit 0

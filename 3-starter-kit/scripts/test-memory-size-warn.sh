@@ -18,11 +18,11 @@ OUT=$(run CLAUDE_MEMORY_INDEX="$D/small.md"); RC=$?
 
 OUT=$(run CLAUDE_MEMORY_INDEX="$D/small.md" MEMORY_WARN_LINES=5); RC=$?
 [ "$RC" = 0 ] && ok || no "줄 문턱 초과 종료코드 $RC"
-case "$OUT" in *"10줄"*"/tidy"*) ok;; *) no "줄 문턱 초과 문구 없음: $OUT";; esac
+case "$OUT" in *"10줄"*"memory-tidy.md"*) ok;; *) no "줄 문턱 초과 문구 없음: $OUT";; esac
 
 OUT=$(run CLAUDE_MEMORY_INDEX="$D/small.md" MEMORY_WARN_BYTES=10); RC=$?
 [ "$RC" = 0 ] && ok || no "바이트 문턱 초과 종료코드 $RC"
-case "$OUT" in *"/tidy"*) ok;; *) no "바이트 문턱 초과 문구 없음: $OUT";; esac
+case "$OUT" in *"memory-tidy.md"*) ok;; *) no "바이트 문턱 초과 문구 없음: $OUT";; esac
 
 seq 1 169 > "$D/edge.md"
 OUT=$(run CLAUDE_MEMORY_INDEX="$D/edge.md" MEMORY_WARN_BYTES=999999); [ -z "$OUT" ] && ok || no "169줄은 조용해야 한다: $OUT"
