@@ -10,7 +10,10 @@ M="${CLAUDE_MEMORY_INDEX:-$HOME/.claude/projects/$ENC/memory/MEMORY.md}"
 [ -f "$M" ] || exit 0
 lines="$(wc -l < "$M" | tr -d ' ')"
 bytes="$(wc -c < "$M" | tr -d ' ')"
-if [ "$lines" -ge "${MEMORY_WARN_LINES:-170}" ] || [ "$bytes" -ge "${MEMORY_WARN_BYTES:-36000}" ]; then
+# 문턱이 숫자가 아니거나 0 이하면 기본값을 쓴다(잘못 준 환경변수가 stderr 오류·«항상 경고» 가 되지 않게)
+case "${MEMORY_WARN_LINES:-}" in ''|*[!0-9]*|0) WL=170;; *) WL="$MEMORY_WARN_LINES";; esac
+case "${MEMORY_WARN_BYTES:-}" in ''|*[!0-9]*|0) WB=36000;; *) WB="$MEMORY_WARN_BYTES";; esac
+if [ "$lines" -ge "$WL" ] || [ "$bytes" -ge "$WB" ]; then
   echo "⚠️ 메모리 목차가 ${lines}줄·${bytes}바이트로 커졌다(200줄이 넘으면 뒤가 잘려 읽힌다). 사용자에게 한 줄로 알리고, 좋다고 하면 _reference/memory-tidy.md 의 읽기 단계(백업·조회·후보 표)를 네가 하라. 삭제는 사용자가 항목을 고른 뒤에만."
 fi
 exit 0

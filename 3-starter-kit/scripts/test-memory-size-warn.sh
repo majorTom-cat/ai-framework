@@ -41,6 +41,12 @@ case "$OUT" in *"200줄"*) ok;; *) no "경로 계산: 200줄 목차를 못 찾�
 OUT=$(env HOME="$D/home" CLAUDE_PROJECT_DIR=/tmp/proj/other bash "$HOOK" 2>&1)
 [ -z "$OUT" ] && ok || no "다른 프로젝트 경로는 조용해야 한다: $OUT"
 
+# 숫자가 아닌·음수 문턱은 기본값(170줄)으로: stderr 오류 없이 종료 0, 10줄 목차는 조용
+for bad in abc -1 0 ""; do
+  OUT=$(run CLAUDE_MEMORY_INDEX="$D/small.md" MEMORY_WARN_LINES="$bad" MEMORY_WARN_BYTES="$bad"); RC=$?
+  [ "$RC" = 0 ] && [ -z "$OUT" ] && ok || no "잘못된 문턱 «${bad}» 는 기본값이어야 한다(RC $RC): $OUT"
+done
+
 rm -r "$D"
 echo "통과 $pass / 실패 $fail"
-[ "$fail" -eq 0 ] && [ "$pass" -ge 11 ]
+[ "$fail" -eq 0 ] && [ "$pass" -ge 15 ]
