@@ -56,7 +56,11 @@ case "$last" in
 esac
 SH
 chmod +x "$T/bin/glab"
+. scripts/lib/fake-cli.sh; fake_cli_win "$T/bin" glab || exit 1   # Windows 의 node 도 가짜를 부르게 — 안 하면 진짜 GitLab 에 POST 가 나간다(#707)
 export FAKE_LOG="$T/calls.log" FAKE_DIR="$T"
+# 탐침: node 가 부르는 glab 이 가짜인가 — 아니면 --force 시험이 진짜 파이프라인을 만든다(#707). 시험 전에 멈춘다(판정 불능, 통과 아님)
+: > "$FAKE_LOG"; PATH="$T/bin:$PATH" node -e 'try{require("child_process").execFileSync("glab",["probe"],{stdio:"ignore"})}catch{}'
+grep -qx probe "$FAKE_LOG" || { echo "⛔ 가짜 glab 이 안 끼워진다 — 진짜 GitLab 에 쓸 수 있어 시험을 멈춘다(판정 불능, 대상 결함 아님)"; exit 1; }
 
 SHA=6d873dfe00000000000000000000000000000000
 OLD=1111111100000000000000000000000000000000

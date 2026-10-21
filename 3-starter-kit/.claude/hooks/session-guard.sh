@@ -25,14 +25,24 @@
 #      **그 세션이 조용히 미등록 상태**가 됐다 — 안전 실패지만 보이지 않는 실패라 더 나쁘다.
 #   즉 이 훅은 **보조 장치**다. 1차 방어는 여전히 CLAUDE.md 규칙("남의 클론에서 HEAD 옮기지 마라")이다.
 # 잠금 파일: <repo>/.claude/.session-lock — `pid \t 브랜치 \t 시각 \t 세션 project dir` (gitignore 대상).
-# 세션 식별: $CLAUDE_PID(= claude 프로세스 pid, `kill -0`으로 생존 확인). 없으면 조상에서 claude 를 찾아 폴백.
+# 세션 식별: $CLAUDE_PID(= claude 프로세스 pid, `alive` 로 생존 확인). 없으면 조상에서 claude 를 찾아 폴백.
+# Windows(Git Bash): CLAUDE_PID 는 Windows pid 라 `kill -0` 이 늘 «없음»이었다 → 등록이 늘 건너뛰어졌다(배포처 bnsone #707). `ps -W` 의 WINPID 로도 본다.
 
 set -u
 LOCKREL=".claude/.session-lock"
 
+# ── 살아 있나 — POSIX pid 또는 (Git Bash·Cygwin) Windows pid ──
+alive() {
+  kill -0 "$1" 2>/dev/null && return 0
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*) ps -W 2>/dev/null | awk -v p="$1" '$4==p{f=1} END{exit !f}';;
+    *) return 1;;
+  esac
+}
+
 # ── 내 세션 pid ──
 my_pid() {
-  if [ -n "${CLAUDE_PID:-}" ] && kill -0 "${CLAUDE_PID}" 2>/dev/null; then printf '%s' "$CLAUDE_PID"; return; fi
+  if [ -n "${CLAUDE_PID:-}" ] && alive "${CLAUDE_PID}"; then printf '%s' "$CLAUDE_PID"; return; fi
   local p; p=$(ps -o ppid= -p $$ 2>/dev/null | tr -d ' ')
   local i=0
   while [ -n "$p" ] && [ "$p" != "1" ] && [ "$i" -lt 6 ]; do
@@ -51,7 +61,7 @@ live_others() { # $1=lock 경로  $2=내 pid
   : > "$tmp" 2>/dev/null || can_clean=""
   while IFS="$(printf '\t')" read -r pid br ts dir; do
     [ -z "${pid:-}" ] && continue
-    kill -0 "$pid" 2>/dev/null || continue          # 끝난 세션 = 버린다
+    alive "$pid" || continue          # 끝난 세션 = 버린다
     [ -n "$can_clean" ] && printf '%s\t%s\t%s\t%s\n' "$pid" "${br:-?}" "${ts:-?}" "${dir:-?}" >> "$tmp"
     [ "$pid" = "$2" ] && continue
     printf '%s\t%s\t%s\t%s\n' "$pid" "${br:-?}" "${ts:-?}" "${dir:-?}"   # 남의 것만 보고

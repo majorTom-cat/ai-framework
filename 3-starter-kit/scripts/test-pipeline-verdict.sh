@@ -19,6 +19,7 @@ cat > "$TMP/bin/glab" <<'EOF'
 cat "$FAKE_JOBS"
 EOF
 chmod +x "$TMP/bin/glab" || exit 1
+. "$HERE/lib/fake-cli.sh"; fake_cli_win "$TMP/bin" glab || exit 1   # Windows 의 node 도 가짜를 부르게(#707)
 OK=0; FAIL=0
 
 # $1=설명 $2=기대 종료코드 $3=기대 1행(- 면 안 봄) $4=잡 JSON(- 면 조회 실패) [$5=추가로 있어야 할 줄 조각]

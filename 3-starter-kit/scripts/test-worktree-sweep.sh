@@ -10,6 +10,10 @@ command -v node >/dev/null 2>&1 || { echo "⛔ node 가 없다 — 검증 불능
 T=$(mktemp -d) || { echo "⛔ 임시 폴더를 못 만든다 — 검증 불능"; exit 1; }
 [ -d "$T" ] || { echo "⛔ 임시 폴더가 없다"; exit 1; }
 trap 'rm -rf "$T"' EXIT
+. "$(dirname "$0")/lib/fake-cli.sh"
+# Windows(#707): 점검기(node·git)는 C:/… 형태로 경로를 낸다 — 줄 맞추기용 경로(TW) · 잠금의 «살아 있는 pid» 는 node 가 보는 Windows pid 여야 한다
+TW=$T; LIVEPID=$$
+if [ -n "$FAKECLI_WIN" ]; then TW=$(cygpath -m "$T"); LIVEPID=$(cat /proc/$$/winpid); fi
 g() { git -c user.name=t -c user.email=t@t.t -c commit.gpgsign=false "$@"; }
 
 g init -q --bare "$T/origin.git" || { echo "⛔ bare 저장소 실패 — 검증 불능"; exit 1; }
@@ -41,7 +45,7 @@ g -C "$T/w4" commit -q -m "y only here"
 # w5: 다른 세션이 쓰는 중 (살아 있는 pid = 이 셸)
 g -C "$T/main" worktree add -q -b busy-br "$T/w5" main
 mkdir -p "$T/w5/.claude"
-printf '%s\tbusy-br\t0\t%s\n' "$$" "$T/w5" > "$T/w5/.claude/.session-lock"
+printf '%s\tbusy-br\t0\t%s\n' "$LIVEPID" "$T/w5" > "$T/w5/.claude/.session-lock"
 # w6: 분리된 HEAD
 g -C "$T/main" worktree add -q --detach "$T/w6" main
 # w8: 잠긴 워크트리 (끝은 main 의 조상)
@@ -85,7 +89,7 @@ g -C "$T/main" fetch -q --prune origin 2>/dev/null
 OUT=$(WORKTREE_SWEEP_FRESH_SECS=0 WORKTREE_SWEEP_NO_GLAB=1 node "$SWEEP" --repo "$T/main" 2>&1); RC=$?
 pass=0; fail=0
 chk() { # $1=기대 줄 머리(정리 가능|보류) $2=폴더 이름
-  if printf '%s\n' "$OUT" | grep -a -q "^$1.*$T/$2[[:space:]]"; then pass=$((pass+1)); else echo "FAIL($2 는 $1 이어야 한다)"; fail=$((fail+1)); fi
+  if printf '%s\n' "$OUT" | grep -a -q "^$1.*$TW/$2[[:space:]]"; then pass=$((pass+1)); else echo "FAIL($2 는 $1 이어야 한다)"; fail=$((fail+1)); fi
 }
 [ "$RC" -eq 0 ] && pass=$((pass+1)) || { echo "FAIL(종료 코드 $RC)"; fail=$((fail+1)); }
 chk "정리 가능" w1
@@ -99,7 +103,7 @@ chk "보류" w8
 chk "보류" w9
 case "$OUT" in *"9개 중 정리 가능 3개"*) pass=$((pass+1));; *) echo "FAIL(요약 줄: 9개 중 정리 가능 3개)"; fail=$((fail+1));; esac
 # .env 경고
-printf '%s\n' "$OUT" | grep -a "$T/w1[[:space:]]" | grep -q 'git 이 안 보는' && pass=$((pass+1)) || { echo "FAIL(w1 의 .env 경고가 없다)"; fail=$((fail+1)); }
+printf '%s\n' "$OUT" | grep -a "$TW/w1[[:space:]]" | grep -q 'git 이 안 보는' && pass=$((pass+1)) || { echo "FAIL(w1 의 .env 경고가 없다)"; fail=$((fail+1)); }
 # 브랜치만 남은 것: 셋 다일 때만 보고한다(위 픽스처) — 하나라도 어긋난 셋은 보고하면 안 된다
 printf '%s\n' "$OUT" | grep -a -q "^브랜치 정리 가능.gone-ok." && pass=$((pass+1)) || { echo "FAIL(gone-ok 가 브랜치 정리 가능으로 안 나왔다)"; fail=$((fail+1)); }
 for nb in gone-uniq nogone-ok merged-br; do
@@ -110,7 +114,7 @@ git -C "$T/main" show-ref --verify -q refs/heads/gone-ok && pass=$((pass+1)) || 
 # ★신선도 방어: 기본값(1일)이면 방금 만든 이 폴더들은 main 이 움직인 뒤에도 전부 «보류» — 정리 가능 0개
 OUT3=$(WORKTREE_SWEEP_NO_GLAB=1 node "$SWEEP" --repo "$T/main" 2>&1)
 case "$OUT3" in *"9개 중 정리 가능 0개"*) pass=$((pass+1));; *) echo "FAIL(기본 신선도면 정리 가능 0개여야 한다): $(printf '%s' "$OUT3" | tail -1)"; fail=$((fail+1));; esac
-printf '%s\n' "$OUT3" | grep -a "$T/w7[[:space:]]" | grep -q '일치하지 않으면' && pass=$((pass+1)) || { echo "FAIL(w7 보류 사유에 «머지된 MR 이 끝과 일치하지 않으면» 이 없다)"; fail=$((fail+1)); }
+printf '%s\n' "$OUT3" | grep -a "$TW/w7[[:space:]]" | grep -q '일치하지 않으면' && pass=$((pass+1)) || { echo "FAIL(w7 보류 사유에 «머지된 MR 이 끝과 일치하지 않으면» 이 없다)"; fail=$((fail+1)); }
 # ★면제: 머지된 MR 의 sha == 끝이면 만든 지 1일 안이어도 «정리 가능». 면제가 뚫으면 안 되는 것(MR 없음·sha 다름·쓰는 중·변경 있음)은 그대로 «보류»
 g init -q --bare "$T/xo.git"
 g clone -q "$T/xo.git" "$T/xm" 2>/dev/null
@@ -122,7 +126,7 @@ g -C "$T/xm" push -q origin main 2>/dev/null
 g -C "$T/xm" fetch -q origin 2>/dev/null
 XTIP=$(g -C "$T/xm" rev-parse HEAD); XOLD=$(g -C "$T/xm" rev-parse HEAD~1)
 for s in e1 e2 e3 e4 e5; do g -C "$T/xm" worktree add -q -b $s "$T/$s" main; done
-mkdir -p "$T/e4/.claude"; printf '%s\te4\t0\t%s\n' "$$" "$T/e4" > "$T/e4/.claude/.session-lock"
+mkdir -p "$T/e4/.claude"; printf '%s\te4\t0\t%s\n' "$LIVEPID" "$T/e4" > "$T/e4/.claude/.session-lock"
 echo wip > "$T/e5/wip.txt"
 mkdir -p "$T/bin"
 cat > "$T/bin/glab" <<EOF
@@ -134,9 +138,9 @@ case "\$b" in
   *) echo '[]';;
 esac
 EOF
-chmod +x "$T/bin/glab"
+chmod +x "$T/bin/glab"; fake_cli_win "$T/bin" glab || exit 1
 OUTX=$(PATH="$T/bin:$PATH" node "$SWEEP" --repo "$T/xm" 2>&1)
-xchk() { if printf '%s\n' "$OUTX" | grep -a -q "^$1.*$T/$2[[:space:]]"; then pass=$((pass+1)); else echo "FAIL(면제 시험: $2 는 $1 이어야 한다)"; fail=$((fail+1)); fi; }
+xchk() { if printf '%s\n' "$OUTX" | grep -a -q "^$1.*$TW/$2[[:space:]]"; then pass=$((pass+1)); else echo "FAIL(면제 시험: $2 는 $1 이어야 한다)"; fail=$((fail+1)); fi; }
 xchk "정리 가능" e1   # 머지된 MR sha == 끝 → 1일 안이어도 면제
 xchk "보류" e2        # 막 만든 빈 작업(머지된 MR 없음)
 xchk "보류" e3        # 머지된 MR 은 있지만 sha 가 다름

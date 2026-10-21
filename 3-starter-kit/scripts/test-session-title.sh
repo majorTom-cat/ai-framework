@@ -8,10 +8,12 @@ HOOK="${SESSION_TITLE_HOOK:-$(cd "$(dirname "$0")/.." && pwd)/.claude/hooks/sess
 command -v node >/dev/null 2>&1 || { echo "⛔ node 가 없다 — 검증 불능(합격 아님)."; exit 1; }
 # Orca 터미널 안에서 돌려도 시험하는 사람의 실제 탭 이름을 건드리지 않게 — Orca 변수는 비우고 시작한다(아래 Orca 시험만 가짜 orca 로 따로 건다).
 unset ORCA_TERMINAL_HANDLE ORCA_CLI_BIN_DIR
+. "$(dirname "$0")/lib/fake-cli.sh"   # Windows 의 node 도 가짜 orca 를 부르게(#707)
+# MSYS2_ARG_CONV_EXCL: Windows Git Bash 는 «/dev 660» 인자를 «C:/Program Files/Git/dev 660» 경로로 바꿔 넘긴다 — 프롬프트 인자만 변환 제외(리눅스엔 영향 없음)
 pass=0; fail=0
 
 run() { # $1=prompt $2=session_title(없으면 빈 문자열이면 키 생략)
-  node -e 'const i={prompt:process.argv[1]};if(process.argv[2])i.session_title=process.argv[2];process.stdout.on("error",()=>{});process.stdout.write(JSON.stringify(i))' "$1" "$2" \
+  MSYS2_ARG_CONV_EXCL='*' node -e 'const i={prompt:process.argv[1]};if(process.argv[2])i.session_title=process.argv[2];process.stdout.on("error",()=>{});process.stdout.write(JSON.stringify(i))' "$1" "$2" \
     | node "$HOOK" 2>/dev/null
 }
 t() { # $1=기대 제목(-면 «붙이지 않음») $2=prompt $3=기존 제목
@@ -55,15 +57,15 @@ if [ "$RC" -eq 0 ] && [ -z "$OUT" ]; then pass=$((pass+1)); else echo "FAIL(깨�
 FAKE=$(mktemp -d) || { echo "⛔ 임시 폴더 실패 — 검증 불능"; exit 1; }
 trap 'rm -rf "$FAKE"' EXIT
 LOG="$FAKE/calls.log"
-printf '%s\n' '#!/bin/sh' "printf '%s|' \"\$@\" >> \"$LOG\"" > "$FAKE/orca"; chmod +x "$FAKE/orca"
+printf '%s\n' '#!/bin/sh' "printf '%s|' \"\$@\" >> \"$LOG\"" > "$FAKE/orca"; chmod +x "$FAKE/orca"; fake_cli_win "$FAKE" orca || exit 1
 waitlog() { local i=0; while [ ! -s "$LOG" ] && [ "$i" -lt 50 ]; do sleep 0.1; i=$((i+1)); done; }
 orca_t() { # $1=기대 호출 인자(-면 «호출 없음») $2=prompt $3=기존 제목 $4=핸들(비우면 변수 없음)
   rm -f "$LOG"
   if [ -n "${4:-}" ]; then
-    node -e 'const i={prompt:process.argv[1]};if(process.argv[2])i.session_title=process.argv[2];process.stdout.write(JSON.stringify(i))' "$2" "${3:-}" \
+    MSYS2_ARG_CONV_EXCL='*' node -e 'const i={prompt:process.argv[1]};if(process.argv[2])i.session_title=process.argv[2];process.stdout.write(JSON.stringify(i))' "$2" "${3:-}" \
       | ORCA_TERMINAL_HANDLE="$4" ORCA_CLI_BIN_DIR="$FAKE" node "$HOOK" >/dev/null 2>&1
   else
-    node -e 'const i={prompt:process.argv[1]};if(process.argv[2])i.session_title=process.argv[2];process.stdout.write(JSON.stringify(i))' "$2" "${3:-}" \
+    MSYS2_ARG_CONV_EXCL='*' node -e 'const i={prompt:process.argv[1]};if(process.argv[2])i.session_title=process.argv[2];process.stdout.write(JSON.stringify(i))' "$2" "${3:-}" \
       | ORCA_CLI_BIN_DIR="$FAKE" node "$HOOK" >/dev/null 2>&1
   fi
   if [ "$1" = - ]; then
@@ -90,7 +92,7 @@ case "$OUT" in *'"sessionTitle":"dev 660"'*) [ "$RC" -eq 0 ] && pass=$((pass+1))
 
 # 훅은 느린 orca 를 기다리지 않고(spawnSync 로 바뀌면 2초 이상 — 경과는 정수 초라 1 이하면 통과), 훅이 끝난 뒤에도 자식은 일을 마친다
 SLOW="$FAKE/slow"; mkdir -p "$SLOW"
-printf '%s\n' '#!/bin/sh' 'sleep 2' "printf x > \"$FAKE/slow.done\"" > "$SLOW/orca"; chmod +x "$SLOW/orca"
+printf '%s\n' '#!/bin/sh' 'sleep 2' "printf x > \"$FAKE/slow.done\"" > "$SLOW/orca"; chmod +x "$SLOW/orca"; fake_cli_win "$SLOW" orca || exit 1
 START=$SECONDS
 node -e 'process.stdout.write(JSON.stringify({prompt:"/dev 660"}))' | ORCA_TERMINAL_HANDLE=term_x ORCA_CLI_BIN_DIR="$SLOW" node "$HOOK" >/dev/null 2>&1
 ELAPSED=$((SECONDS-START))

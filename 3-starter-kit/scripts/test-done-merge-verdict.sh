@@ -207,7 +207,7 @@ t '깨끗한 병합 뒤 main 이 바꾼 파일을 직선 커밋으로 고침 →
 setup; sedx feat docs/x.md 's/^L1$/L1mine/'; REV=$(head_sha); sedx main docs/x.md 's/^L14$/L14theirs/'; merge_main
 t '같은 파일을 자동 병합·고친 곳이 멀다(1행 vs 14행) → 리뷰유효(#677)' 0 리뷰유효 '4줄 이상 떨어져' after-merge "$REV" main
 setup; sedx feat docs/x.md 's/^L1$/L1mine/'; REV=$(head_sha); sedx main docs/x.md 's/^L14$/L14theirs/'
-G checkout -q feat; G merge -q --no-commit --no-ff main >/dev/null 2>&1; chmod +x "$R/docs/x.md"; G add docs/x.md; G commit -q -m chmod
+G checkout -q feat; G merge -q --no-commit --no-ff main >/dev/null 2>&1; chmod +x "$R/docs/x.md"; G add docs/x.md; G update-index --chmod=+x docs/x.md; G commit -q -m chmod   # update-index: Windows(core.fileMode=false)에선 chmod 가 색인에 안 실린다(#707)
 t '병합 커밋에서 같은 파일의 실행권한(mode)만 바꿈 → 재리뷰(독립 검토가 재현한 구멍)' 0 재리뷰 '기계적 병합과 다름' after-merge "$REV" main
 echo "── E3. after-merge — main 의 변경을 통째로 버린 병합은 재리뷰 (옛 판부터 있던 구멍)"
 setup; sedx feat docs/x.md 's/^L1$/L1mine/'; REV=$(head_sha); sedx main docs/x.md 's/^L14$/L14theirs/'
