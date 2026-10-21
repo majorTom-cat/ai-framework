@@ -1,7 +1,7 @@
 ---
 name: todo
 description: 내 담당 이슈·멘션 브리핑. 세션 시작 시, 이슈 마무리 후, 사용자가 다음 작업을 물을 때 실행.
-allowed-tools: Bash(glab *) Bash(git *) Bash(grep *) Bash(node scripts/pipeline-verdict.cjs*) Bash(node scripts/worktree-sweep.cjs*)
+allowed-tools: Bash(glab *) Bash(git *) Bash(bash scripts/todo-head.sh*) Bash(grep *) Bash(node scripts/pipeline-verdict.cjs*) Bash(node scripts/worktree-sweep.cjs*)
 ---
 
 > **예시**: `/todo` (세션 시작·이슈 끝나면 자동 실행되기도 — 내 카드·멘션 브리핑)
@@ -15,12 +15,12 @@ allowed-tools: Bash(glab *) Bash(git *) Bash(grep *) Bash(node scripts/pipeline-
 > **계약** · 입력: 없음 · 산출물: 내 카드·멘션 브리핑 + 번호 선택지 — 기본 조회형 · 검증: 조회형 — 별도 없음. **예외 부작용**: 검수·승인 멘션 처리 시 게이트 잡 실행·close 대행·라벨 전환이 일어난다(아래 절차 절) · 0-d 는 **내 알림함**의 끝난 To-Do 를 지운다(묻지 않고)
 
 내 담당 열린 이슈:
-!`glab issue list --assignee=@me 2>&1 | head -30`
+!`bash scripts/todo-head.sh issues`
 
 내게 온 To-Do·멘션:
-!`glab todo list -P 100 2>&1 | head -60`
+!`bash scripts/todo-head.sh todos`
 
-> `OSStatus -26276` = «없음» 아닌 맥 격리 탓 — 사용자에게 «오류는 정상, 다시 조회 중» 한 줄 먼저, Bash 한 줄씩 재조회(`rules/gitlab-cli.md`).
+> 머리가 «맥: 조회 건너뜀»이면 «없음»이 아니다 — 사용자에게 «맥은 AI 가 직접 조회합니다» 한 줄 먼저, `glab issue list --assignee=@me`·`glab todo list -P 100` 을 Bash 로 한 줄씩. `x509` 오류가 보여도 같다(`rules/gitlab-cli.md`).
 
 # 할 일
 
@@ -60,8 +60,7 @@ allowed-tools: Bash(glab *) Bash(git *) Bash(grep *) Bash(node scripts/pipeline-
   - **파이프라인 status 한 값으로 판정하지 마라** — `manual`(blocked)은 실패가 아니라 게이트 승인 대기다. `node scripts/pipeline-verdict.cjs <PID>` 1행 토큰으로 판정한다.
 
 위 데이터를 요약해 **번호 선택지**로 제시하라.
-**각 선택지는 «무엇이 달라지나»를 한 줄로 적는다** — "잔손질"·"수거함"·"증분" 같은 내부 분류명 단독은 사용자에게 아무 정보가 아니다. CLAUDE.md 세션 규칙의 «무엇이 어떻게 달라지는지로 말하라»는 본문만이 아니라 고르라는 항목에도 적용된다 — 고를 때가 정작 그 정보가 필요한 순간이다.
-
+**각 선택지는 «무엇이 달라지나»를 한 줄로 적는다** — "잔손질"·"수거함"·"증분" 같은 내부 분류명 단독은 사용자에게 아무 정보가 아니다.
 - ① 새 멘션·댓글이 있으면 **그것부터 (권장 표시)** — 내 카드만이 아니라 **남의 카드에 달린 내 멘션도**(To-Do 목록이 그것이다). 대기·무효 통지·반려 전부 포함 (무효 멘션을 놓치면 없어진 카드를 만들게 된다). **무효 통지에는 확인 댓글 한 줄(ack)로 답한다.** 기획 변경이 맞으면 `/change` 를 제안
   - **"고위험 리뷰 부탁"(승인 대행)·"검수 부탁"(검수 대행) 멘션이 있으면 — 지금 `검수.md`를 읽고 그대로 진행하라.**
     ⚠️부작용 있는 절차다(게이트 잡 실행·close 대행·라벨 전환) — 어느 것도 사용자 확답 전에 실행 금지.
