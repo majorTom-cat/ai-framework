@@ -10,7 +10,7 @@
 - **그 자리의 정본 = 댓글도 `--input` JSON 이다**: ①본문을 Write 도구로 파일에 쓰고 ②`{"body": 본문}` JSON 을 만들고(셸로 조립하지 마라 — 그것도 막힌다. `node -e` 나 Write 도구로) ③`glab api --method POST "projects/:id/issues/{번호}/notes" -H "Content-Type: application/json" --input {파일} </dev/null`. MR 댓글은 `.../merge_requests/{iid}/notes`, MR 생성은 `.../merge_requests` 에 `{"source_branch":…,"target_branch":"main","title":…,"description":…,"remove_source_branch":true}`. 카드 본문 갱신은 위 PUT 형태 그대로.
 - 파일 쓰기와 `glab` 호출을 한 명령에 묶지 마라 — 도구 호출을 나누고, 파일 경로는 **«리터럴 절대경로»로** 넘겨라(변수·명령치환이 섞이면 그 가드가 다시 막는다). API 경로는 따옴표로 감싸라 — `?` 가 있으면 zsh 가 패턴으로 해석한다.
 - 자식 프로세스로 감싸도 제한은 따라온다 — `node scripts/…` 안에서 부른 `glab` 도 같은 통신 제한을 받는다. 조회가 실패하면 그건 «불합격»이 아니라 **«판정 불능»**이다 — status 한 값으로 대체하거나, 거부당한 것을 셸로 감싸 숨기지 마라. 같은 조회를 한 줄로 직접 돌려 원인을 먼저 확인하라.
-- 막혔을 때 하지 말 것 둘: 권한 확대·울타리 통째 해제. 여전히 거부되면 **«거부된 동작과 메시지»를 `docs/friction.md` 에 한 줄로** 남겨라 — 그게 이 규칙이 고쳐지는 유일한 경로다.
+- 막혔을 때 하지 말 것 둘: 권한 확대·울타리 통째 해제. 여전히 거부되면 **«거부된 동작과 메시지»를 마찰 한 줄(`python3 scripts/friction.py add`)로** 남겨라 — 그게 이 규칙이 고쳐지는 유일한 경로다.
 - 같은 가드가 «낱말»만 보고도 막는다(부분 문자열 매칭 오탐 — heredoc 본문에 `.gitlab-ci.yml` 이 들어 있으면 파일 쓰기가, 명령 문자열에 `enable` 이 들어 있으면 `sed` 가 거부된다). **파일을 만들거나 고치는 일은 Write·Edit 도구로** 넘겨라 — 셸로 우기지 마라.
 - 도구가 권하는 «새 형식»을 그대로 따르지 마라 — `glab issue note -m` 이 deprecation 경고로 `note create` 를 권하는데 그 형식은 여러 줄 본문에서 깨진다(`Accepts 1 arg(s), received 2` — 첫 줄이 경고하는 그 실패 모드다). 경고는 경고일 뿐 **정본은 그대로다** — 보통 세션은 `-m "$(cat 파일)"`, 워크트리·격리 세션은 `--input` JSON(위 두 줄).
 - 바깥에 남긴 산출물(카드·댓글·MR 본문)은 **등록 직후 API로 재조회**해 본문이 의도대로인지 확인한다 — 무음 실패·깨짐은 조회로만 잡힌다.

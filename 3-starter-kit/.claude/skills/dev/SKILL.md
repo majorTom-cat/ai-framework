@@ -82,7 +82,7 @@ allowed-tools: Bash(glab *) Bash(bash scripts/card-head.sh*) Bash(git *) Bash(np
   - 변경 파일을 경로로 지목해 add — **`git add -A`·`add .` 금지**: 작업트리엔 남의 미추적 파일·잔해가 있을 수 있다(실사고 경위 `함정.md` §5) · 손 안 댄 `package-lock.json` 변경은 `git checkout --` 로 되돌려라
   - 커밋 직전 `git branch --show-current` 가 작업 브랜치인지 대조 — 다른 세션이 HEAD 를 옮겼을 수 있다.
 - 구현이 docs와 달라지면 **`_digest.md` 수정을 동봉**(원문 금지). 완료 보고엔 증거(테스트 출력 요약 + 실행한 확인)를 붙여라.
-- 막혔거나 우회했거나 매끄럽지 않았으면 **`docs/friction.md` 한 줄**(이 커밋 동봉) — `[막힘]` 태그면 «마찰 수거» 카드 멘션 한 줄까지가 한 벌이다. 정본 = CLAUDE.md friction 절.
+- 막혔거나 우회했거나 매끄럽지 않았으면 **마찰 한 줄**(`python3 scripts/friction.py add`, 이 커밋 동봉) — `[막힘]` 태그면 «마찰 수거» 카드 멘션 한 줄까지가 한 벌이다. 정본 = CLAUDE.md friction 절.
 - 사용자에게: "완료했습니다. `/done $0` 으로 머지하세요." + 화면 확인은 **검수 안내표를 채팅에**(done 단계상세 §7)
 
 **❌ 금지 절**은 `단계상세.md` §6.

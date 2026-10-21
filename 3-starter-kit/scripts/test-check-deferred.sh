@@ -72,6 +72,8 @@ setup || { echo "⛔ 픽스처 실패"; exit 1; }
 add docs/03_Requirement/Req.md "- 정산은 후속 카드로 뺀다."
 add docs/00_Guide/Guide.md "- 큰 일은 별도 카드로 나눠라."
 add docs/friction.md "2026-09-17 /dev — 후속 카드로 뺐다"
+mkdir -p docs/friction
+add docs/friction/2026-09-17-0-abcdef.md "2026-09-17 /dev — 후속 카드로 뺐다"
 ck "E1 exit 0" "0" "$(run)"
 has "E2 대상 0개로 찍는다(조용한 통과가 아니다)" "파일 0개"
 

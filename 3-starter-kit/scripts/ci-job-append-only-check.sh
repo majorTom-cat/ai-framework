@@ -8,4 +8,5 @@ git fetch -q origin "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
 # ★검사기 자체가 맞는지 먼저 본다 — self-tests 잡은 `changes: scripts/**` 라 **누적 파일만 고친
 #   MR 에서는 안 돈다**. 그 MR 에서 검사기가 깨져 있으면 무음으로 통과한다.
 bash scripts/test-check-append-only-git.sh
+bash scripts/test-check-friction-dir.sh
 bash scripts/check-append-only-git.sh "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"

@@ -22,7 +22,7 @@
 
 - ★**`git apply --3way` 쓰지 마라** — 킷 커밋의 기준 blob 이 배포처 저장소에 없어서 파일이 통째로 «repository lacks the necessary blob» 으로 죽는다(2026-09-23: 19파일 전멸).
 - ★**붙인 뒤 `bash scripts/check-skill-size.sh` 를 먼저 돌려라** — 킷 기준으로는 한도(5,376자) 안인데 배포처가 다른 줄을 현지화해 둬서 같은 변경이 더 길어진다(2026-10-07 bnsone: `/dev` 가 21자 초과). 넘으면 «새 줄»을 줄이지 말고 **그 줄 곁의 군더더기 괄호를 걷어** 맞춘다(킷이 fa86e2a 에서 그렇게 했다). `.rej` 는 현지화된 줄에서 나는 게 정상이다(같은 날 8파일 중 6곳).
-- ★**누적 파일(`docs/friction.md` 류) 충돌은 정상이다**(양쪽이 맨 위에 더한다) — 합친 뒤 `python3 scripts/check-append-only.py <main 판 파일> docs/friction.md` 로 유실 0 을 확인하라(`_reference/append-only.md`). 배포처 `archive-friction.py` 는 동기 MR 에서 돌리지 마라 — 닫힘 표시만.
+- ★**누적 파일(`docs/friction.md` 류) 충돌은 정상이다**(양쪽이 맨 위에 더한다 — 새 기록은 `docs/friction/` 항목별 파일이라 충돌이 없다, 폴더는 `check-friction-dir.py` 가 CI 에서 본다) — 합친 뒤 `python3 scripts/check-append-only.py <main 판 파일> docs/friction.md` 로 유실 0 을 확인하라(`_reference/append-only.md`). 배포처 `archive-friction.py` 는 동기 MR 에서 돌리지 마라 — 닫힘 표시만.
 
 ## 4. 커밋·MR
 - 커밋 첫 줄 = `킷동기: <킷 해시>`(여러 개면 `·` 로 잇는다) — 동기 검사기의 기준점이다. 카드 면제(`CLAUDE.md` '작업 절차').

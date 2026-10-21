@@ -105,6 +105,17 @@ done <<EOF
 $PAIRS
 EOF
 
+# 새 마찰 폴더(`docs/friction/` — 항목 하나 = 파일 하나)도 같은 기준(대상 브랜치 tip)으로 본다. 옛 파일 검사와 «겹쳐서» 돈다.
+if [ ! -d docs/friction ] && ! git cat-file -e "$REF:docs/friction" 2>/dev/null; then
+  SKIPPED=$((SKIPPED + 1)); echo "· 건너뜀 — docs/friction/ 가 기준에도 이 트리에도 없음(아직 안 쓰는 repo)"
+else
+  echo "════ docs/friction/ (항목별 파일)"
+  python3 "$HERE/check-friction-dir.py" "$REF"
+  FRC=$?
+  CHECKED=$((CHECKED + 1))
+  if [ "$FRC" = 1 ]; then RC=1; elif [ "$FRC" != 0 ]; then [ "$RC" = 0 ] && RC=2; fi
+fi
+
 # ★«몇 건 돌았나»를 반드시 찍는다 — «0건 통과»와 «실제 통과»는 다른 사건이다(rules/verify.md §1).
 echo "──── 검사 ${CHECKED}건 · 건너뜀 ${SKIPPED}건"
 if [ "$RC" = 0 ]; then

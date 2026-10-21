@@ -40,6 +40,7 @@ filter_paths() {
   grep -E '^docs/.*\.md$' \
     | grep -vE '^docs/(00_Guide|inbox)/' \
     | grep -vE '(^|/)friction[^/]*\.md$' \
+    | grep -vE '^docs/friction/' \
     | grep -vE '^docs/0[0-5]_[^/]+/(.*/)?[^_/][^/]*$'
 }
 
