@@ -4,19 +4,19 @@ effort: high # 배정표 = _reference/skill-tiers.md
 description: 기능 개발 전체 파이프라인 — 스펙 확인부터 구현·검증까지. 반나절 이상 걸리는 기능에 사용.
 disable-model-invocation: true
 argument-hint: "[이슈번호]"
-allowed-tools: Bash(glab *) Bash(git *) Bash(npm *) Bash(docker compose *) Read Edit Write Glob Grep
+allowed-tools: Bash(glab *) Bash(bash scripts/card-head.sh*) Bash(git *) Bash(npm *) Bash(docker compose *) Read Edit Write Glob Grep
 ---
 
 이슈 내용 (자동 조회됨 — 앞 60줄):
-!`glab issue view "$0" 2>&1 | sed -n '1,60p;61s/.*/⚠️ 잘렸다 — 아래 «남은 항목» 보라/p'`
+!`bash scripts/card-head.sh view60 "$0"`
 
 남은 항목(체크 안 된 줄):
-!`glab issue view "$0" 2>&1 | sed -n 's/^ *- \[ \] /□ /p'`
+!`bash scripts/card-head.sh todo "$0"`
 
 최근 댓글 (기획 보충·반려 사유는 여기 있다):
-!`glab issue view "$0" --comments 2>&1 | sed -n '/^comments\/notes:/,$p' | tail -40`
+!`bash scripts/card-head.sh notes "$0"`
 
-> **위 «이슈 내용» 조회가 «오류·빈 결과·엉뚱한 카드» 중 무엇이든이면 여기서 멈춘다**(댓글은 0건이어도 정상 — 경위 `함정.md` §7) — 번호를 추측하지 마라(엉뚱한 카드에 커밋이 생긴다). `/dev {번호}` 로 다시 부르라 하고 종료. 단 `OSStatus -26276` 은 맥 격리 탓 — Bash 로 한 줄씩 다시 조회(`rules/gitlab-cli.md`).
+> **위 «이슈 내용» 조회가 «오류·빈 결과·엉뚱한 카드» 중 무엇이든이면 여기서 멈춘다**(댓글은 0건이어도 정상 — 경위 `함정.md` §7) — 번호를 추측하지 마라(엉뚱한 카드에 커밋이 생긴다). `/dev {번호}` 로 다시 부르라 하고 종료. 단 «맥: 자동 조회 건너뜀»이면 멈추지 말고 `glab issue view $0`·`--comments` 를 Bash 로 한 줄씩 조회(`rules/gitlab-cli.md`).
 > 인자 없이 불렀으면 `$0` 확장이 깨져 조회가 실패한다 — 그것도 정지 사유다.
 > 이 판정은 AI 가 한다 — 셸 조건문으로 되돌리지 마라(정본 = CLAUDE.md '스킬 frontmatter `!` 명령').
 

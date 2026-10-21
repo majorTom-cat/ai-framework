@@ -4,20 +4,20 @@ effort: high # 배정표 = _reference/skill-tiers.md
 description: 작은 수정·버그 픽스용 경량 절차. 스펙·계획 게이트 없이 바로 구현 — 반나절 미만 작업에 사용.
 disable-model-invocation: true
 argument-hint: "[이슈번호]"
-allowed-tools: Bash(glab *) Bash(git *) Bash(npm *) Read Edit Write Glob Grep
+allowed-tools: Bash(glab *) Bash(bash scripts/card-head.sh*) Bash(git *) Bash(npm *) Read Edit Write Glob Grep
 ---
 
 이슈 내용 (자동 조회됨 — 앞 40줄. 41줄째부터는 안 보인다):
-!`glab issue view "$0" 2>&1 | sed -n '1,40p;41s/.*/⚠️ 여기서 잘렸다 — 아래 «남은 항목»을 근거로 삼고, 필요하면 전문을 다시 읽어라/p'`
+!`bash scripts/card-head.sh view40 "$0"`
 
 남은 항목 (자동 조회됨 — 체크 안 된 줄만. 잘림 없음):
-!`glab issue view "$0" 2>&1 | sed -n 's/^ *- \[ \] /□ /p'`
+!`bash scripts/card-head.sh todo "$0"`
 
 최근 댓글 (반려 사유·추가 지시는 여기 있다):
-!`glab issue view "$0" --comments 2>&1 | tail -40`
+!`bash scripts/card-head.sh tail "$0"`
 
 > **곁에 `착수상세.md` 가 있다 — 2단계에서 pull 로 남의 변경이 섞여 왔을 때 그 파일을 열어라.** 이 안내를 맨 앞에 두는 이유: 컴팩션은 `SKILL.md` 의 앞부분만 남긴다.
-> **위 조회가 «오류·빈 결과·엉뚱한 카드» 중 무엇이든이면 여기서 멈춘다** — 번호를 문맥으로 추측하지 마라(엉뚱한 카드에 브랜치·커밋이 생긴다). `/fix {번호}` 로 다시 부르라고 안내하고 종료. 단 `OSStatus -26276` 은 맥 격리 탓 — Bash 로 한 줄씩 다시 조회(`rules/gitlab-cli.md`).
+> **위 조회가 «오류·빈 결과·엉뚱한 카드» 중 무엇이든이면 여기서 멈춘다** — 번호를 문맥으로 추측하지 마라(엉뚱한 카드에 브랜치·커밋이 생긴다). `/fix {번호}` 로 다시 부르라고 안내하고 종료. 단 «맥: 자동 조회 건너뜀»이면 멈추지 말고 `glab issue view $0`·`--comments` 를 Bash 로 한 줄씩 조회(`rules/gitlab-cli.md`).
 > 인자 없이 불렀으면 `$0` 가 숫자가 아닌 값으로 확장돼 조회가 실패한다 — 그것도 이 정지 사유다.
 > 이 판정은 AI 가 한다 — 셸 조건문으로 되돌리지 마라(`allowed-tools` 에 없는 `echo`·`grep`·`case` 가 섞이면 스킬 실행 자체가 거부된다. 정본 = CLAUDE.md '스킬 frontmatter `!` 명령').
 
