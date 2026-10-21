@@ -235,7 +235,7 @@ def main():
             for line in legacy_entries_text(raw, lp):
                 if not matches_base(line, pool):
                     legacy_new += 1
-                    problems.append(f"옛 파일에 새 줄: {lp} — {line[:70]}… (새 기록은 `python3 scripts/friction.py add` 로 docs/friction/ 에 적어라)")
+                    problems.append(f"옛 파일에 새 줄: {lp} — {line[:70]}… (새 기록은 `python3 scripts/friction.py add` 로 docs/friction/ 에 적어라 — 이미 더했다면 옛 파일을 기준 판으로 되돌려라: git checkout <대상ref> -- {lp}, docs/friction-규약.md «전환 중인 브랜치»)")
 
     new_files = [p for p in cur if os.path.basename(p) not in {os.path.basename(b) for b in base}]
     print(f"기준 {len(base)}개 · 새 트리 {len(cur)}개 · 새로 더한 {len(new_files)}개" + (f" · 옛 파일에 더한 새 줄 {legacy_new}개" if adopted else ""))

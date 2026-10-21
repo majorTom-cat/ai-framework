@@ -53,7 +53,7 @@ fi
 TMP=$(mktemp -d) || exit 2
 trap 'rm -rf "$TMP"' EXIT
 
-RC=0; CHECKED=0; SKIPPED=0
+RC=0; CHECKED=0; SKIPPED=0; OLDFAIL=0
 echo "기준 ref = $REF ($(git rev-parse --short "$REF"))"
 
 while IFS= read -r pair; do
@@ -97,9 +97,9 @@ while IFS= read -r pair; do
   echo "════ $F"
   CHECKED=$((CHECKED + 1))
   if [ -n "$MOVED" ] && [ -f "$MOVED" ]; then
-    python3 "$TOOL" "$TMP/base" "$F" --moved-to "$MOVED" || RC=1
+    python3 "$TOOL" "$TMP/base" "$F" --moved-to "$MOVED" || { RC=1; OLDFAIL=1; }
   else
-    python3 "$TOOL" "$TMP/base" "$F" || RC=1
+    python3 "$TOOL" "$TMP/base" "$F" || { RC=1; OLDFAIL=1; }
   fi
 done <<EOF
 $PAIRS
@@ -125,5 +125,11 @@ elif [ "$RC" = 2 ]; then
   echo "⛔ 판정 불능 — 위 파일을 검사하지 못했다. 통과로 치지 않는다(rules/verify.md §1)."
 else
   echo "⛔ 위 파일에서 항목이 사라졌다 — 기준을 다시 받아 편집을 다시 얹어라(_reference/append-only.md)."
+  # 기준에 docs/friction/ 가 이미 있는데 옛 파일 검사가 막았다 = 옛 습관으로 옛 friction.md 에 더한 브랜치일 가능성이 크다 —
+  # 로그의 «편집을 다시 얹어라» 만 따르면 같은 검사에 또 막힌다(배포처 bnsone 2026-10-22 MR 2건)
+  if [ "$OLDFAIL" = 1 ] && git cat-file -e "$REF:docs/friction" 2>/dev/null; then
+    echo "   ↳ 옛 docs/friction.md 에 새 줄을 더했다면: 옛 파일은 기준 판으로 되돌리고(git checkout $REF -- docs/friction.md),"
+    echo "     더한 줄은 python3 scripts/friction.py add 로 docs/friction/ 에 옮겨라(docs/friction-규약.md «전환 중인 브랜치»)."
+  fi
 fi
 exit $RC

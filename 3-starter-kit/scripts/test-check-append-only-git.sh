@@ -146,6 +146,23 @@ setup || { echo "⛔ 픽스처 실패"; exit 1; }
 ck "L1 하위 폴더에서는 exit 2(판정 불능)" "2" "$(runsub docs)"
 grep -q "repo 루트가 아니라" "$TMP/out" || { FAIL=$((FAIL+1)); echo "  ⛔ L2 «repo 루트가 아니다» 사유가 안 찍혔다 — 사람이 원인을 못 찾는다"; }
 
+echo "── M. ★새 폴더를 쓰는 repo 에서 옛 파일 검사가 막히면 «friction.py add 로 옮겨라» 안내가 붙는다 (배포처 bnsone 2026-10-22)"
+setup || { echo "⛔ 픽스처 실패"; exit 1; }
+( cd "$R" || exit
+  mkdir -p docs/friction
+  printf '%s\n' '2026-10-20 /dev — 새 방식 첫 기록' > docs/friction/2026-10-20-0-aaaaaa.md
+  git add docs/friction >/dev/null; git commit -q -m "폴더 도입"
+  git update-ref refs/remotes/origin/main HEAD
+  printf '# 마찰\n\n2026-09-02 /fix — 나\n' > docs/friction.md )
+ck "M1 옛 파일 줄 삭제는 exit 1" "1" "$(run)"
+grep -q "friction.py add" "$TMP/out" || { FAIL=$((FAIL+1)); echo "  ⛔ M2 폴더가 이미 있는데 «friction.py add» 안내가 없다"; }
+grep -q "git checkout origin/main -- docs/friction.md" "$TMP/out" || { FAIL=$((FAIL+1)); echo "  ⛔ M3 옛 파일을 기준 판으로 되돌리라는 안내가 없다"; }
+# 짝: 폴더를 아직 안 쓰는 repo 는 같은 실패여도 그 안내가 없어야 한다(없는 도구를 가리키면 안 된다)
+setup || { echo "⛔ 픽스처 실패"; exit 1; }
+( cd "$R" || exit; printf '# 마찰\n\n2026-09-02 /fix — 나\n' > docs/friction.md )
+ck "M4 폴더 없는 repo 도 옛 파일 삭제는 exit 1" "1" "$(run)"
+if grep -q "friction.py add" "$TMP/out"; then FAIL=$((FAIL+1)); echo "  ⛔ M5 폴더를 안 쓰는 repo 에 friction.py 안내가 붙었다"; fi
+
 cd "$HERE" || exit 1
 echo "────────  $OK OK / $FAIL FAIL"
 [ "$FAIL" = 0 ] || exit 1
