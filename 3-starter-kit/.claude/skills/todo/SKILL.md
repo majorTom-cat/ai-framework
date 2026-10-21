@@ -20,7 +20,7 @@ allowed-tools: Bash(glab *) Bash(git *) Bash(grep *) Bash(node scripts/pipeline-
 내게 온 To-Do·멘션:
 !`glab todo list -P 100 2>&1 | head -60`
 
-> `OSStatus -26276` = «없음» 아닌 맥 격리 탓 — Bash 한 줄씩 재조회(`rules/gitlab-cli.md`).
+> `OSStatus -26276` = «없음» 아닌 맥 격리 탓 — 사용자에게 «오류는 정상, 다시 조회 중» 한 줄 먼저, Bash 한 줄씩 재조회(`rules/gitlab-cli.md`).
 
 # 할 일
 
