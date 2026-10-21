@@ -39,7 +39,7 @@ allowed-tools: Bash(glab *) Bash(git *) Bash(bash scripts/todo-head.sh*) Bash(gr
   - **경위·판정 서식은 `스캔상세.md` §1.**
 
 **0-c. 안 고쳐진 마찰 스캔**: 두 값을 **함께** 센다(«막힘»만 세면 안 되는 이유 = `스캔상세.md` §2-a) —
-  `python3 scripts/friction.py count`(옛 `friction.md`+새 `docs/friction/` 를 합쳐 ①막힘 ②안 닫힌 줄 전부를 한 줄로) · 줄을 보려면 `list --open`
+  `python3 scripts/friction.py count`(옛 `friction.md`+새 `docs/friction/` 를 합쳐 ①막힘 ②안 닫힌 줄 전부를 한 줄로) · 줄은 `list --open` · 「보관하라」 줄이 나오면 그 명령을 돌려라
   - ⚠️**0·0 은 「다 닫혔다」가 아니라 「경로가 없다」일 수 있다** — `스캔상세.md` §2-c.
   - 결과가 있으면 브리핑에 **「막힘 {N}건 / 안 닫힌 줄 {M}건 — 가장 오래된 {날짜}({N}일째)」** 한 줄과 선택지 하나를 올려라(고치는 건 카드가 아니라 그 자리 수리 — `/fix` 아님).
   - **올리기 전 둘**(경위 `스캔상세.md` §2·§2-a): ①`list --open` 줄에서 «킷 반영 완료|해소 확인» 을 찾아 «닫힘 표시만 빠진 줄»을 갈라라 — 안 가르면 숫자가 부푼다 ②「집습니다」 직전에 그 카드 최신 댓글 3건을 다시 읽어 «지금 최신인가»를 확인하라 — 착수 댓글은 push 보다 먼저 온다.

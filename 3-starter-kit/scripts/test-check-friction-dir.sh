@@ -25,6 +25,10 @@ L1='2026-10-20 /dev — 첫 마찰 한 줄'
 L2='2026-10-21 /done — 둘째 마찰 한 줄'
 printf '%s\n' "$L1" > docs/friction/2026-10-20-0-aaaaaa.md
 printf '%s\n' "$L2" > docs/friction/2026-10-21-776-bbbbbb.md
+LEG1='2026-10-01 /dev — 옛 파일의 첫 줄(앞머리 고침 시험용으로 충분히 긴 문장을 쓴다 abcdefghijklmnopqrstuvwxyz)'
+LEG2='2026-10-02 /fix — 옛 파일의 둘째 줄'
+printf '%s\n\n%s\n%s\n' '# 마찰 로그' "$LEG1" "$LEG2" > docs/friction.md
+printf '%s\n%s\n' '# 보관' '2026-09-01 /dev — 옛 보관 줄 [닫힘:구기록]' > docs/friction-보관.md
 git add -A && git commit -q -m base && git branch -q base
 
 # 기대 종료코드와 문구를 확인 — $1=이름 $2=기대코드 $3=문구(없으면 -)
@@ -94,6 +98,61 @@ printf '\xff\xfe깨진바이트\n' > docs/friction/2026-10-22-0-gggggg.md
 expect "utf-8 아님" 1 "utf-8"
 reset
 
+# ── 옛 파일(friction.md·friction-보관.md): 새 폴더를 쓰는 repo 에선 «새 줄» 금지, 닫기·옮기기·앞머리 고침은 통과
+expect "옛 파일 변경 없음" 0 "OK"
+printf '%s\n' '2026-10-22 /todo — 옛 파일 맨 위에 몰래 더한 새 줄' >> docs/friction.md
+expect "옛 파일에 새 줄 더함" 1 "옛 파일에 새 줄"
+reset
+sed -i.bak "s|^\(2026-10-02 /fix — 옛 파일의 둘째 줄\)\$|\1 [닫힘:#5]|" docs/friction.md; rm -f docs/friction.md.bak
+expect "옛 파일 줄 닫기" 0 "OK"
+reset
+sed -i.bak "s|^2026-10-01 /dev — 옛 파일의 첫 줄|2026-10-01 /dev — 요지로 고친 앞머리 — 옛 파일의 첫 줄|" docs/friction.md; rm -f docs/friction.md.bak
+expect "옛 파일 줄 앞머리 고침" 0 "OK"
+reset
+grep -v '둘째 줄' docs/friction.md > docs/friction.md.new; mv docs/friction.md.new docs/friction.md
+printf '%s\n' "$LEG2" >> docs/friction-보관.md
+expect "옛 파일 줄을 옛 보관으로 옮김" 0 "OK"
+reset
+printf '%s\n' '2026-10-22 /todo — 옛 보관에 몰래 더한 새 줄' >> docs/friction-보관.md
+expect "옛 보관에 새 줄 더함" 1 "옛 파일에 새 줄"
+reset
+printf '%s\n' "$LEG1" >> docs/friction.md
+expect "옛 파일에 같은 줄 중복 더함" 1 "옛 파일에 새 줄"
+reset
+
+# ── 월별 보관 폴더(보관/YYYY-MM/): 이동 허용 · 이름이 틀리면 형식 오류 · 삭제는 막음
+git branch -q -f pre base      # 이 구획이 base 를 «보관에 파일이 든 판» 으로 옮기므로 끝에서 되돌린다
+mkdir -p docs/friction/보관/2026-10
+git mv docs/friction/2026-10-20-0-aaaaaa.md docs/friction/보관/2026-10/
+expect "월별 보관으로 이동" 0 "OK"
+git commit -q -m monthly; git branch -q -f base
+rm docs/friction/보관/2026-10/2026-10-20-0-aaaaaa.md
+expect "월별 보관의 파일 삭제" 1 "삭제:"
+reset
+mkdir -p docs/friction/보관/abc
+git mv docs/friction/보관/2026-10/2026-10-20-0-aaaaaa.md docs/friction/보관/abc/
+expect "월별 폴더 이름이 YYYY-MM 아님" 1 "YYYY-MM"
+reset
+git mv docs/friction/보관/2026-10/2026-10-20-0-aaaaaa.md docs/friction/
+expect "보관에서 보관 밖으로 꺼냄" 1 "보관 밖"
+reset
+mkdir -p docs/friction/보관
+git mv docs/friction/보관/2026-10/2026-10-20-0-aaaaaa.md docs/friction/보관/
+expect "월별 → 평평한 보관으로 이동(보관 안 자리 이동)" 0 "OK"
+reset
+cp docs/friction/보관/2026-10/2026-10-20-0-aaaaaa.md docs/friction/
+expect "같은 이름이 열린 쪽·월별 보관에 둘 다" 1 "중복:"
+reset
+git branch -q -f base pre; reset
+
+# ── 아직 새 폴더를 안 쓰는 repo(기준 tip 에 폴더 없음)에선 옛 파일에 더해도 막지 않는다
+git checkout -q -f main; git reset -q --hard base; git clean -fdq
+git rm -rq docs/friction; git commit -q -m nofolder2; git branch -q -f nf2
+printf '%s\n' '2026-10-22 /todo — 새 방식 도입 전이라 옛 파일에 적는 줄' >> docs/friction.md
+OUT=$(python3 scripts/check-friction-dir.py nf2 2>&1); RC=$?
+[ "$RC" = 0 ] && ok || no "폴더 도입 전 repo 에서 옛 파일 추가가 막혔다(RC $RC) — $OUT"
+git checkout -q -f main; git reset -q --hard base; git clean -fdq
+
 # ── 읽기 실패는 «통과»가 아니라 판정 불능(2)
 chmod 000 docs/friction/2026-10-21-776-bbbbbb.md
 if [ -r docs/friction/2026-10-21-776-bbbbbb.md ]; then
@@ -142,4 +201,4 @@ case "$OUT" in *"docs/friction/ 가 기준에도 이 트리에도 없음"*) ok;;
 
 cd / && rm -r "$D"
 echo "통과 $pass / 실패 $fail"
-[ "$fail" -eq 0 ] && [ "$pass" -ge 45 ]
+[ "$fail" -eq 0 ] && [ "$pass" -ge 72 ]

@@ -38,6 +38,9 @@
 - **한 파일 맨 위에 여럿이 동시에 더하면 병합 충돌이 난다** — bnsone 은 2026-10-21 하루에 MR 3건(!1258·!1244·!1259)이 이 충돌로 필수 검사(`append-only-check`)에서 실패했다. 임시 저장소 재현: 한 파일 같은 머리 위치에 각자 추가 → 충돌 · 고유 파일에 각자 추가 → 충돌 0. 검사만 느슨하게 하면 풀리지 않는 구조 문제다.
 - **`merge=union` 은 단독 해법이 못 된다** — bnsone 이 이미 한 번 시험했다: 충돌 14건 중 8건에서 «보관으로 옮긴 줄»이 되살아났다(`.gitattributes` 15행 주석·`test-union-merge.sh`).
 - 그래서 새 기록은 `docs/friction/<날짜>-<카드번호|0>-<고유6자리>.md`(내용 = 지금과 같은 한 줄)이고, 도구 `scripts/friction.py` 가 등록·조회·세기·닫기·보관을 맡는다. 옛 `friction.md`·`friction-보관.md` 는 **일괄 이동하지 않는다**(조회·세기에서 합쳐 읽는다 — 이동은 그 자체가 큰 충돌·유실 위험이다).
+- **옛 파일에 새 줄을 더하는 것도 CI 가 막는다**(기준 tip 에 `docs/friction/` 가 이미 있을 때) — 글로 「더하지 마라」만 적으면 옛 습관·열려 있던 브랜치가 또 더한다. 닫기(`friction.py close "<문구>" <값>`)·옛 보관으로 옮기기·줄 앞머리 고침은 통과한다.
+- **파일이 쌓이는 문제**: 보관은 `보관/<YYYY-MM>/` 월별 하위 폴더로 가고(폴더 하나가 길어지지 않게), `friction.py count` 가 닫힌 파일이 열린 쪽에 20개 넘게 쌓이면 「보관하라」 한 줄을 더 낸다(`/todo` 0-c 가 이 값을 읽는다 — 안 비우면 아무도 안 비운다).
+- **전환 중인 브랜치(옛 파일에 새 줄을 더해 둔 열린 작업)**: ①`git fetch origin` ②내가 옛 `docs/friction.md` 에 더한 새 줄을 메모 ③`git checkout origin/main -- docs/friction.md` 로 옛 파일을 main 판으로 되돌림 ④메모한 줄마다 `python3 scripts/friction.py add [--card N] "<줄>"` ⑤닫힘 표시만 붙인 줄은 되돌리지 말고 다시 닫기(`friction.py close`). 배포처는 킷동기 MR 병합 뒤 이 순서로 한 번 옮긴다.
 - 검사기 `scripts/check-friction-dir.py` 가 CI `append-only-check` 에서 폴더를 본다: 파일 삭제·덮어쓰기·중복 ID·형식 오류는 막고, 줄 끝 `[닫힘:값]` 추가와 `보관/` 이동은 허용한다. **기준은 대상 브랜치의 지금 tip 이다 — merge base 로 바꾸거나 검사를 끄지 마라**(옛 파일 검사와 같은 이유, `_reference/append-only.md`).
 
 ## 왜 한도·보관·최신순인가 (2026-09-10)

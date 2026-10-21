@@ -13,7 +13,8 @@
   python3 scripts/friction.py list [--open|--closed|--blocked]   옛 파일 + 새 폴더를 합쳐 보여 준다
   python3 scripts/friction.py count                      「막힘 N / 안 닫힌 줄 M — 가장 오래된 날짜」 (`/todo` 0-c 값)
   python3 scripts/friction.py close <고유6자리|파일명> <값>   줄 끝에 ` [닫힘:값]` 을 붙인다
-  python3 scripts/friction.py archive [--keep 5]         닫힌 파일을 최신 N개만 남기고 `보관/` 으로 옮긴다(삭제 아님)
+  python3 scripts/friction.py close "<옛 friction.md 줄의 문구 12자 이상>" <값>   옛 파일의 열린 줄 하나를 제자리에서 닫는다
+  python3 scripts/friction.py archive [--keep 5]         닫힌 파일을 최신 N개만 남기고 `보관/<YYYY-MM>/` 으로 옮긴다(삭제 아님)
 종료: 0 정상 · 1 입력 오류 · 2 읽기 불능
 """
 import sys, os, re, secrets, datetime, shutil
@@ -27,6 +28,7 @@ for _s in (sys.stdout, sys.stderr):      # Windows cp949 콘솔에서 «—»·�
 ENTRY = re.compile(r"^\d{4}-\d{2}-\d{2}")
 NAME = re.compile(r"^(\d{4}-\d{2}-\d{2})-(\d+|0)-([a-z0-9]{6})\.md$")
 CLOSED = "[닫힘:"
+ARCHIVE_HINT = 20            # 닫힌 파일이 열린 쪽에 이만큼 넘게 쌓이면 count 가 보관을 권한다
 LEGACY_SINCE = "2026-08-31"      # 옛 파일의 «안 닫힌 줄» 은 토큰 신설일 이후만 센다(/todo 0-c 와 같은 잣대)
 
 
@@ -73,18 +75,23 @@ def legacy_lines(root, name):
 
 
 def folder_entries(root, sub=""):
-    d = os.path.join(root, "docs", "friction", sub)
+    """sub="" 이면 열린 쪽(docs/friction/ 바로 아래), "보관" 이면 보관/ 와 그 아래 월별 폴더(보관/2026-10/)까지."""
+    base = os.path.join(root, "docs", "friction", sub)
     out = []
-    if not os.path.isdir(d):
+    if not os.path.isdir(base):
         return out
-    for n in sorted(os.listdir(d)):
-        p = os.path.join(d, n)
-        if not os.path.isfile(p) or not n.endswith(".md"):
-            continue
-        line, err = read_entry_file(p)
-        if err:
-            die(f"⛔ 읽기 불능 — {p}: {err}", 2)
-        out.append((n, line))
+    dirs = [base]
+    if sub == "보관":
+        dirs = [x[0] for x in os.walk(base)]
+    for d in sorted(dirs):
+        for n in sorted(os.listdir(d)):
+            p = os.path.join(d, n)
+            if not os.path.isfile(p) or not n.endswith(".md"):
+                continue
+            line, err = read_entry_file(p)
+            if err:
+                die(f"⛔ 읽기 불능 — {p}: {err}", 2)
+            out.append((n, line))
     return out
 
 
@@ -181,9 +188,12 @@ def cmd_count(root, args):
             oldest = day
     if oldest is None:
         print("막힘 0건 / 안 닫힌 줄 0건")
-        return
-    days = (datetime.date.today() - datetime.date.fromisoformat(oldest)).days
-    print(f"막힘 {blocked}건 / 안 닫힌 줄 {opened}건 — 가장 오래된 {oldest}({days}일째)")
+    else:
+        days = (datetime.date.today() - datetime.date.fromisoformat(oldest)).days
+        print(f"막힘 {blocked}건 / 안 닫힌 줄 {opened}건 — 가장 오래된 {oldest}({days}일째)")
+    stale = sum(1 for _, l in folder_entries(root) if is_closed(l))
+    if stale > ARCHIVE_HINT:      # 닫힌 파일이 열린 쪽에 쌓이면 폴더가 길어진다 — 사람이 안 비우면 아무도 안 비운다
+        print(f"⚠️ 닫힌 파일 {stale}개가 열린 쪽에 쌓였다 — `python3 scripts/friction.py archive` 로 보관하라(삭제 아님)")
 
 
 def find_open(root, ref):
@@ -196,6 +206,28 @@ def find_open(root, ref):
     return hits
 
 
+def close_legacy(root, ref, val):
+    """옛 `docs/friction.md` 의 «열린 줄» 하나를 닫는다 — 줄 끝에 ` [닫힘:값]` 만 붙이는 제자리 편집(다른 줄은 바이트 그대로).
+    ref = 그 줄에 들어 있는 12자 이상의 문구. 하나만 맞아야 한다(여럿이면 멈춘다 — 엉뚱한 줄을 닫지 않게)."""
+    p = os.path.join(root, "docs", "friction.md")
+    if not os.path.isfile(p):
+        die(f"{ref} 에 맞는 열린 파일도 없고 옛 {p} 도 없다")
+    try:
+        with open(p, encoding="utf-8", newline="") as f:
+            lines = f.read().split("\n")
+    except (OSError, UnicodeDecodeError) as e:
+        die(f"⛔ 읽기 불능 — {p}: {e}", 2)
+    idx = [i for i, l in enumerate(lines) if ENTRY.match(l) and ref in l and not is_closed(l)]
+    if len(idx) != 1:
+        die(f"옛 friction.md 의 열린 줄 중 '{ref}' 가 든 것이 {len(idx)}개다 — 하나만 맞게 더 길게 줘라")
+    i = idx[0]
+    cr = "\r" if lines[i].endswith("\r") else ""
+    lines[i] = lines[i][: len(lines[i]) - len(cr)] + f" [닫힘:{val}]" + cr
+    with open(p, "w", encoding="utf-8", newline="") as f:
+        f.write("\n".join(lines))
+    print(f"{p} (옛 파일 {i + 1}번째 줄을 닫았다)")
+
+
 def cmd_close(root, args):
     if len(args) != 2:
         die("사용: friction.py close <고유6자리|파일명> <값>")
@@ -203,8 +235,10 @@ def cmd_close(root, args):
     if not val or re.search(r"\s", val) or "]" in val:
         die("닫힘 값에 공백·`]`·줄바꿈을 넣지 마라(괄호를 끼우면 기계가 못 센다 — 부가정보는 콜론 뒤)")
     hits = find_open(root, ref)
+    if len(hits) == 0 and len(ref) >= 12:
+        return close_legacy(root, ref, val)
     if len(hits) != 1:
-        die(f"{ref} 에 맞는 열린 파일이 {len(hits)}개다 — 정확한 6자리나 파일명을 줘라")
+        die(f"{ref} 에 맞는 열린 파일이 {len(hits)}개다 — 정확한 6자리나 파일명을 줘라(옛 friction.md 의 줄이면 줄 앞부분 12자 이상)")
     p = os.path.join(root, "docs", "friction", hits[0])
     line, err = read_entry_file(p)
     if err:
@@ -229,14 +263,15 @@ def cmd_archive(root, args):
     if not movable:
         print("옮길 닫힌 파일 없음")
         return
-    sub = os.path.join(root, "docs", "friction", "보관")
-    os.makedirs(sub, exist_ok=True)
+    exist = {n for n, _ in folder_entries(root, "보관")}
     for n, _ in movable:
-        dst = os.path.join(sub, n)
-        if os.path.exists(dst):
-            die(f"보관에 같은 이름이 이미 있다(덮어쓰지 않는다): {dst}", 2)
-        shutil.move(os.path.join(root, "docs", "friction", n), dst)
-    print(f"{len(movable)}개를 보관/ 으로 옮겼다(삭제 아님)")
+        if n in exist:
+            die(f"보관에 같은 이름이 이미 있다(덮어쓰지 않는다): {n}", 2)
+    for n, _ in movable:
+        sub = os.path.join(root, "docs", "friction", "보관", n[:7])      # 월별(YYYY-MM) — 폴더 하나가 길어지지 않게
+        os.makedirs(sub, exist_ok=True)
+        shutil.move(os.path.join(root, "docs", "friction", n), os.path.join(sub, n))
+    print(f"{len(movable)}개를 보관/<YYYY-MM>/ 으로 옮겼다(삭제 아님)")
 
 
 def main():

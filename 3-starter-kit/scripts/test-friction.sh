@@ -82,18 +82,39 @@ for i in 1 2 3 4 5 6 7; do
 done
 BEFORE=$(ls docs/friction | grep -c '\.md$')
 T archive --keep 3 >/dev/null
-[ "$(ls docs/friction/보관 | wc -l | tr -d ' ')" = 5 ] && ok || no "보관으로 5개가 안 갔다: $(ls docs/friction/보관 | wc -l)"
+[ "$(find docs/friction/보관 -name '*.md' | wc -l | tr -d ' ')" = 5 ] && ok || no "보관으로 5개가 안 갔다: $(find docs/friction/보관 -name '*.md' | wc -l)"
+[ "$(find docs/friction/보관 -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')" -ge 1 ] && ok || no "보관이 월별 하위 폴더로 안 갔다"
+ls docs/friction/보관 | grep -qE '^[0-9]{4}-[0-9]{2}$' && ok || no "보관 하위 폴더 이름이 YYYY-MM 이 아니다: $(ls docs/friction/보관)"
 AFTER=$(ls docs/friction | grep -c '\.md$')
 [ $((BEFORE - AFTER)) = 5 ] && ok || no "열린 쪽에서 5개가 안 줄었다"
 # 보관 뒤에도 총량 불변(삭제 아님)
-TOTAL=$(( $(ls docs/friction | grep -c '\.md$') + $(ls docs/friction/보관 | wc -l | tr -d ' ') ))
+TOTAL=$(( $(ls docs/friction | grep -c '\.md$') + $(find docs/friction/보관 -name '*.md' | wc -l | tr -d ' ') ))
 [ "$TOTAL" = "$BEFORE" ] && ok || no "보관하며 파일 수가 줄었다(삭제됨): $TOTAL != $BEFORE"
 # 안 닫힌 파일은 안 움직인다
-[ "$(ls docs/friction/보관 | xargs -I{} grep -L '닫힘' docs/friction/보관/{} | wc -l | tr -d ' ')" = 0 ] && ok || no "안 닫힌 파일이 보관으로 갔다"
+[ "$(find docs/friction/보관 -name '*.md' -exec grep -L '닫힘' {} + | wc -l | tr -d ' ')" = 0 ] && ok || no "안 닫힌 파일이 보관으로 갔다"
 OUT=$(T count); case "$OUT" in "막힘 2건 / 안 닫힌 줄 13건"*) ok;; *) no "보관 뒤 count 가 달라졌다: $OUT";; esac
+T list --closed 2>/dev/null | grep -q '새보관:' && ok || no "list --closed 에 월별 보관 파일이 안 보인다"
 T archive --keep 3 | grep -q '옮길 닫힌 파일 없음' && ok || no "두 번째 archive 가 «없음» 을 안 알렸다"
 T 엉뚱 >/dev/null 2>&1; [ "$?" = 1 ] && ok || no "모르는 명령을 받았다"
 
+# ── 옛 friction.md 의 열린 줄 닫기: 제자리 편집, 다른 줄은 바이트 그대로
+cp docs/friction.md "$D/legacy.before"
+T close "/done — 옛 안 닫힌 줄" "#9" >/dev/null; RC=$?
+[ "$RC" = 0 ] && ok || no "옛 줄 닫기 실패 RC=$RC"
+grep -q '^2026-10-11 /done — 옛 안 닫힌 줄 \[닫힘:#9\]$' docs/friction.md && ok || no "옛 줄 끝에 닫힘이 안 붙었다: $(grep '옛 안 닫힌' docs/friction.md)"
+[ "$(diff "$D/legacy.before" docs/friction.md | grep -c '^[<>]')" = 2 ] && ok || no "옛 줄 닫기가 다른 줄까지 바꿨다"
+T close "/done — 옛 안 닫힌 줄" "#9" >/dev/null 2>&1; [ "$?" = 1 ] && ok || no "이미 닫은 옛 줄을 또 닫았다"
+T close "옛 막힘" "#9" >/dev/null 2>&1; [ "$?" = 1 ] && ok || no "12자 미만 문구로 옛 줄을 닫았다"
+T close "2026-10-1" "#9" >/dev/null 2>&1; [ "$?" = 1 ] && ok || no "여러 줄에 맞는 짧은 문구로 닫았다"
+T close "그런 문구는 어디에도 없다 정말로" "#9" >/dev/null 2>&1; [ "$?" = 1 ] && ok || no "없는 문구로 닫았다"
+
+# ── count 의 보관 안내: 닫힌 파일이 열린 쪽에 20개 넘게 쌓이면 한 줄 더
+OUT=$(T count); case "$OUT" in *"보관하라"*) no "닫힌 파일이 적은데 보관 안내가 떴다: $OUT";; *) ok;; esac
+for i in $(seq 1 22); do
+  Q=$(T add "2026-10-15 /todo — 쌓인 닫힌 줄 $i"); T close "$(basename "$Q" .md | sed -E 's/.*-//')" "#$i" >/dev/null
+done
+OUT=$(T count); case "$OUT" in *"닫힌 파일 "*"개가 열린 쪽에 쌓였다"*"archive"*) ok;; *) no "닫힌 파일 22개인데 보관 안내가 없다: $OUT";; esac
+
 cd / && rm -r "$D"
 echo "통과 $pass / 실패 $fail"
-[ "$fail" -eq 0 ] && [ "$pass" -ge 32 ]
+[ "$fail" -eq 0 ] && [ "$pass" -ge 44 ]
