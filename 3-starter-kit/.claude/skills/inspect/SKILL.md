@@ -40,6 +40,7 @@ allowed-tools: Read Glob Grep Bash(npm *) Bash(curl *) Bash(git *) Bash(glab *) 
 ## 2. 브라우저 배터리 (하네스/Playwright 있는 프로젝트)
 - **검사 산출물이 repo에 남지 않게** — Playwright MCP는 호출 때마다 cwd에 `.playwright-mcp/`(스냅샷·콘솔 로그)를 만든다. `git status`에 뜨면 커밋에 딸려 간다: 팀이 Playwright를 쓰면 `.gitignore`에, 개인 도구로만 쓰면 개인 gitignore(`~/.config/git/ignore`)에 넣어라 — 팀 `.gitignore`는 공통 영역이라 나 혼자 쓰는 도구 때문에 고치지 않는다.
   - ⚠️**gitignore 만으로는 안 덮인다** — `browser_take_screenshot` 의 `filename` 이 상대경로면 스크린샷은 그 폴더가 아니라 cwd(= repo 루트)에 저장되고, `git add -A` 를 쓰는 세션은 그대로 커밋에 실어 보낸다. 저장 경로를 `.playwright-mcp/` 아래로 명시하거나, 검사 끝에 지워라.
+- **MCP 브라우저가 «이미 사용 중»이거나 호출 사이에 `about:blank`·로그인 소실이면 `함정.md` §4** — 독립 실행으로 가라(남의 브라우저를 닫거나 «확인 필요»로 접지 마라).
 - **콘솔 에러 0** · **반응형**: 모바일 뷰포트(375px)로도 렌더 · **가로 넘침**: `document.body.scrollWidth <= viewport` (넘침은 다른 검사를 전부 빠져나간다)
 - **시안·확정 디자인 소스 diff**: 디자인 HTML↔렌더를 구조·문구에 더해 **수치 단위**(콘텐츠 max-width·좌우 여백·열 구성·탭·표 머리 글자)로 대조 — 눈대조가 아니라 소스로. 디자인 소스가 없으면 건너뛰지 말고 보고에 «디자인 소스 없음» 한 줄
   - `scripts/design-metrics.cjs` 가 있으면: 창 폭 1920 에서 앱 값을 재 JSON 으로 만들어(양식 = 스크립트 머리 주석) `node scripts/design-metrics.cjs <디자인.dc.html> --compare <앱측정.json>`. 종료 1(어긋남·추출 못 함)·2(판정 불능)는 통과로 세지 말고 어긋남 목록에 올려라. 화면 등록부가 있고 `scripts/measure-screens.cjs` 가 있으면 앱 값 측정·비교는 그것이 대신한다 — 종료 2·측정 0건도 통과가 아니다
