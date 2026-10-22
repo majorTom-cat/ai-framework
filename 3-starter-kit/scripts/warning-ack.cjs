@@ -8,8 +8,8 @@
 //
 // 대상: MR 의 «현재 head SHA» 의 head pipeline. 파이프라인 sha 가 MR sha 와 다르면(낡은 파이프라인) 미종료.
 // 경고 잡 = status failed + allow_failure. allow_failure 잡이 아직 안 끝났으면 미종료(끝나기 전에 경고없음이라 하지 않는다).
-// 경고 항목 = 잡 로그의 «════════ [검사이름] ⛔ 실패» 구간 안의 줄머리 `[경고:키]` — 키가 항목, 구간에 키가 없으면 검사이름이 항목,
-//   구간 자체가 없으면 잡 이름이 항목이다. 이 접두 규약은 배포처가 경고 출력부에서 찍는다(킷 제안, 바꾸면 이 파일과 시험을 같이 고쳐라).
+// 경고 항목 = 잡 로그에서 «[검사이름] 시작» ~ «[검사이름] ⛔ 실패» 사이의 줄머리 `[경고:키]` — 키가 항목, 키가 없으면 검사이름이 항목,
+//   실패 구간 자체가 없으면 잡 이름이 항목이다(✅ 통과 구간의 키는 버린다). 이 접두 규약은 배포처가 경고 출력부에서 찍는다(킷 제안, 바꾸면 이 파일과 시험을 같이 고쳐라).
 // 처리 기록 = MR 댓글(시스템 댓글 제외). 머리 줄에 `sha=<40자> pipeline=<id> job=<id>`, 이어서 항목마다
 //   `- <키>: 수정함|수정불필요 — <근거>`. 머리 줄 하나 = 잡 하나(잡이 둘이면 머리 줄 둘, 한 댓글에 같이 써도 된다).
 // ⚠️이 도구가 보는 것은 «대상(sha·pipeline·job) 일치 + 모든 항목 존재 + 처리값 + 근거가 비어 있지 않음» 뿐이다.
@@ -86,23 +86,27 @@ if (warnJobs.length === 0) {
   process.exit(0);
 }
 
-// 항목 뽑기 — 로그 원문은 출력하지 않고 키·이름만 쓴다
+// 항목 뽑기 — 로그 원문은 출력하지 않고 키·이름만 쓴다.
+// 실제 로그 순서(scripts/ci-run-checks.sh): «════ [이름] 시작 ════» → 검사 출력 → «════ [이름] ✅ 통과|⛔ 실패 (종료코드 N) ════».
+// 키는 시작~결과 머리 줄 «사이»에 찍히고, 결과가 ⛔ 실패인 구간의 것만 항목이다(✅ 통과 구간의 키는 버린다).
 function itemsOf(job) {
   const trace = api(`projects/:id/jobs/${job.id}/trace`).replace(ANSI, '').replace(/\r/g, '');
-  const keys = [];
-  let sec = null; // 현재 «⛔ 실패» 구간 { name, keys }
-  const sections = [];
+  const sections = []; // 실패한 검사 { name, keys }
+  let cur = null; // 열려 있는 구간 { name, keys }
   for (const line of trace.split('\n')) {
-    const h = /^\s*═{3,}\s*\[([^\]]+)\]\s*⛔\s*실패/.exec(line);
-    if (h) {
-      sec = { name: h[1].trim(), keys: [] };
-      sections.push(sec);
+    const st = /^\s*═{3,}\s*\[([^\]]+)\]\s*시작/.exec(line);
+    if (st) { cur = { name: st[1].trim(), keys: [] }; continue; }
+    const rs = /^\s*═{3,}\s*\[([^\]]+)\]\s*(✅\s*통과|⛔\s*실패)/.exec(line);
+    if (rs) {
+      const name = rs[1].trim();
+      if (/실패/.test(rs[2])) sections.push({ name, keys: cur && cur.name === name ? cur.keys : [] });
+      cur = null;
       continue;
     }
-    if (/^\s*═{3,}/.test(line)) { sec = null; continue; } // 다른 구간(통과한 검사 등) 시작
-    const k = sec && /^\s*\[경고:([^\]\s]{1,80})\]/.exec(line);
-    if (k && !sec.keys.includes(k[1])) sec.keys.push(k[1]);
+    const k = cur && /^\s*\[경고:([^\]\s]{1,80})\]/.exec(line);
+    if (k && !cur.keys.includes(k[1])) cur.keys.push(k[1]);
   }
+  const keys = [];
   for (const s of sections) for (const k of s.keys.length ? s.keys : [s.name]) if (!keys.includes(k)) keys.push(k);
   return keys.length ? keys : [job.name];
 }

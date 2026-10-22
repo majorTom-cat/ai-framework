@@ -60,7 +60,8 @@ t() {
   OK=$((OK+1)); echo "  OK  $1"
 }
 
-LOG2='════════ [낡은기록] ⛔ 실패\n[경고:낡은기록] docs/a.md 가 낡았다\n[경고:새UI] 화면 변경 기록 없음\n════════ [통과한검사] OK\n'
+# 실제 ci-run-checks.sh 로그 순서: 시작 → 검사 출력([경고:키]) → 결과 머리 줄 → 묶음 결과. 앞의 통과 검사의 [경고:엉뚱] 은 항목이 아니다.
+LOG2='════════ [통과한검사] 시작 ════════\n[경고:엉뚱] 통과 구간의 줄\n════════ [통과한검사] ✅ 통과 ════════\n════════ [mr-warnings] 시작 ════════\n경고\n[경고:낡은기록] docs/a.md 가 낡았다\n  docs/a.md: 줄\n[경고:새UI] 화면 변경 기록 없음\n════════ [mr-warnings] ⛔ 실패 (종료코드 1) ════════\n\n──────── 묶음 결과 ────────\n통과: 통과한검사\n실패: mr-warnings\n'
 H="sha=$SHA pipeline=100 job=11"
 
 echo "── A. 대조군 — 경고 없음 / 정상 처리"
@@ -78,7 +79,7 @@ t '무시 가능 manual 은 미종료가 아니다 → 경고없음' 0 경고없
 
 echo "── B. 기록이 모자라면 막는다 (가드가 산다는 증거)"
 reset; mr $SHA; jobs "$(J 11 mr-warnings failed true)"; trace 11 "$LOG2"
-t '기록 없음 → 경고미처리 (키·머리 줄 서식을 알려 준다)' 0 경고미처리 "기록 머리 줄: $H"
+t '기록 없음 → 경고미처리 (키·머리 줄 서식을 알려 준다)' 0 경고미처리 "기록 머리 줄: $H" '엉뚱'
 t '미처리 항목 이름이 나온다' 0 경고미처리 '낡은기록'
 reset; mr $SHA; jobs "$(J 11 mr-warnings failed true)"; trace 11 "$LOG2"
 note 5 "$H
@@ -116,7 +117,7 @@ note 5 "$H
 t '시스템 댓글의 기록은 안 센다 → 경고미처리' 0 경고미처리
 
 echo "── C. 키 규약 — 키가 없으면 검사이름, 구간이 없으면 잡 이름"
-reset; mr $SHA; jobs "$(J 11 mr-warnings failed true)"; trace 11 '════════ [tamper-check] ⛔ 실패\n테스트가 약해졌다\n'
+reset; mr $SHA; jobs "$(J 11 mr-warnings failed true)"; trace 11 '════════ [tamper-check] 시작 ════════\n테스트가 약해졌다\n════════ [tamper-check] ⛔ 실패 (종료코드 1) ════════\n──────── 묶음 결과 ────────\n'
 note 5 "$H
 - tamper-check: 수정불필요 — 의도한 변경"
 t '구간에 [경고:키] 없음 → 검사이름이 항목 → 경고처리됨' 0 경고처리됨
@@ -124,14 +125,19 @@ reset; mr $SHA; jobs "$(J 11 density-check failed true)"; trace 11 '밀도 초�
 note 5 "$H
 - density-check: 수정함 — 줄 줄임"
 t '구간 자체가 없으면 잡 이름이 항목 → 경고처리됨' 0 경고처리됨
-reset; mr $SHA; jobs "$(J 11 mr-warnings failed true)"; trace 11 '════════ [통과한검사] OK\n[경고:엉뚱] 통과 구간의 줄\n════════ [x] ⛔ 실패\n내용\n'
+reset; mr $SHA; jobs "$(J 11 mr-warnings failed true)"; trace 11 '════════ [통과한검사] 시작 ════════\n[경고:엉뚱] 통과 구간의 줄\n════════ [통과한검사] ✅ 통과 ════════\n════════ [x] 시작 ════════\n내용\n════════ [x] ⛔ 실패 (종료코드 1) ════════\n'
 note 5 "$H
 - x: 수정함 — 고침"
-t '⛔ 실패 구간 밖의 [경고:키] 는 항목이 아니다 → 경고처리됨' 0 경고처리됨
-reset; mr $SHA; jobs "$(J 11 mr-warnings failed true)"; trace 11 '════════ [a] ⛔ 실패\n\033[31m[경고:색깔]\033[0m 내용\n'
+t '✅ 통과 구간의 [경고:키] 는 항목이 아니다 → 경고처리됨' 0 경고처리됨
+reset; mr $SHA; jobs "$(J 11 mr-warnings failed true)"; trace 11 '════════ [a] 시작 ════════\n\033[31m[경고:색깔]\033[0m 내용\n════════ [a] ⛔ 실패 (종료코드 1) ════════\n'
 note 5 "$H
 - 색깔: 수정함 — 고침"
 t '로그의 색 코드(ANSI)를 벗겨 읽는다 → 경고처리됨' 0 경고처리됨
+
+reset; mr $SHA; jobs "$(J 11 mr-warnings failed true)"; trace 11 '════════ [a] ⛔ 실패 (종료코드 1) ════════\n[경고:뒤늦은키] 결과 줄 뒤에 찍힌 키\n──────── 묶음 결과 ────────\n'
+note 5 "$H
+- a: 수정함 — 고침"
+t '결과 머리 줄 «뒤»의 키는 항목이 아니다(실제 순서는 시작→출력→결과) → 경고처리됨' 0 경고처리됨
 
 echo "── D. 잡이 둘 — 둘 다 기록돼야 한다"
 reset; mr $SHA; jobs "$(J 11 mr-warnings failed true),$(J 13 density-check failed true)"; trace 11 "$LOG2"; trace 13 'x\n'
@@ -168,7 +174,7 @@ OUT=$(FX="$TMP/fx" PATH="$TMP/bin:$PATH" node "$TOOL" abc 2>&1); RC=$?
 [ "$RC" = 2 ] && { OK=$((OK+1)); echo "  OK  숫자 아닌 MR 번호 → exit 2"; } || { echo "  ⛔ 숫자 아닌 번호 — exit $RC → $OUT"; FAIL=$((FAIL+1)); }
 
 echo "── G. 비밀값을 옮기지 않는다 — 로그 원문은 출력에 없다"
-reset; mr $SHA; jobs "$(J 11 mr-warnings failed true)"; trace 11 '════════ [a] ⛔ 실패\n[경고:키1] TOKEN=glpat-SECRET123 이 로그에 찍혔다\n'
+reset; mr $SHA; jobs "$(J 11 mr-warnings failed true)"; trace 11 '════════ [a] 시작 ════════\n[경고:키1] TOKEN=glpat-SECRET123 이 로그에 찍혔다\n════════ [a] ⛔ 실패 (종료코드 1) ════════\n'
 t '미처리 출력에 로그 원문(토큰)이 없다' 0 경고미처리 '' 'glpat-SECRET123'
 
 echo "──────── $OK OK / $FAIL FAIL"
