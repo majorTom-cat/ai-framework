@@ -12,8 +12,8 @@ if [ "$os" = Darwin ]; then
   exit 0
 fi
 case "$mode" in
-  view60) glab issue view "$id" 2>&1 | sed -n '1,60p;61s/.*/⚠️ 잘렸다 — 아래 «남은 항목»을 근거로 삼고, 필요하면 전문을 다시 읽어라/p';;
-  view40) glab issue view "$id" 2>&1 | sed -n '1,40p;41s/.*/⚠️ 여기서 잘렸다 — 아래 «남은 항목»을 근거로 삼고, 필요하면 전문을 다시 읽어라/p';;
+  view60) glab issue view "$id" 2>&1 | sed -n -e '1,60p' -e '61s/.*/⚠️ 잘렸다 — 아래 «남은 항목»을 근거로 삼고, 필요하면 전문을 다시 읽어라/p';;
+  view40) glab issue view "$id" 2>&1 | sed -n -e '1,40p' -e '41s/.*/⚠️ 여기서 잘렸다 — 아래 «남은 항목»을 근거로 삼고, 필요하면 전문을 다시 읽어라/p';;
   todo)   glab issue view "$id" 2>&1 | sed -n 's/^ *- \[ \] /□ /p';;
   notes)  glab issue view "$id" --comments 2>&1 | sed -n '/^comments\/notes:/,$p' | tail -40;;
   tail)   glab issue view "$id" --comments 2>&1 | tail -40;;
