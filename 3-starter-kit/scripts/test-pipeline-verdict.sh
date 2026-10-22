@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # pipeline-verdict.cjs 회귀 테스트 — `bash scripts/test-pipeline-verdict.sh`
-# 왜 있나: 이 판정기의 1행(실패|진행중|게이트대기|종결초록)을 스킬이 그대로 믿고 머지한다. 행동 시험이 없어
+# 왜 있나: 이 판정기의 1행(실패|취소|진행중|게이트대기|종결초록)을 스킬이 그대로 믿고 머지한다. 행동 시험이 없어
 #   «게이트대기»를 «종결초록»으로 내는 회귀가 나도 아무도 모른다(2026-09-29 배포처 friction).
 # 방법: 가짜 `glab` 을 PATH 앞에 두고 고정 JSON 을 내게 한다 — 네트워크·인증 없이 판정 논리만 잰다.
 # ★«판정 불능»(exit 2)과 «판정했다»(exit 0)를 가른다 — 조회 실패를 어느 토큰으로도 위장하지 않는지 본다(rules/verify.md §1).
@@ -22,7 +22,7 @@ chmod +x "$TMP/bin/glab" || exit 1
 . "$HERE/lib/fake-cli.sh"; fake_cli_win "$TMP/bin" glab || exit 1   # Windows 의 node 도 가짜를 부르게(#707)
 OK=0; FAIL=0
 
-# $1=설명 $2=기대 종료코드 $3=기대 1행(- 면 안 봄) $4=잡 JSON(- 면 조회 실패) [$5=추가로 있어야 할 줄 조각]
+# $1=설명 $2=기대 종료코드 $3=기대 1행(- 면 안 봄) $4=잡 JSON(- 면 조회 실패) [$5=추가로 있어야 할 줄 조각] [$6=있으면 안 되는 줄 조각]
 v() {
   printf '%s' "$4" > "$TMP/jobs.json"
   if [ "$4" = - ]; then OUT=$(FAKE_FAIL=1 FAKE_JOBS="$TMP/jobs.json" PATH="$TMP/bin:$PATH" node "$TOOL" 42 2>&1); RC=$?
@@ -31,13 +31,21 @@ v() {
   if [ "$RC" != "$2" ]; then echo "  ⛔ $1 — 종료코드 기대 $2 실제 $RC → $OUT"; FAIL=$((FAIL+1)); return; fi
   if [ "$3" != - ] && [ "$L1" != "$3" ]; then echo "  ⛔ $1 — 1행 기대 '$3' 실제 '$L1'"; FAIL=$((FAIL+1)); return; fi
   if [ -n "${5:-}" ] && ! printf '%s' "$OUT" | grep -qF "$5"; then echo "  ⛔ $1 — '$5' 줄이 없다 → $OUT"; FAIL=$((FAIL+1)); return; fi
+  if [ -n "${6:-}" ] && printf '%s' "$OUT" | grep -qF "$6"; then echo "  ⛔ $1 — '$6' 가 나오면 안 된다 → $OUT"; FAIL=$((FAIL+1)); return; fi
   OK=$((OK+1)); echo "  OK  $1"
 }
 J() { printf '{"id":%s,"name":"%s","status":"%s","allow_failure":%s}' "$1" "$2" "$3" "$4"; }
 
-echo "── A. 토큰 4종"
-v '차단형 잡 실패 → 실패' 0 실패 "[$(J 1 test failed false),$(J 2 lint success false)]" '실패 잡: 1 test'
-v '차단형 잡 취소 → 실패' 0 실패 "[$(J 1 test canceled false)]"
+echo "── A. 토큰 5종"
+v '차단형 잡 실패 → 실패 (잡 줄에 상태)' 0 실패 "[$(J 1 test failed false),$(J 2 lint success false)]" '실패 잡: 1 test (failed)'
+# 취소 = 더 새 커밋에 밀려 끊긴 것(#769 파이프라인 6812·!1326 6886 실측) — 실패로 묶으면 «revert 검토»로, 종결초록으로 흘리면 «통과»로 오독한다(#826)
+v '차단형 잡 취소 → 취소 (잡 줄에 상태)' 0 취소 "[$(J 1 test canceled false),$(J 2 lint success false)]" '취소 잡: 1 test (canceled)'
+v '취소 안내 — 같은 ID 면 사람에게' 0 취소 "[$(J 1 test canceled false)]" '같은 ID 면 대신 도는 것이 없다'
+v '취소 안내 — MR 은 head_pipeline 재판정' 0 취소 "[$(J 1 test canceled false)]" 'MR 은 현재 head_pipeline 을 다시 판정'
+v '취소 안내 — 배포는 health sha 로' 0 취소 "[$(J 1 test canceled false)]" 'health sha'
+v '취소 안내 — 대신 배포한다고 단정하지 않는다' 0 취소 "[$(J 1 test canceled false)]" '이 판정만으로 확정하지 않는다' '대신 배포한다'
+v '여러 잡 취소(앞 잡은 성공) → 취소' 0 취소 "[$(J 1 lint success false),$(J 2 typecheck canceled false),$(J 3 test canceled false),$(J 4 build canceled false)]" '취소 잡: 4 build (canceled)'
+v 'allow_failure 잡 취소만 → 종결초록' 0 종결초록 "[$(J 1 test success false),$(J 3 mr-warnings canceled true)]"
 v '돌고 있는 잡 → 진행중' 0 진행중 "[$(J 1 test running false),$(J 2 lint success false)]"
 v '대기(pending) → 진행중' 0 진행중 "[$(J 1 test pending false)]"
 v '게이트 아닌 created → 진행중' 0 진행중 "[$(J 1 deploy created true)]"
@@ -47,8 +55,12 @@ v '이름 모를 차단형 manual → 게이트대기' 0 게이트대기 "[$(J 9
 v '성공만 → 종결초록' 0 종결초록 "[$(J 1 test success false),$(J 2 lint skipped false)]"
 v '무시 가능 manual 만 잔존 → 종결초록' 0 종결초록 "[$(J 1 test success false),$(J 2 pages manual true)]"
 
-echo "── B. 우선순위 (실패 > 진행중 > 게이트대기)"
+echo "── B. 우선순위 (실패 > 취소 > 진행중 > 게이트대기)"
 v '실패 + 진행중 → 실패' 0 실패 "[$(J 1 test failed false),$(J 2 lint running false)]"
+v '실패 + 취소 → 실패 (취소 잡은 취소 머리로)' 0 실패 "[$(J 1 test canceled false),$(J 2 lint failed false)]" '취소 잡: 1 test (canceled)' '실패 잡: 1 test'
+v '실패 + 취소 → 실패 (실패 잡 줄 · 취소 안내는 없다)' 0 실패 "[$(J 1 test canceled false),$(J 2 lint failed false)]" '실패 잡: 2 lint (failed)' '안내: 통과 아님'
+v '취소 + 진행중 → 취소' 0 취소 "[$(J 1 test canceled false),$(J 2 lint running false)]"
+v '취소 + 게이트 manual → 취소' 0 취소 "[$(J 1 test canceled false),$(J 9 high-risk-gate manual false)]"
 v '진행중 + 게이트 → 진행중' 0 진행중 "[$(J 1 test running false),$(J 9 high-risk-gate manual false)]"
 v '게이트 이름은 allow_failure 여도 게이트' 0 게이트대기 "[$(J 9 high-risk-gate manual true)]"
 
@@ -61,7 +73,7 @@ v '잡 0개 → exit 2' 2 - '[]'
 v '깨진 JSON → exit 2' 2 - 'not json'
 OUT=$(PATH="$TMP/bin:$PATH" node "$TOOL" abc 2>&1); RC=$?
 [ "$RC" = 2 ] && { OK=$((OK+1)); echo "  OK  숫자 아닌 ID → exit 2"; } || { echo "  ⛔ 숫자 아닌 ID — exit $RC → $OUT"; FAIL=$((FAIL+1)); }
-for tok in 실패 진행중 게이트대기 종결초록; do  # 판정 불능 출력에 토큰이 새면 1행만 읽는 스킬이 오독한다
+for tok in 실패 취소 진행중 게이트대기 종결초록; do  # 판정 불능 출력에 토큰이 새면 1행만 읽는 스킬이 오독한다
   FAKE_FAIL=1 FAKE_JOBS="$TMP/jobs.json" PATH="$TMP/bin:$PATH" node "$TOOL" 42 2>/dev/null | grep -qx "$tok" \
     && { echo "  ⛔ 조회 실패인데 stdout 에 '$tok'"; FAIL=$((FAIL+1)); }
 done
