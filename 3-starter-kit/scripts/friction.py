@@ -8,7 +8,7 @@
 파일: `docs/friction/<YYYY-MM-DD>-<카드번호|0>-<고유6자리>.md` · 내용 = 지금과 같은 «한 줄»(끝에 `[닫힘:…]` 규약 그대로).
 옛 기록(`docs/friction.md`·`docs/friction-보관.md`)은 일괄 이동하지 않는다 — 조회·세기에서 함께 읽는다.
 
-사용 (repo 루트에서. 킷 저장소 자신은 `--root 3-starter-kit`):
+사용 (어느 폴더에서 불러도 이 스크립트가 든 repo(`scripts/` 의 부모)의 기록을 쓴다 — 다른 repo 를 다루려면 `--root 폴더`):
   python3 scripts/friction.py add [--card N] "<한 줄>"   등록. 날짜로 안 시작하면 오늘 날짜를 앞에 붙인다
   python3 scripts/friction.py list [--open|--closed|--blocked]   옛 파일 + 새 폴더를 합쳐 보여 준다
   python3 scripts/friction.py count                      「막힘 N / 안 닫힌 줄 M — 가장 오래된 날짜」 (`/todo` 0-c 값)
@@ -38,7 +38,8 @@ def die(msg, code=1):
 
 
 def parse_root(args):
-    root = "."
+    # 기본 = 셸 작업 폴더가 아니라 이 스크립트가 든 repo — 워크트리의 도구를 본 클론 셸에서 부르면 본 클론 기록을 고쳤다(#813)
+    root = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))      # realpath — 링크로 불러도 링크가 놓인 쪽이 아니라 실물의 repo
     if "--root" in args:
         i = args.index("--root")
         if i + 1 >= len(args):
@@ -127,6 +128,8 @@ def cmd_add(root, args):
     if len(args) != 1 or not args[0].strip():
         die("사용: friction.py add [--card N] \"<한 줄>\"")
     line = args[0].strip()
+    if line.startswith("-"):
+        die(f"기록할 줄이 «{line[:20]}» 로 시작한다 — 옵션 오타로 보고 만들지 않았다(`--help` 로 사용법)")
     if "\n" in line:
         die("한 줄이어야 한다 — 줄바꿈이 들어 있다")
     today = datetime.date.today().isoformat()
@@ -173,7 +176,7 @@ def cmd_list(root, args):
 def cmd_count(root, args):
     # ★경로가 없으면 «0건» 이 아니라 판정 불능이다 — 작업 폴더가 사라진 셸에서 «0·0» 을 «다 닫혔다» 로 읽는 사고(스캔상세 §2-c)
     if not os.path.isfile(os.path.join(root, "docs", "friction.md")) and not os.path.isdir(os.path.join(root, "docs", "friction")):
-        die(f"⛔ 판정 불능 — 마찰 기록 경로가 없다: {os.path.abspath(root)}/docs/friction.md 도 docs/friction/ 도 없다(작업 폴더·--root 를 확인)", 2)
+        die(f"⛔ 판정 불능 — 마찰 기록 경로가 없다: {os.path.abspath(root)}/docs/friction.md 도 docs/friction/ 도 없다(스크립트 위치·--root 를 확인)", 2)
     blocked, opened, oldest = 0, 0, None
     for src, line in all_entries(root):
         if src.startswith("옛보관") or src.startswith("새보관") or is_closed(line):
@@ -276,6 +279,9 @@ def cmd_archive(root, args):
 
 def main():
     args = sys.argv[1:]
+    if "-h" in args or "--help" in args:      # 도움말을 «기록할 줄»로 받아 파일을 만든 적이 있다(bnsone #816)
+        print(__doc__)
+        sys.exit(0)
     root, args = parse_root(args)
     if not args:
         print(__doc__)

@@ -168,13 +168,13 @@ OUT=$(python3 scripts/check-friction-dir.py no-such-ref 2>&1); RC=$?
 
 # ── 병합: 두 브랜치가 각자 새 항목을 더해 합치면 충돌 0 이고 양쪽이 다 남는다 (옛 한 파일에선 충돌이 나는 모양)
 git checkout -q -f main; git reset -q --hard base; git clean -fdq
-git checkout -q -b br-a; python3 "$TOOL" add --card 1 "2026-10-22 /dev — A 가 더한 줄" >/dev/null; git add -A; git commit -q -m a
-git checkout -q main; git checkout -q -b br-b; python3 "$TOOL" add --card 2 "2026-10-22 /fix — B 가 더한 줄" >/dev/null; git add -A; git commit -q -m b
+git checkout -q -b br-a; python3 "$TOOL" --root "$D" add --card 1 "2026-10-22 /dev — A 가 더한 줄" >/dev/null; git add -A; git commit -q -m a
+git checkout -q main; git checkout -q -b br-b; python3 "$TOOL" --root "$D" add --card 2 "2026-10-22 /fix — B 가 더한 줄" >/dev/null; git add -A; git commit -q -m b
 git checkout -q br-a
 if git merge -q --no-edit br-b >/dev/null 2>&1; then ok; else no "두 브랜치 병합에서 충돌이 났다"; fi
 N=$(ls docs/friction | wc -l | tr -d ' ')
 [ "$N" = 4 ] && ok || no "병합 뒤 파일이 4개가 아니다: $N"
-OUT=$(python3 "$TOOL" list 2>&1)
+OUT=$(python3 "$TOOL" --root "$D" list 2>&1)       # --root 필수 — 기본은 도구가 든 진짜 repo 다(#813)
 case "$OUT" in *"A 가 더한 줄"*"B 가 더한 줄"*|*"B 가 더한 줄"*"A 가 더한 줄"*) ok;; *) no "병합 뒤 조회에 양쪽 줄이 없다: $OUT";; esac
 [ "$(run base >/dev/null; echo $?)" = 0 ] && ok || no "병합 결과가 검사기를 통과하지 못했다"
 # 같은 시험을 옛 한 파일에서 하면 충돌이 난다는 것을 보여 주는 대조(이 시험의 존재 이유)
