@@ -47,7 +47,7 @@ function apiJson(path) {
   }
 }
 
-const UNFINISHED = ['created', 'pending', 'preparing', 'waiting_for_resource', 'scheduled', 'running'];
+const UNFINISHED = ['created', 'pending', 'preparing', 'waiting_for_resource', 'scheduled', 'running', 'canceled'];
 const HEADER = /sha=([0-9a-f]{40})\s+pipeline=(\d+)\s+job=(\d+)/;
 const ITEM = /^\s*[-*]\s*(.+?)\s*:\s*(수정함|수정불필요)\s*(?:—|–|--|-)\s*(\S.*?)\s*$/;
 const ANSI = /\x1b\[[0-9;?]*[A-Za-z]/g;

@@ -158,6 +158,8 @@ reset; mr $OLD; jobs "$(J 1 test success false)"
 t '파이프라인이 다른 커밋의 것(낡은 파이프라인) → 미종료' 0 미종료 '낡은 파이프라인'
 reset; mr -; jobs "$(J 1 test success false)"
 t '이 커밋의 파이프라인이 없음 → 미종료' 0 미종료
+reset; mr $SHA; jobs "$(J 1 test success false),$(J 11 mr-warnings canceled true)"
+t '경고 잡이 취소됨 → 미종료(경고없음으로 위장하지 않는다)' 0 미종료 'mr-warnings(canceled)'
 
 echo "── F. 판정 불능은 exit 2 — 어느 토큰으로도 위장하지 않는다"
 for on in mr jobs notes trace; do
@@ -174,8 +176,10 @@ OUT=$(FX="$TMP/fx" PATH="$TMP/bin:$PATH" node "$TOOL" abc 2>&1); RC=$?
 [ "$RC" = 2 ] && { OK=$((OK+1)); echo "  OK  숫자 아닌 MR 번호 → exit 2"; } || { echo "  ⛔ 숫자 아닌 번호 — exit $RC → $OUT"; FAIL=$((FAIL+1)); }
 
 echo "── G. 비밀값을 옮기지 않는다 — 로그 원문은 출력에 없다"
-reset; mr $SHA; jobs "$(J 11 mr-warnings failed true)"; trace 11 '════════ [a] 시작 ════════\n[경고:키1] TOKEN=glpat-SECRET123 이 로그에 찍혔다\n════════ [a] ⛔ 실패 (종료코드 1) ════════\n'
-t '미처리 출력에 로그 원문(토큰)이 없다' 0 경고미처리 '' 'glpat-SECRET123'
+# 가짜 비밀값은 조각으로 나눠 실행 때 조립한다 — 통째 글자가 있으면 비밀값 검사(gitleaks)가 픽스처를 진짜로 읽는다(배포처 bnsone #789 실측)
+KW='TOK'; KW="${KW}EN"; FAKE='glp'; FAKE="${FAKE}at-SECRET123"
+reset; mr $SHA; jobs "$(J 11 mr-warnings failed true)"; trace 11 "════════ [a] 시작 ════════\n[경고:키1] ${KW}=${FAKE} 이 로그에 찍혔다\n════════ [a] ⛔ 실패 (종료코드 1) ════════\n"
+t '미처리 출력에 로그 원문(토큰)이 없다' 0 경고미처리 '' "$FAKE"
 
 echo "──────── $OK OK / $FAIL FAIL"
 [ "$FAIL" -eq 0 ] || exit 1
