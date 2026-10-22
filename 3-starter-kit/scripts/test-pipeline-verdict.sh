@@ -64,6 +64,15 @@ v '취소 + 게이트 manual → 취소' 0 취소 "[$(J 1 test canceled false),$
 v '진행중 + 게이트 → 진행중' 0 진행중 "[$(J 1 test running false),$(J 9 high-risk-gate manual false)]"
 v '게이트 이름은 allow_failure 여도 게이트' 0 게이트대기 "[$(J 9 high-risk-gate manual true)]"
 
+echo "── B2. 끝나지 않은 상태 — canceling·scheduled·모르는 값은 종결로 흘리지 않는다(#828)"
+v '차단형 canceling → 진행중 (종결초록 아님)' 0 진행중 "[$(J 1 test success false),$(J 2 build canceling false)]" '아직 안 끝난 잡: 2 build (canceling)' '모르는 상태'
+v 'allow_failure canceling 도 아직 안 끝남 → 진행중' 0 진행중 "[$(J 1 test success false),$(J 2 mr-warnings canceling true)]" '아직 안 끝난 잡: 2 mr-warnings (canceling)' '모르는 상태'
+v 'scheduled → 진행중' 0 진행중 "[$(J 1 test success false),$(J 2 deploy scheduled false)]" '아직 안 끝난 잡: 2 deploy (scheduled)' '모르는 상태'
+v '모르는 새 상태 → 진행중 (fail-closed)' 0 진행중 "[$(J 1 test success false),$(J 2 deploy brand_new false)]" '모르는 상태: 2 deploy (brand_new)'
+v 'canceling + canceled → 취소 (굳은 취소가 우선)' 0 취소 "[$(J 1 test canceled false),$(J 2 build canceling false)]"
+v 'canceling + failed → 실패' 0 실패 "[$(J 1 test failed false),$(J 2 build canceling false)]"
+v 'canceling + 게이트 manual → 진행중 (게이트대기 아님)' 0 진행중 "[$(J 1 build canceling false),$(J 9 high-risk-gate manual false)]"
+
 echo "── C. 경고 가시화 — allow_failure 실패는 status 에 가려진다"
 v 'allow_failure 실패 → 종결초록 + 경고 줄' 0 종결초록 "[$(J 1 test success false),$(J 3 density-check failed true)]" '경고(allow_failure 실패): density-check'
 
