@@ -4,19 +4,17 @@ effort: medium # 배정표 = _reference/skill-tiers.md
 description: 이슈 마무리 루틴 — 머지 전 검사부터 MR 생성·카드 처리까지. 개발 완료 후 사용자가 호출.
 disable-model-invocation: true
 argument-hint: "[이슈번호]"
-allowed-tools: Agent Workflow Read Edit Write Glob Grep Bash(git *) Bash(glab *) Bash(npm *) Bash(node scripts/pipeline-verdict.cjs*) Bash(node scripts/done-merge-verdict.cjs*) Bash(bash scripts/check-deferred.sh*) Bash(docker compose *) Bash(taskkill *) Bash(netstat *) Bash(lsof *) Bash(kill *)
+allowed-tools: Agent Workflow Read Edit Write Glob Grep Bash(git *) Bash(glab *) Bash(npm *) Bash(node scripts/pipeline-verdict.cjs*) Bash(node scripts/warning-ack.cjs*) Bash(node scripts/done-merge-verdict.cjs*) Bash(bash scripts/check-deferred.sh*) Bash(docker compose *) Bash(taskkill *) Bash(netstat *) Bash(lsof *) Bash(kill *)
 ---
 
 # /done — 이슈 #$0 마무리
 
-> **곁에 두 파일이 있다 — 해당 단계에 오면 읽어라**: `단계상세.md`(§0 합치기(5단계) 경위 · §1~§2 2·4단계 상세 · §3~§6 7~10단계 실행 순서 · §7 완료 보고 · §8 ❌금지) · `함정.md`(실측된 예외·우회 §1~§9). 이 안내를 맨 앞에 두는 이유: 컴팩션은 스킬마다 앞 5,000토큰만 남기고 뒤를 자르므로(공식), 본문 뒤쪽 포인터는 대화가 길어지면 포인터째 사라진다.
-> **잘려도 이 셋은 지켜라** — ①**카드를 Close(완료) 하지 마라**(완료 처리는 확답 받은 담당 본인 세션이 `/todo` 검수 경로(라벨 제거→증적 댓글→닫기)로 대행한다 — /done 이 끝난 뒤 확답이 와도 같다. 구현 세션의 유일 예외 = 화면 없는 카드의 셀프 완료, `단계상세.md` §4) ②**red 인 채 머지 금지** — 「원래 불안정한 테스트」는 예외 사유가 아니라 격리+수리 카드 대상이고, 재실행은 증명이 아니다 ③**공지는 사전이다**(사후 공지는 통보). 나머지는 `단계상세.md` §8.
+> **곁에 두 파일이 있다 — 해당 단계에 오면 읽어라**: `단계상세.md`(§0 합치기 경위 · §1~§2 2·4단계 · §3~§6 7~10단계 · §7 완료 보고 · §8 ❌금지) · `함정.md`(실측된 예외·우회 §1~§9). 맨 앞에 두는 이유: 컴팩션은 앞 5,000토큰만 남기고 뒤를 자른다.
+> **잘려도 이 셋은 지켜라** — ①**카드를 Close(완료) 하지 마라**(완료 처리는 확답 받은 담당 본인 세션이 `/todo` 검수 경로(라벨 제거→증적 댓글→닫기)로 대행한다. 구현 세션의 유일 예외 = 화면 없는 카드의 셀프 완료, `단계상세.md` §4) ②**red 인 채 머지 금지** — 「원래 불안정한 테스트」는 예외 사유가 아니라 격리+수리 카드 대상이고, 재실행은 증명이 아니다 ③**공지는 사전이다**(사후 공지는 통보). 나머지는 `단계상세.md` §8.
 
 > **번호가 안 왔으면 여기서 멈춘다** — `#$0`이 숫자가 아니면 문맥으로 추측하지 마라(틀린 번호 = 엉뚱한 카드 닫힘·남의 MR 머지). `/done {번호}` 재호출을 안내하고 종료.
 
 > **계약** · 입력: 이슈번호 · 산출물: 테스트→리뷰→머지(=배포)→라벨 검수요청+검수자 멘션 · 검증: 파이프라인 success+배포 화면 (카드 Close는 사람)
-
-> **예시**: `/done 12`
 
 순서대로 실행하고, **실패하면 그 단계에서 멈추고 보고**하라.
 (명령이 이 문서와 repo CLAUDE.md '실행·테스트' 절이 다르면 CLAUDE.md가 정본이다.)
@@ -42,7 +40,7 @@ allowed-tools: Agent Workflow Read Edit Write Glob Grep Bash(git *) Bash(glab *)
    — `needs`·`rules:changes`·배포 잡을 건드렸으면 **`함정.md` §5를 지금 읽어라** — lint 통과가 안전의 근거가 못 되는 유형이다.
 7. ⏸ **묶음 승인 — 여기서 딱 한 번 선다** → push → `glab mr create --remove-source-branch` (설명에 "관련: #$0") → **머지**.
    이 단계는 **`단계상세.md` §3 을 열어 그대로 실행하라** — 승인 화면 5줄 서식 · 브랜치 삭제 3경로 · auto-merge 조건 · 고위험 레인이 거기 있다.
-   — **잘려도 지킬 것**: 승인은 한 화면 5줄·OK 하나(표·파일 목록 금지) · 셀프승인 레인 한정(동료 레인·빨간불이면 다시 선다) · MR 본문에 `Closes`·`Fixes`·`Resolves` 금지(`관련: #$0` 링크만 — 머지 순간 카드가 자동으로 닫힌다) · `git add -A`·`add .` 금지(경로 지목).
+   — **잘려도 지킬 것**: 승인은 한 화면 5줄·OK 하나(표·파일 목록 금지) · 셀프승인 레인 한정(동료 레인·빨간불이면 다시 선다) · MR 본문에 `Closes`·`Fixes`·`Resolves` 금지(`관련: #$0` 링크만 — 머지 순간 카드가 자동으로 닫힌다) · `git add -A`·`add .` 금지(경로 지목) · **머지·auto-merge 전 `node scripts/warning-ack.cjs <MR>` 1행이 `경고없음|경고처리됨`**.
    — **머지 직전** `git fetch origin` 후 `node scripts/done-merge-verdict.cjs main-moved` 1행: `최신`·`그대로` = 합치지 않고 머지 / `합치기`·판정 불능 = 5·6단계 다시. 한계 = `단계상세.md` §3.
    — auto-merge 가 안 걸리거나 실패하면 `함정.md` §1, 고위험 카드면 `함정.md` §2 를 **포기·강행 전에** 읽고 처리하라.
 8. **머지 완료 확인 — `glab mr view <MR iid>` 로 `state`=`merged` 를 눈으로 본다**(추정 금지). 확인되면 로컬 브랜치·이슈 워크트리 정리 + 배포 화면 확인(AI 가 먼저 `/inspect $0`)까지가 이 단계다. 절차는 `단계상세.md` §4.

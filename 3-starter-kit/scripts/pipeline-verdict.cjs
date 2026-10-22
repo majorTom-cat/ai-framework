@@ -51,4 +51,4 @@ console.log(verdict);
 if (verdict === '실패') failedBlocking.forEach((j) => console.log(`실패 잡: ${j.id} ${j.name}`));
 if (verdict === '게이트대기') gateWaiting.forEach((j) => console.log(`남은 게이트 잡: ${j.id} ${j.name} (${j.status})`));
 // 경고 가시화(파일럿 2863 실측): allow_failure 잡의 실패는 status에 안 드러난다 — 어느 판정이든 덧붙인다.
-jobs.filter((j) => j.status === 'failed' && j.allow_failure).forEach((j) => console.log(`경고(allow_failure 실패): ${j.name}`));
+jobs.filter((j) => j.status === 'failed' && j.allow_failure).forEach((j) => console.log(`경고(allow_failure 실패): ${j.name} (잡 ${j.id}) — 머지 전 warning-ack.cjs 로 처리 기록 확인`));
