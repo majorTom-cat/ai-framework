@@ -9,8 +9,10 @@
 const fs = require('fs');
 
 // AI 몫 명령 — 스킬 본문이 «AI 가 직접 실행»으로 정한 것만. 사람이 고를 명령(/todo·/done·/dev 등)은 넣지 마라.
-const AI_ONLY = /(^|[\s`'"(«:·,])\/(inspect|security-review)(?![\w-])/;
-const NEXT = /^[\s>*_]*▶\s*다음/;
+// 앞 글자에 전각 콜론(：)·괄호도 둔다 — «▶ 다음：/inspect» 가 검사를 빠져나갔다(킷 800530c 리뷰 지적).
+const AI_ONLY = /(^|[\s`'"(（«:：·,])\/(inspect|security-review)(?![\w-])/;
+// 줄머리 장식: 인용(>)·강조(*_)·제목(#)·목록(-). «## ▶ 다음»·«- ▶ 다음» 도 같은 줄로 본다.
+const NEXT = /^[\s>*_#-]*▶\s*다음/;
 
 function lastAssistantText(input) {
   if (typeof input.last_assistant_message === 'string') return input.last_assistant_message;

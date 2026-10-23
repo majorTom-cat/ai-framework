@@ -82,6 +82,20 @@ function stripStrings(line) {
   return line.replace(/(['"`])(?:\\.|(?!\1)[^\\])*\1/g, (m) => m[0].repeat(m.length));
 }
 
+// 생 SQL 에서 «표 이름이 아닌 것»을 걷어낸다 — 따옴표 글자 값('PROJECT')과 `::"Type"`·`::type` 형변환 대상.
+// 왜 필요한가(#790): `'PROJECT'::"HolidayTier"` 의 PROJECT 가 \bProject\b(대소문자 무시)로 읽혀 남의 표 접근으로 막혔다(#535 실측).
+// 왼쪽부터 한 번에 훑어 «주석·큰따옴표 식별자»를 먼저 삼킨다 — 주석 속 아포스트로피(-- it's)가 글자 값 짝을 어긋나게 해
+//   뒤의 진짜 표 접근을 가리면(거짓 통과) 안 된다. 주석은 그대로 둔다(주석 속 표 언급의 기존 판정은 바꾸지 않는다).
+// 닫히지 않은 '는 매치되지 않아 그대로 남는다 — 모르면 가리지 않는 쪽(위반 쪽)으로 틀린다.
+// 한계: 따옴표 규칙이 다른 모양(E'..\'..' 이스케이프·$tag$..$tag$ 달러 인용)은 짝이 어긋나 뒤의 진짜 표 접근을 가리므로(독립 리뷰 재현)
+//   이 함수는 그런 SQL 을 손대지 않는다 = 예전과 같은 판정. `::` 뒤 식별자는 전부 형변환으로 보아 지운다(`FROM x::department` 같은 비정상 꼴은 통과).
+function maskSqlNonTables(sql) {
+  if (/\\'|\$[A-Za-z_]*\$|\bE'/i.test(sql)) return sql;
+  return sql
+    .replace(/'(?:[^']|'')*'|--[^\n]*|\/\*[\s\S]*?\*\/|"(?:[^"]|"")*"/g, (m) => (m[0] === "'" ? "''" : m))
+    .replace(/::\s*(?:"(?:[^"]|"")*"|[A-Za-z_]\w*)/g, '::');
+}
+
 // import·require의 모든 지정자(specifier)를 긁는다 — CJS·ESM 정적·동적·재수출·부수효과, 백틱(보간 없는 것)까지.
 // 보간(${}) 든 템플릿은 정적 판별 불가라 제외 — '변수 세탁' 한계와 같은 항목이다.
 const SPEC_PATTERNS = [
@@ -258,7 +272,7 @@ if (modelOwner.size) {
       if (/\$(queryRawUnsafe|executeRawUnsafe|queryRaw|executeRaw)\b/.test(line)) {
         const ctx = lines.slice(i, i + 12).join('\n');
         const sqlM = ctx.match(/`[^`]*`/);
-        const sql = sqlM ? sqlM[0] : '';
+        const sql = sqlM ? maskSqlNonTables(sqlM[0]) : '';
         let hit = false;
         for (const { model, owner, table } of modelOwner.values()) {
           if (owner === me || PUBLIC_OWNERS.has(owner)) continue;
@@ -355,10 +369,12 @@ if (process.argv.includes('--map') || MAP_CHECK) {
 // ── 결과 ──────────────────────────────────────────────────────────
 // ★"검사했다"와 "안 봤다"를 구분해 말한다 — DB 검사 비활성인데 "DB 접근 경계 안"이라고 하면 거짓 보증이다.
 if (!modelOwner.size) warnings.push(`DB 경계 검사 비활성 — ${SCHEMA_DIR} 에 모델 없음(Prisma 스택 아니면 정상). DB 경계는 리뷰 몫`);
-if (warnings.length) console.warn('⚠️ 경고(막지 않음):\n' + warnings.join('\n'));
+// ★위반이 있으면 «❌ N건» 이 출력 맨 첫 줄이다(#790) — 경고가 150여 줄이면 맨 끝의 ❌ 가 잘려 위반이 안 보였다(#535). 경고는 상세 뒤로.
 if (violations.length) {
-  console.error('❌ 모듈 경계 위반:\n' + violations.join('\n'));
+  console.error(`❌ 모듈 경계 위반 ${violations.length}건\n` + violations.join('\n'));
+  if (warnings.length) console.warn('⚠️ 경고(막지 않음):\n' + warnings.join('\n'));
   process.exit(1);
 }
+if (warnings.length) console.warn('⚠️ 경고(막지 않음):\n' + warnings.join('\n'));
 const dbNote = modelOwner.size ? 'DB 접근 포함' : 'DB 검사 비활성';
 console.log(`✅ 모듈 경계 OK — 교차 모듈 import·순환 의존 경계 안 (${dbNote}, CJS·ESM·TS·별칭 포함)`);

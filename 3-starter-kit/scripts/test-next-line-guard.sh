@@ -29,6 +29,9 @@ check block '선택지 안'        "$(msg $'▶ 다음: 1. /inspect 673 2. /done
 check block 'security-review' "$(msg $'▶ 다음: /security-review 후 /done 673')"
 check block '굵은 글씨 머리'   "$(msg $'**▶ 다음:** /inspect')"
 check block '끝 공백 줄'       "$(msg $'▶ 다음: /inspect 12\n\n  ')"
+check block '제목 머리 ##'     "$(msg $'## ▶ 다음: /inspect 673')"
+check block '목록 머리 -'      "$(msg $'끝.\n- ▶ 다음: /inspect 673')"
+check block '전각 콜론'        "$(msg $'▶ 다음：/inspect 673')"
 # 통과시킨다 — 사람 몫 명령·행동 문장·마지막 줄이 아닌 곳
 check pass  '사람 몫 명령'     "$(msg $'▶ 다음: /done 673')"
 check pass  '행동 문장'        "$(msg $'▶ 다음: 배포가 끝나면 제가 화면 검사를 이어서 합니다 — 기다리시면 됩니다')"
@@ -60,4 +63,4 @@ check pass  '기록 파일: 최신 글만' "{\"stop_hook_active\":false,\"transc
 check pass  '기록 파일 없음'    "{\"stop_hook_active\":false,\"transcript_path\":\"$TN/none.jsonl\"}"
 
 echo "next-line-guard: 통과 $pass / 실패 $fail"
-[ "$fail" -eq 0 ] && [ "$pass" -eq 17 ] || exit 1
+[ "$fail" -eq 0 ] && [ "$pass" -eq 20 ] || exit 1

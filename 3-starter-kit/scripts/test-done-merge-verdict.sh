@@ -248,5 +248,20 @@ t '모르는 모드 → 판정 불능' 2 - '사용:' bogus
 t 'SHA 가 40자가 아님(짧은 값) → 판정 불능' 2 - '40자' after-merge "${REV:0:8}" main
 t '없는 SHA(형식은 맞음) → 판정 불능' 2 - '판정 불능' after-merge "$(printf 'b%.0s' $(seq 40))" main
 
+echo "── G. origin/main 을 쓰면 판정기가 스스로 fetch 한다 (bnsone #731 — 낡은 ref 로 «최신»을 내면 안 됨)"
+setup; put feat docs/mine.md m
+git clone -q --bare "$R" "$TMP/remote.git" || exit 1
+G remote add origin "$TMP/remote.git"; G fetch -q origin
+t 'fetch 를 안 한 상태에서 원격 main 이 안 움직였으면 → 최신' 0 최신 '' main-moved origin/main
+git clone -q "$TMP/remote.git" "$TMP/other" 2>/dev/null
+git -C "$TMP/other" -c user.name=t -c user.email=t@t -c commit.gpgsign=false checkout -q main
+printf 'later\n' > "$TMP/other/docs/later.md"
+git -C "$TMP/other" add docs/later.md
+git -C "$TMP/other" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q -m later
+git -C "$TMP/other" push -q origin main
+t '원격 main 이 먼저 움직였는데 내 fetch 는 낡음 → 스스로 받아 «최신» 이 아님' 0 그대로 '' main-moved origin/main
+G remote set-url origin "$TMP/no-such-remote.git"
+t 'fetch 실패 → «최신»으로 위장하지 않고 판정 불능' 2 - '판정 불능' main-moved origin/main
+
 echo; echo "결과: 통과 $OK / 실패 $FAIL"
 [ "$FAIL" = 0 ] && [ "$OK" -gt 0 ]

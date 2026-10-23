@@ -40,6 +40,10 @@ const adrNo = (p) => (/^docs\/adr\/(\d+)-/.exec(p) || [])[1];
 if (mode === 'main-moved') {
   const mainRef = arg1 || 'origin/main';
   verify('HEAD') || die('HEAD 를 못 읽었다');
+  // 원격 추적 ref(origin/main 류)면 스스로 fetch 한다 — 사람·스킬이 «먼저 fetch» 를 잊거나 긴 push 시험 사이에 main 이 움직이면
+  //   낡은 ref 로 «최신» 을 내 자동 머지가 405 로 거절된다(배포처 bnsone #731). fetch 실패는 «최신» 이 아니라 판정 불능이다. 로컬 ref(main)는 손대지 않는다.
+  const remote = mainRef.split('/')[0];
+  if (mainRef.includes('/') && git('remote').split('\n').includes(remote)) git('fetch', '-q', remote);
   const mainSha = verify(mainRef) || die(`${mainRef} 를 못 읽었다 — git fetch origin 먼저`);
   const base = git('merge-base', 'HEAD', mainRef).trim() || die('merge-base 없음');
   if (base === mainSha) {

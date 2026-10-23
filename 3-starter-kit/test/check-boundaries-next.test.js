@@ -116,6 +116,83 @@ test('위반 매트릭스 — Next 형태 11종 전부 검출', () => {
   });
 });
 
+// 생 SQL 픽스처 — boards 모듈이 $queryRaw 로 부르는 SQL 한 조각(여러 줄 가능). 남의 표(people 소유 Department)는 @@map 이 없어 표 이름 = 모델명.
+// ★이 파일도 검사 대상(test/)이라 $queryRaw 를 따옴표 문자열 안에만 둔다(stripStrings 가 덮는다).
+const rawSqlFile = (...sql) => [
+  "import { db } from '../../../shared/db';",
+  "export const q = () => db.$queryRaw`" + sql.join('\n') + "`;",
+  '',
+].join('\n');
+
+test('생 SQL 오탐 — 따옴표 안 글자 값·`::"Type"` 형변환 앞 값은 남의 표 이름으로 읽지 않는다 (#790)', () => {
+  withFixture({
+    ...BASE,
+    // 실제로 읽는 표는 boards(자기 것) 하나. 'DEPARTMENT' 는 글자 값, "BoardTier" 는 형변환 대상 타입이다 (#535 실측 꼴)
+    'src/modules/boards/services/fp1.ts': rawSqlFile("SELECT * FROM boards WHERE tier = 'DEPARTMENT'::\"BoardTier\""),
+    'src/modules/boards/services/fp2.ts': rawSqlFile("SELECT * FROM boards WHERE tier = 'Department'"),
+    // 모델 이름과 같은 타입으로의 형변환 — 표 접근이 아니다
+    'src/modules/boards/services/fp3.ts': rawSqlFile('SELECT * FROM boards WHERE kind = $1::"Department"'),
+    // 이스케이프된 따옴표('') 뒤에도 글자 값이 이어진다
+    'src/modules/boards/services/fp4.ts': rawSqlFile("SELECT * FROM boards WHERE note = 'it''s a department'"),
+  }, (r) => {
+    assert.strictEqual(r.status, 0, `글자 값·형변환을 남의 표로 읽었다(오탐):\n${r.stderr}${r.stdout}`);
+    assert.match(r.stdout, /✅ 모듈 경계 OK/);
+  });
+});
+
+test('생 SQL 대조군 — 남의 표를 실제로 읽는 문장은 글자 값·형변환이 곁에 있어도 여전히 위반 (#790)', () => {
+  withFixture({
+    ...BASE,
+    'src/modules/boards/services/cv1.ts': rawSqlFile('SELECT * FROM "Department"'),
+    'src/modules/boards/services/cv2.ts': rawSqlFile('SELECT * FROM department WHERE id = 1'),   // 소문자·따옴표 없음
+    'src/modules/boards/services/cv3.ts': rawSqlFile("SELECT * FROM boards WHERE tier = 'DEPARTMENT' AND id IN (SELECT id FROM department)"),
+    // SQL 줄 주석 속 아포스트로피가 글자 값 짝을 어긋나게 해 뒤의 진짜 표 접근을 가리면 안 된다
+    'src/modules/boards/services/cv4.ts': rawSqlFile("-- it's a note", 'SELECT * FROM "Department" WHERE x = \'y\''),
+    'src/modules/boards/services/cv5.ts': rawSqlFile("SELECT 'X'::\"BoardTier\" FROM department"),
+    // 모르는 따옴표 모양(E'..\'..' 이스케이프·$tag$ 달러 인용)은 글자 값을 걷어내지 않는다 — 짝이 어긋나 뒤의 진짜 표 접근을 가리면 안 된다 (독립 리뷰 재현)
+    'src/modules/boards/services/cv6.ts': rawSqlFile("SELECT E'a\\' ' FROM department WHERE x = 'b'"),
+    'src/modules/boards/services/cv7.ts': rawSqlFile("SELECT $tag$ ' $tag$, 1 FROM department WHERE a = $tag$ ' $tag$"),
+  }, (r) => {
+    assert.strictEqual(r.status, 1, `남의 표를 읽는데 초록:\n${r.stdout}`);
+    const out = r.stderr + r.stdout;
+    for (const f of ['cv1', 'cv2', 'cv3', 'cv4', 'cv5', 'cv6', 'cv7']) {
+      assert.match(out, new RegExp(`services/${f}\\.ts:\\d+: 생 SQL.*'Department'`), `${f} 미검출`);
+    }
+  });
+});
+
+test('출력 순서 — 위반이 있으면 stderr 첫 줄이 `❌ 모듈 경계 위반 N건`, 경고는 그 뒤 (#790)', () => {
+  const warnOnly = {};
+  for (let i = 1; i <= 6; i++) warnOnly[`src/modules/boards/services/w${i}.ts`] = rawSqlFile('SELECT 1');   // 판별 못 하는 생 SQL = 경고 6줄
+  withFixture({
+    ...BASE,
+    ...warnOnly,
+    'src/modules/boards/services/steal.ts': "import { db } from '../../../shared/db';\nexport const x = () => db.employee.findMany();\n",
+    'src/modules/people/services/own-client.ts': "import { PrismaClient } from '@prisma/client';\nexport const p = new PrismaClient();\n",
+  }, (r) => {
+    assert.strictEqual(r.status, 1, `위반인데 초록:\n${r.stdout}`);
+    const lines = r.stderr.split('\n');
+    assert.strictEqual(lines[0], '❌ 모듈 경계 위반 2건', `첫 줄이 위반 요약이 아니다:\n${r.stderr}`);
+    const head = r.stderr.indexOf('❌'), warn = r.stderr.indexOf('⚠️');
+    assert.ok(warn > head, '경고가 위반 요약보다 앞에 나온다');
+    assert.ok(r.stderr.indexOf('steal.ts') > head && r.stderr.indexOf('own-client.ts') > head, '상세 목록이 요약보다 앞에 나온다');
+    assert.ok(warn > r.stderr.indexOf('own-client.ts'), '경고가 위반 상세보다 앞에 나온다');
+    assert.doesNotMatch(r.stdout, /✅/);
+  });
+});
+
+test('출력 순서 — 위반이 없으면 경고 뒤 ✅ 그대로, ❌ 없음 (#790)', () => {
+  withFixture({
+    ...BASE,
+    'src/modules/boards/services/w1.ts': rawSqlFile('SELECT 1'),
+  }, (r) => {
+    assert.strictEqual(r.status, 0, `${r.stderr}${r.stdout}`);
+    assert.match(r.stderr, /^⚠️ 경고\(막지 않음\):/);
+    assert.match(r.stdout, /✅ 모듈 경계 OK/);
+    assert.doesNotMatch(r.stderr + r.stdout, /❌/);
+  });
+});
+
 test('순환 의존 — 모듈 index 상호 참조 검출', () => {
   withFixture({
     ...BASE,
