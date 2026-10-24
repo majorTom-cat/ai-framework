@@ -108,6 +108,7 @@
 - **📍 위치 배너 (다단계 스킬 공통)**: 게이트 정지·재개(다음 /todo 에서 이어받기 포함) 응답 첫 줄에 `📍 /스킬 N단계({상태})` — 게이트를 오가는 동안 사용자가 자기 위치를 잃는다.
 - **git pull·merge 충돌은 어디서 나든 종류별 규칙대로**(/dev·/fix·/done pull 이든 수동이든). 임의로 한쪽만 버리지 마라. 일반 코드 = 양쪽 의도를 살려 해결 후 사용자 확인.
   - friction.md·CHANGELOG 류 «누적» 파일(`docs/friction/` 폴더는 CI `append-only-check` 가 본다)을 통째로 올리기 전에 `python3 scripts/check-append-only.py <기준파일> <올릴판파일> [--moved-to 보관파일]` — 사라지면 exit 1. **셋 다 «파일 경로»다**(ref 면 exit 2). 눈으로 대조하면 놓친다 — ref 뽑는 법·경위 `_reference/append-only.md`.
+  - **python 이 없는 PC(Windows 스토어 바로가기뿐)면 위 검사기·`friction.py`·`check-deferred.sh` 등을 못 돈다** — 건너뛰지 말고 «못 돌렸다»고 카드에 적어라. CI(`append-only-check`·`deferred-check`)가 대신 걸러 주니 MR 뒤 그 잡 결과를 보고, 마찰 한 줄은 `docs/friction/` 에 Write 도구로 파일을 직접 만들어라(양식 = 기존 파일 하나).
   - lock·선언형 스키마·마이그레이션 충돌의 종류별 해법 정본 = '금지' 절·`rules/migrations.md`. **DB 리셋 등 파괴적 해법은 사람이 실행**(AI 대행 금지).
 - 기능 개발 `/dev {이슈번호}` · 작은 수정 `/fix {이슈번호}` · 새 모듈 `/module {이름}` · 검수 반려·카드 댓글 반영 `/fix {이슈번호}`(스킬이 반려 사유 댓글까지 읽는다 — 규모가 크거나 `src/shared/` 를 고치면 /dev)
 - 카드가 없는 일을 요청받으면 **먼저 `/card {한 줄}` 로 카드를 만든다** — 카드 없는 코드 변경 금지(요구사항 변경·삭제는 /change)

@@ -10,7 +10,7 @@
    - ★**main 을 합친 직후 `package.json`·`package-lock.json` 이 바뀌었으면 push 전에 그 트리에서 `npm ci`** — main 이 새 의존성을 들였는데 이 클론 `node_modules` 가 옛 상태면 pre-push 전체 테스트가 `Failed to resolve import "…"` 로 파일 수십 개를 빨갛게 하고 push 가 막힌다. 훅 출력이 길어 끝이 잘리면 원인이 안 보이니 `git diff --stat ORIG_HEAD HEAD -- package.json package-lock.json` 로 먼저 본다(배포처 bnsone #532).
    - ★`npm ci` 는 **캐시 경로를 고정해서** 줘라(`--cache ~/.npm-cache-worktree` 류) — 공유 캐시가 root 소유라 죽고, 안내가 권하는 `sudo chown` 은 AI 가 못 친다. `$TMPDIR` 은 호출마다 바뀌어 **매번 빈 캐시**가 된다. 생성 명령이 `EPERM … .cache/…` 로 죽으면 **그 명령만** 울타리를 풀어라.
 3. **전용 DB** — 세 곳을 다 바꿔야 한다:
-   - `.env` 의 **포트와 접속 URL 둘 다**(둘 중 하나만 고치면 URL 쪽이 이겨서 공용 DB 를 가리킨다) — ★**이 줄을 빠뜨리면 남의 데이터를 지운다**(아래 ⚠️)
+   - `.env` 의 **포트와 접속 URL 둘 다**(둘 중 하나만 고치면 URL 쪽이 이겨서 공용 DB 를 가리킨다) — **줄은 Edit 도구로 더하라**: 복사한 `.env` 는 끝에 줄바꿈이 없을 수 있어 `printf '…' >>` 는 마지막 줄(`SMTP_FROM` 류)에 이어 붙고, 포트가 기본값으로 떠서 본 클론과 부딪힌다(bnsone #707). 꼭 셸이면 `printf '\n…'` 로 줄바꿈부터. ★**이 줄을 빠뜨리면 남의 데이터를 지운다**(아래 ⚠️)
    - 컨테이너도 **다른 이름으로** 띄운다(`docker compose -p issue-13 up -d db` 류) — 안 그러면 같은 컨테이너를 공유한다
    - 그 DB 에 **마이그레이션 적용**(`node_modules/.bin/prisma migrate deploy` 류). 새 DB 는 비어 있다
    - 화면 검사용이면 **재시드**(`SEED_SAMPLE=1` 류)까지, 첨부·서명 올리기를 볼 거면 `.env` 에 **`ATTACH_DIR=<이 트리 전용 임시 폴더>`** 도(없으면 저장이 실패하고 서버 로그에만 «ATTACH_DIR 미설정» — 2026-10-02 bnsone #442)
