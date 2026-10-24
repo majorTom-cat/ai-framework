@@ -11,6 +11,9 @@ set -eo pipefail
 ROOT="${K8S_SCAN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 SELF="ci-job-k8s-irreversible.sh"
 TEST="test-k8s-irreversible.sh"
+# 사람이 서버에서 손으로 돌리는 관리 도구(CI 가 안 부른다)의 이름 — `scripts/` 바로 아래 그 이름만 건너뛴다(공백 구분).
+#   예: "reset-review-server.sh clean-ci-pods.py"(배포처 bnsone). CI·배포 잡이 부르는 스크립트는 넣지 마라 — 그게 이 검사가 막는 길이다.
+ALLOW_SCRIPTS=""
 
 FILES=()
 [ -f "$ROOT/.gitlab-ci.yml" ] && FILES+=("$ROOT/.gitlab-ci.yml")
@@ -18,6 +21,9 @@ for d in scripts k8s deploy; do
   [ -d "$ROOT/$d" ] || continue
   while IFS= read -r f; do
     case "$(basename "$f")" in "$SELF"|"$TEST") continue ;; esac
+    skip=""
+    for a in $ALLOW_SCRIPTS; do [ "$f" = "$ROOT/scripts/$a" ] && skip=1; done
+    [ -n "$skip" ] && { echo "ℹ️  관리 도구 예외(ALLOW_SCRIPTS): scripts/$(basename "$f")"; continue; }
     FILES+=("$f")
   done < <(find "$ROOT/$d" -type f)
 done

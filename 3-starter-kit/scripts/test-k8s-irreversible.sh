@@ -35,5 +35,19 @@ case_ 'helm uninstall'          1 deploy/run.sh 'helm uninstall bnsone'
 case_ 'k8s 폴더 안 스크립트'     1 k8s/reset.sh 'kubectl delete ns review'
 case_ '줄 끝 delete'            1 scripts/x.sh 'kubectl -n ns delete'
 
+echo "── 관리 도구 예외(ALLOW_SCRIPTS)는 «scripts/ 바로 아래 그 이름»만 건너뛴다"
+grep -qx 'ALLOW_SCRIPTS=""' "$TARGET" && OK=$((OK+1)) || { FAIL=$((FAIL+1)); echo "  ⛔ FAIL: 킷 원본의 ALLOW_SCRIPTS 가 비어 있지 않다(예외는 배포처 현지화 몫)"; }
+# 예외 목록을 채운 사본으로 돌린다 — 환경변수로 열지 않는 이유: CI 변수 하나로 검사 전체를 끌 수 있게 된다.
+cp "$TARGET" "$T/allow.sh" || exit 1
+sed -i.bak 's/^ALLOW_SCRIPTS=""$/ALLOW_SCRIPTS="reset.sh tool.py"/' "$T/allow.sh" || exit 1
+grep -qx 'ALLOW_SCRIPTS="reset.sh tool.py"' "$T/allow.sh" || { echo "⛔ 사본에 예외 목록을 못 넣었다 — 판정 불능"; exit 1; }
+TARGET="$T/allow.sh"
+case_ '예외 이름(scripts/ 바로 아래)'   0 scripts/reset.sh 'kubectl delete pvc data'
+case_ '예외 이름 둘째(.py)'             0 scripts/tool.py 'kubectl -n ci delete pod x'
+case_ '같은 이름이라도 하위 폴더면 막음' 1 scripts/sub/reset.sh 'kubectl delete pvc data'
+case_ '같은 이름이라도 k8s/ 면 막음'     1 k8s/reset.sh 'kubectl delete pvc data'
+case_ '목록에 없는 이름은 막음'          1 scripts/reset2.sh 'kubectl delete pvc data'
+case_ '예외가 있어도 CI 의 delete 는 막음' 1 .gitlab-ci.yml '    - kubectl delete pvc data'
+
 echo "────────  $OK OK / $FAIL FAIL"
 [ "$FAIL" -eq 0 ]
