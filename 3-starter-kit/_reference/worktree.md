@@ -3,16 +3,16 @@
 > 자동 로드 ❌. CLAUDE.md '세션 규칙'이 가리킨다. 원칙(같은 클론에 세션 둘 금지, 트리마다 자기 포트·DB)은 CLAUDE.md에, 절차는 여기.
 
 ## 레시피 — ★네 걸음을 다 밟아야 «따로 도는 트리»가 된다
-1. `git worktree add ../issue-13 -b feature/13-슬러그 origin/main` (본 클론의 HEAD 를 안 건드리려면 base 를 `origin/main` 으로 명시)
+1. `git worktree add ../issue-13 -b feature/13-슬러그 origin/main` (본 클론의 HEAD 를 안 건드리려면 base 를 `origin/main` 으로 명시) — ★**base 가 `origin/main` 이면 업스트림이 `origin/main` 으로 잡혀 맨 `git push` 가 main 으로 간다** → 만든 직후 그 트리에서 `git branch --unset-upstream`(push 는 `git push -u origin HEAD` 로 — bnsone 602)
 2. **의존성은 그 트리에 «설치»한다 — 링크하지 마라**(아래 주의). 설치 뒤 ORM 생성물 재생성(`node_modules/.bin/prisma generate` 류). 대략 1~2분. **생성을 빼면 `npm test` 가 «PrismaClient 미초기화» 로 파일 수십 개를 빨갛게 한다**(코드 결함 아님 — bnsone 10-26). 준비 스크립트가 `generate` 에서 멈추면(종료 0 이어도) 그 뒤 DB 기동·마이그레이션·시드를 손으로 마저 하라.
-   - **워크트리를 현재 repo 밖에 만들면 `/add-dir <그 폴더>` 를 사람이 쳐야 Read·Edit 가 풀린다**(«허용 폴더 밖» 거절 — bnsone #774·#811). 만들기 «전에» 그 한 줄을 알려라. repo 안(`../issue-*` 허용 줄이 있는 곳)이면 해당 없다.
+   - **워크트리를 현재 repo 밖에 만들면 `/add-dir <그 폴더>` 를 사람이 쳐야 Read·Edit 가 풀린다**(«허용 폴더 밖» 거절 — bnsone #774·#811). 만들기 «전에» 그 한 줄을 알려라. repo 안(`../issue-*` 허용 줄이 있는 곳, 또는 repo 안 `.claude/worktrees/issue-N`)이면 해당 없다 — bnsone 811 은 repo 안에 만들자 막히지 않았다.
    - ★★**워크트리에서 치는 명령은 «절대경로»로 지목하라 — `cd <워크트리 절대경로> && …` 또는 `npm --prefix <절대경로> …`.** 하네스가 호출마다 셸 작업 폴더를 «본 클론»으로 되돌린다 — 상대경로·맨 `npm ci`·`node scripts/…` 는 **본 클론을 친다.** 2026-10-02 bnsone #364 실측: `npm ci` 가 본 클론의 `node_modules` 를 지우다 중단돼 `prisma`·`next`·ORM 생성물이 사라졌고(같은 클론을 쓰는 #356 의존성이 깨질 뻔했다), `check-boundaries-next.cjs --map` 도 본 클론 기준으로 돌아 «지도가 안 바뀐 것»처럼 보였다. 설치·생성·검사기는 **돌리기 전 `pwd` 나 출력의 경로로 «어느 트리인가»를 확인**하라. (`cd … &&` 는 울타리 밖 목록에 안 걸려 안에서 돈다는 `rules/verify.md` §3 경고와는 대상이 다르다 — 이 트리 명령은 아래 걸음처럼 처음부터 울타리 밖에서 돌리므로 `cd` 를 써도 된다.)
    - ★★**`npm --prefix <트리> exec -- prisma …` 는 작업 폴더를 안 바꾼다** — 설치(`ci`)는 그 트리에 되지만 `generate`·`migrate deploy` 는 «본 클론»의 스키마·`.env`·DB 포트로 돈다(2026-10-01 bnsone #416: 같은 포트가 떠 있었다면 남의 DB 에 적용될 뻔). 도구는 `cd <트리 절대경로> && node_modules/.bin/prisma …` 로 부르고, 실행 전 출력의 `Datasource … at "localhost:포트"` 가 이 트리 전용 포트인지 봐라.
    - ★**main 을 합친 직후 `package.json`·`package-lock.json` 이 바뀌었으면 push 전에 그 트리에서 `npm ci`** — main 이 새 의존성을 들였는데 이 클론 `node_modules` 가 옛 상태면 pre-push 전체 테스트가 `Failed to resolve import "…"` 로 파일 수십 개를 빨갛게 하고 push 가 막힌다. 훅 출력이 길어 끝이 잘리면 원인이 안 보이니 `git diff --stat ORIG_HEAD HEAD -- package.json package-lock.json` 로 먼저 본다(배포처 bnsone #532).
    - ★`npm ci` 는 **캐시 경로를 고정해서** 줘라(`--cache ~/.npm-cache-worktree` 류) — 공유 캐시가 root 소유라 죽고, 안내가 권하는 `sudo chown` 은 AI 가 못 친다. `$TMPDIR` 은 호출마다 바뀌어 **매번 빈 캐시**가 된다. 생성 명령이 `EPERM … .cache/…` 로 죽으면 **그 명령만** 울타리를 풀어라.
 3. **전용 DB** — 세 곳을 다 바꿔야 한다:
    - `.env` 의 **포트와 접속 URL 둘 다**(둘 중 하나만 고치면 URL 쪽이 이겨서 공용 DB 를 가리킨다) — **줄은 Edit 도구로 더하라**: 복사한 `.env` 는 끝에 줄바꿈이 없을 수 있어 `printf '…' >>` 는 마지막 줄(`SMTP_FROM` 류)에 이어 붙고, 포트가 기본값으로 떠서 본 클론과 부딪힌다(bnsone #707). 꼭 셸이면 `printf '\n…'` 로 줄바꿈부터. ★**이 줄을 빠뜨리면 남의 데이터를 지운다**(아래 ⚠️)
-   - 컨테이너도 **다른 이름으로** 띄운다(`docker compose -p issue-13 up -d db` 류) — 안 그러면 같은 컨테이너를 공유한다
+   - 컨테이너도 **다른 이름으로** 띄운다(`docker compose -p issue-13 up -d db` 류) — 안 그러면 같은 컨테이너를 공유한다. ★**`-p` 만으론 부족하다 — 호출마다 셸 위치가 본 클론으로 돌아가 compose 가 «본 클론의» 파일·볼륨 기준으로 뜬다**(빈 DB 가 뜬 실측 — bnsone 868) → `--project-directory <워크트리 절대경로>` 도 함께
    - 그 DB 에 **마이그레이션 적용**(`node_modules/.bin/prisma migrate deploy` 류). 새 DB 는 비어 있다
    - 화면 검사용이면 **재시드**(`SEED_SAMPLE=1` 류)까지, 첨부·서명 올리기를 볼 거면 `.env` 에 **`ATTACH_DIR=<이 트리 전용 임시 폴더>`** 도(없으면 저장이 실패하고 서버 로그에만 «ATTACH_DIR 미설정» — 2026-10-02 bnsone #442)
    - 정한 포트·DB명을 `CLAUDE.local.md` 에 적어 둔다(다음 트리가 같은 번호를 안 쓰도록)
