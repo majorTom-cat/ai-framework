@@ -3,7 +3,7 @@
 //
 // 왜 있나: 이미지가 선언한 경로(postgres 의 데이터 폴더 등)는 `-v` 를 안 주면 **이름 없는 볼륨**이 생기고,
 //   `docker rm -f` 는 그것을 지우지 않는다. 시험·확인으로 `docker run` 을 즉석에서 띄울 때마다 약 48MB 가 맥에 쌓였다
-//   (2026-10-29 맥 56개 · 킷 이슈 #9 · 규칙 rules/verify.md §7 이 글로만 있었다).
+//   (2026-10-29 맥 56개 · 킷 이슈 #9 · rules/verify.md 의 «시험용으로 띄운 컨테이너는 볼륨까지 치워라» 절이 글로만 있었다).
 // 되돌리는 모양 둘:
 //   ① `docker run` 인데 `--rm` 도 볼륨 지정(`-v`·`--volume`·`--mount`)도 없다 → `--rm` 을 붙이거나 이름 있는 볼륨을 줘라.
 //   ② `docker rm -f`(`--force`) 인데 `-v`(`--volumes`) 가 없다 → `docker rm -fv`.
@@ -85,7 +85,7 @@ const deny = (why, preview) => {
   process.stdout.write(JSON.stringify({ hookSpecificOutput: {
     hookEventName: 'PreToolUse', permissionDecision: 'deny',
     permissionDecisionReason: `⛔ 되돌려 보냄(사람에게는 창이 안 떴다 — 사람에게 묻지 말고 네가 고쳐 다시 보내라): ${why} [${preview}] ` +
-      '규칙 = rules/verify.md §7 «시험용으로 띄운 컨테이너는 볼륨까지 치워라». 이미 쌓인 볼륨을 지우는 건 이 훅의 일이 아니다 — 주인을 이름으로 못 가리니 지우지 말고 사람에게 알려라.',
+      '규칙 = rules/verify.md 의 «시험용으로 띄운 컨테이너는 볼륨까지 치워라» 절(절 번호는 배포처마다 다르다). 이미 쌓인 볼륨을 지우는 건 이 훅의 일이 아니다 — 주인을 이름으로 못 가리니 지우지 말고 사람에게 알려라.',
   } }) + '\n');
   process.exit(0);
 };
