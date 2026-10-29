@@ -47,6 +47,8 @@ t DENY '`docker run` 에' 'if true; then docker run -d img; fi'
 t DENY '`docker run` 에' 'for i in 1 2; do docker run -d img; done'
 t DENY '`docker rm -f`' 'while true; do docker rm -f a; done'
 t DENY '`docker run` 에' 'docker run -d --volume-driver local postgres:16'
+t DENY '`docker run` 에' 'if ! docker run x; then :; fi'
+t PASS - 'if ! docker run --rm x; then :; fi'
 t PASS - 'if true; then docker run --rm img; fi'
 t PASS - 'docker run --rm\
  img'

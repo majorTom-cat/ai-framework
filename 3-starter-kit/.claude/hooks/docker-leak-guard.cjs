@@ -23,7 +23,7 @@ const { splitTop } = require('./bundle-guard.cjs');
 const WRAP = new Set(['sudo', 'command', 'xargs', 'exec', 'time', 'env', 'nohup', 'builtin', 'timeout', 'nice']);
 // 제어문 키워드 뒤의 명령(`then docker run …` · `do docker rm -f …`)도 명령 자리다.
 const CTRL = new Set(['if', 'then', 'else', 'elif', 'do', 'while', 'until']);
-const ASSIGN =/^[A-Za-z_][A-Za-z0-9_]*=/;
+const ASSIGN = /^[A-Za-z_][A-Za-z0-9_]*=/;
 const base = (s) => (s || '').replace(/^.*\//, '');
 
 // `$( … )` 와 백틱 안쪽 문자열(한 겹) — `ID=$(docker run -d …)` 같은 모양을 놓치지 않으려고.
@@ -47,7 +47,7 @@ function inner(text) {
 function judge(seg) {
   const t = seg.replace(/^[({\s!]+/, '').split(/\s+/).filter(Boolean).map((x) => x.replace(/\\$/, ''));
   let k = 0;
-  while (k < t.length && CTRL.has(t[k])) k++;
+  while (k < t.length && (CTRL.has(t[k]) || t[k] === '!')) k++;
   while (k < t.length && ASSIGN.test(t[k])) k++;
   while (k < t.length && WRAP.has(base(t[k]))) {
     k++;
