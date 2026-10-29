@@ -21,7 +21,9 @@ const fs = require('fs');
 const { splitTop } = require('./bundle-guard.cjs');
 
 const WRAP = new Set(['sudo', 'command', 'xargs', 'exec', 'time', 'env', 'nohup', 'builtin', 'timeout', 'nice']);
-const ASSIGN = /^[A-Za-z_][A-Za-z0-9_]*=/;
+// 제어문 키워드 뒤의 명령(`then docker run …` · `do docker rm -f …`)도 명령 자리다.
+const CTRL = new Set(['if', 'then', 'else', 'elif', 'do', 'while', 'until']);
+const ASSIGN =/^[A-Za-z_][A-Za-z0-9_]*=/;
 const base = (s) => (s || '').replace(/^.*\//, '');
 
 // `$( … )` 와 백틱 안쪽 문자열(한 겹) — `ID=$(docker run -d …)` 같은 모양을 놓치지 않으려고.
@@ -43,8 +45,9 @@ function inner(text) {
 
 // 한 조각이 되돌릴 모양이면 «사유 키», 아니면 null.
 function judge(seg) {
-  const t = seg.replace(/^[({\s!]+/, '').split(/\s+/).filter(Boolean);
+  const t = seg.replace(/^[({\s!]+/, '').split(/\s+/).filter(Boolean).map((x) => x.replace(/\\$/, ''));
   let k = 0;
+  while (k < t.length && CTRL.has(t[k])) k++;
   while (k < t.length && ASSIGN.test(t[k])) k++;
   while (k < t.length && WRAP.has(base(t[k]))) {
     k++;
@@ -59,7 +62,7 @@ function judge(seg) {
 
   if (sub === 'run') {
     const hasRm = args.some((a) => a === '--rm' || a === '--rm=true');
-    const hasVol = args.some((a) => a.startsWith('--volume') || a === '--mount' || a.startsWith('--mount=')
+    const hasVol = args.some((a) => /^--volume(=|$)|^--volumes-from/.test(a) || a === '--mount' || a.startsWith('--mount=')
       || (/^-[A-Za-z]+(=|$)/.test(a) && a.slice(1).split('=')[0].includes('v')));
     return hasRm || hasVol ? null : 'run';
   }

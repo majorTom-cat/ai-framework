@@ -42,6 +42,14 @@ t DENY '`docker run` 에' 'docker run --rm=false -d postgres:16'
 t DENY '`docker run` 에' 'LIVE=$(docker run -d postgres:16)'
 t DENY '`docker run` 에' 'echo "$(docker run -d postgres:16)"'
 t DENY '`docker run` 에' 'docker run -d postgres:16 | cat'
+# ★제어문 키워드 뒤 · --volume-driver(볼륨 지정 아님) · 줄바꿈 잇기 (bnsone !1618 리뷰)
+t DENY '`docker run` 에' 'if true; then docker run -d img; fi'
+t DENY '`docker run` 에' 'for i in 1 2; do docker run -d img; done'
+t DENY '`docker rm -f`' 'while true; do docker rm -f a; done'
+t DENY '`docker run` 에' 'docker run -d --volume-driver local postgres:16'
+t PASS - 'if true; then docker run --rm img; fi'
+t PASS - 'docker run --rm\
+ img'
 
 echo "── B. docker rm -f — -v 가 없으면 되돌린다"
 t DENY '`docker rm -f`' 'docker rm -f c1'
