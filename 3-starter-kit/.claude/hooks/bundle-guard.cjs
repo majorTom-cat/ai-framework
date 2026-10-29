@@ -137,6 +137,10 @@ const deny = (why) => {
   process.exit(0);
 };
 
+// 다른 훅(docker-leak-guard)이 «명령 쪼개기»만 빌려 쓴다 — 불러올 때는 판정을 돌리지 않는다.
+module.exports = { splitTop, firstWord };
+if (require.main !== module) return;
+
 try {
   let input = '';
   try { input = fs.readFileSync(0, 'utf8'); } catch { process.exit(0); }

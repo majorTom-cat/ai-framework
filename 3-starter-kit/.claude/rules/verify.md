@@ -64,3 +64,4 @@
 ## 7. 시험용으로 띄운 컨테이너는 볼륨까지 치워라
 - `docker run -d postgres …` 처럼 `-v` 를 안 주면 이미지가 선언한 경로마다 **이름 없는 볼륨**이 생기고, `docker rm -f` 는 그것을 지우지 않는다 — 시험을 돌릴 때마다 약 48MB 가 맥에 쌓인다(배포처 bnsone #909 백업 시험: 3일에 32개, 킷 이슈 #9).
 - 시험 스크립트는 **`docker run --rm`**(정지 시 자동 삭제) 이거나 정리에서 **`docker rm -fv`** 를 불러라. 이름 있는 볼륨(`issue-N_pgdata`)은 `/done` 단계상세 §4 가 맡는다 — 이 절은 «이름 없는 쪽»이다.
+- 글만으로는 안 지켜져서 훅이 되돌린다(`hooks/docker-leak-guard.cjs` · 시험 `scripts/test-docker-leak-guard.sh`): `--rm`·볼륨 지정이 둘 다 없는 `docker run`, `-v` 없는 `docker rm -f`. 이미 쌓인 볼륨을 지우는 장치는 없다 — 주인을 이름으로 못 가리니 사람에게 알려라.
