@@ -1,10 +1,10 @@
 ---
-name: todo
-description: 킷 세션용 브리핑 — 내 담당 카드(bnsone·파일럿)·To-Do·킷 마찰·킷 저장소 상태를 훑고 번호 선택지로 낸다. 세션 시작 시, 일이 끝났을 때, 사용자가 다음 작업을 물을 때 실행.
+name: kit-todo
+description: 킷 세션용 브리핑(킷 저장소 루트에서 `/kit-todo` — 배포처용 `/todo` 와 이름을 갈랐다) — 내 담당 카드(bnsone·파일럿)·To-Do·킷 마찰·킷 저장소 상태를 훑고 번호 선택지로 낸다. 세션 시작 시, 일이 끝났을 때, 사용자가 다음 작업을 물을 때 실행.
 allowed-tools: Bash(glab *) Bash(git *) Bash(grep *)
 ---
 
-> **예시**: `/todo` (킷 세션 시작 브리핑)
+> **예시**: `/kit-todo` (킷 세션 시작 브리핑)
 
 > ★**이 스킬은 «킷 저장소 세션» 전용이다.** 킷 원격은 GitHub 이고 카드는 사내 GitLab 의 bnsone·파일럿에만 있으므로, 아래 조회는 **`-R` 로 저장소를 못박는다.** 배포처(bnsone·파일럿) 세션에서 쓰는 `/todo` 는 `3-starter-kit/.claude/skills/todo/` 쪽이 정본이고 **이 파일은 그 사본이 아니다** — 동기 대상이 아니다(`AI-CONTEXT.md` §3).
 
