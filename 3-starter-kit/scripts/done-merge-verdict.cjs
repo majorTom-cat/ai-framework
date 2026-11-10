@@ -9,7 +9,7 @@
 //   node scripts/done-merge-verdict.cjs after-merge <리뷰한SHA 40자> [mainRef=origin/main]
 // 출력: 1행 = 판정 토큰 — 스킬은 이 1행만 파싱한다. 사유는 2행부터.
 //   main-moved : 최신(main 이 안 움직임) | 그대로(안 겹침 — 합치지 않고 머지 가능) | 합치기(합치고 다시 시험)
-//     «합치기» 사유 = 같은 파일 · 글자 충돌 · ADR 번호 겹침 · main 의 package·lock·CI · 내가 스키마·마이그레이션을 건드릴 때 main 의 새 마이그레이션 ·
+//     «합치기» 사유 = 같은 파일(main 이 고친 곳이 내 줄과 4줄 안이거나 새 파일·지운 파일 — 멀면 «참고» 줄, #1130) · 글자 충돌 · ADR 번호 겹침 · main 의 package·lock·CI · 내가 스키마·마이그레이션을 건드릴 때 main 의 새 마이그레이션 ·
 //     shared(시험 파일 제외) · «내 코드가 쓰는 모듈의 index.ts 에서 있던 줄이 지워지거나 바뀜». 같은 모듈 다른 파일만으로는 아니다(#716).
 //   after-merge: 리뷰유효(병합이 main 쪽 파일만 바꿨다 · 같은 파일이면 main 이 고친 줄이 내 줄과 4줄 이상 떨어지고 기계적 병합과 같다) | 재리뷰(내 파일이 바뀌었거나 병합 중 손댔다)
 // 종료코드: 0=판정함(내용 무관) / 2=판정 불능(git 실패·인자 오류 — «모름»을 어느 토큰으로도 위장하지 않는다)
@@ -34,6 +34,29 @@ const verify = (ref) => git('rev-parse', '--verify', '--quiet', ref + '^{commit}
 const names = (...range) => new Set(git('diff', '--name-only', '-z', '--no-renames', ...range).split('\0').filter(Boolean));
 const added = (...range) => [...new Set(git('diff', '--name-only', '-z', '--no-renames', '--diff-filter=A', ...range).split('\0').filter(Boolean))];
 
+// 같은 파일의 «떨어진 곳»을 가르는 잣대 — main-moved 와 after-merge 가 같은 값을 쓴다(배포처 bnsone #1130: 둘이 달라 합치기만 세 바퀴).
+const MARGIN = 3;
+const hunkRanges = (a, b, f) => { // a→b 에서 바뀐 구간, a(옛) 쪽 줄번호 [시작,끝] — 줄을 «끼운» 곳은 앞뒤 줄을 모두 덮는다
+  // --literal-pathspecs: 파일 이름의 [id]·* 가 글롭으로 읽혀 다른 파일의 줄을 끌어오지 않게(독립 검토가 재현)
+  const out = git('--literal-pathspecs', 'diff', '-U0', '--no-renames', a, b, '--', f);
+  const rs = [];
+  for (const l of out.split('\n')) {
+    const m = /^@@ -(\d+)(?:,(\d+))? \+\d+(?:,\d+)? @@/.exec(l);
+    if (!m) continue;
+    const s = Number(m[1]);
+    const n = m[2] === undefined ? 1 : Number(m[2]);
+    rs.push(n === 0 ? [s, s + 1] : [s, s + n - 1]);
+  }
+  return rs;
+};
+// 두 쪽이 고친 구간이 MARGIN 줄 안에서 만나나. 어느 쪽이든 줄을 못 읽으면(바이너리·권한만 바뀜) «만난다»로 친다 — fail-closed.
+const near = (mi, ma) => !mi.length || !ma.length || mi.some((x) => ma.some((y) => x[0] - MARGIN <= y[1] && y[0] - MARGIN <= x[1]));
+const exists = (ref, f) => {
+  const r = spawnSync('git', ['ls-tree', ref, '--', f], { encoding: 'utf8', timeout: 60000 });
+  if (r.error || r.status !== 0) die(`git ls-tree ${ref} ${f} 실패`);
+  return String(r.stdout).trim() !== '';
+};
+
 const moduleOf = (p) => (/^src\/modules\/([^/]+)\//.exec(p) || [])[1];
 const adrNo = (p) => (/^docs\/adr\/(\d+)-/.exec(p) || [])[1];
 
@@ -54,7 +77,17 @@ if (mode === 'main-moved') {
   const mainNew = names(base, mainSha); // main 이 내가 마지막으로 합친 뒤 새로 바꾼 파일
   const mine = names(base, 'HEAD'); // 내 브랜치가 바꾼 파일
   const why = [];
-  const overlap = [...mine].filter((p) => mainNew.has(p));
+  const mt = spawnSync('git', ['merge-tree', '--write-tree', 'HEAD', mainRef], { encoding: 'utf8', timeout: 60000 });
+  if (mt.error) die('git merge-tree 를 못 돌렸다 — ' + mt.error.message);
+  if (mt.status !== 0 && mt.status !== 1) die('git merge-tree 오류(종료 ' + mt.status + ') — ' + String(mt.stderr).split('\n')[0]);
+  // 같은 파일이라도 after-merge 가 «리뷰유효»로 낼 모양이면 사유가 아니다(배포처 bnsone #1130 — 문서 둘이 겹쳐 합치기만 세 바퀴, 매번 저절로 합쳐졌다):
+  //   ①시험 병합에 글자 충돌이 없다 ②기준점에 있던 파일이고 양쪽 다 지우지 않았다 ③main 이 고친 줄이 내 줄과 MARGIN 줄 안에 없다.
+  //   위험 경로(아래 risky)·ADR 번호·글자 충돌은 이 면제와 따로 계속 사유다.
+  const overlapAll = [...mine].filter((p) => mainNew.has(p));
+  const apart = overlapAll.filter(
+    (p) => mt.status === 0 && exists(base, p) && exists('HEAD', p) && exists(mainSha, p) && !near(hunkRanges(base, 'HEAD', p), hunkRanges(base, mainSha, p))
+  );
+  const overlap = overlapAll.filter((p) => !apart.includes(p));
   if (overlap.length) why.push('같은 파일: ' + overlap.slice(0, 5).join(', '));
   // 위험 경로는 «내 변경에 코드가 있을 때만» 사유다 — 남의 마이그레이션·package·shared·CI 변경이 깨뜨릴 수 있는 건 코드뿐이다.
   // 문서만 바꾸는 MR 이 그 때문에 계속 «합치기» 가 되던 것이 이 카드(#610)의 실제 사례다.
@@ -102,13 +135,11 @@ if (mode === 'main-moved') {
   const mainAdr = new Map(added(base, mainSha).filter(adrNo).map((p) => [adrNo(p), p]));
   const adrClash = added(base, 'HEAD').filter((p) => adrNo(p) && mainAdr.has(adrNo(p)) && mainAdr.get(adrNo(p)) !== p);
   if (adrClash.length) why.push('ADR 번호 겹침: ' + adrClash.join(', '));
-  const mt = spawnSync('git', ['merge-tree', '--write-tree', 'HEAD', mainRef], { encoding: 'utf8', timeout: 60000 });
-  if (mt.error) die('git merge-tree 를 못 돌렸다 — ' + mt.error.message);
   if (mt.status === 1) why.push('글자 충돌');
-  else if (mt.status !== 0) die('git merge-tree 오류(종료 ' + mt.status + ') — ' + String(mt.stderr).split('\n')[0]);
   console.log(why.length ? '합치기' : '그대로');
   if (why.length) why.forEach((w) => console.log(w));
   else console.log(`main 이 새로 바꾼 ${mainNew.size}개 파일이 내 변경과 안 겹친다 (충돌 없음)`);
+  if (apart.length) console.log(`참고: 같은 파일 ${apart.length}개는 main 이 고친 곳이 내 줄과 ${MARGIN + 1}줄 이상 떨어져 있고 글자 충돌이 없어 사유에서 뺐다: ${apart.slice(0, 5).join(', ')}`);
   if (riskNote) console.log(riskNote);
   process.exit(0);
 }
@@ -146,25 +177,11 @@ if (mode === 'after-merge') {
   //   ②main 이 고친 줄이 내가 고친 줄과 MARGIN 줄 안에 없다(둘 다 합친 기준점 줄번호). 읽을 수 없는 건 전부 «재리뷰» — fail-closed.
   // 한계: 줄이 멀어도 뜻이 이어질 수 있다(함수 이름을 바꾸고 다른 곳의 옛 이름 호출이 늘어남) — 이 판정기는 줄만 본다.
   //   그 길목은 위험 경로·머지 뒤 main 파이프라인이 막는다(위 한계 절).
-  const MARGIN = 3;
   // 파일 항목 = «권한 종류 해시» — blob 해시만 비교하면 실행권한(100644↔100755) 변경이 가려진다(독립 검토가 재현).
   const blob = (ref, f) => {
     const r = spawnSync('git', ['ls-tree', ref, '--', f], { encoding: 'utf8', timeout: 60000 });
     const line = r.status === 0 ? String(r.stdout).split('\n')[0].split('\t')[0].trim() : '';
     return line || null;
-  };
-  const hunkRanges = (a, b, f) => { // a→b 에서 바뀐 구간, a(옛) 쪽 줄번호 [시작,끝] — 줄을 «끼운» 곳은 앞뒤 줄을 모두 덮는다
-    // --literal-pathspecs: 파일 이름의 [id]·* 가 글롭으로 읽혀 다른 파일의 줄을 끌어오지 않게(독립 검토가 재현)
-    const out = git('--literal-pathspecs', 'diff', '-U0', '--no-renames', a, b, '--', f);
-    const rs = [];
-    for (const l of out.split('\n')) {
-      const m = /^@@ -(\d+)(?:,(\d+))? \+\d+(?:,\d+)? @@/.exec(l);
-      if (!m) continue;
-      const s = Number(m[1]);
-      const n = m[2] === undefined ? 1 : Number(m[2]);
-      rs.push(n === 0 ? [s, s + 1] : [s, s + n - 1]);
-    }
-    return rs;
   };
   const mt = spawnSync('git', ['merge-tree', '--write-tree', reviewed, lastMain], { encoding: 'utf8', timeout: 60000 });
   const treeLine = mt.error ? '' : String(mt.stdout).split('\n')[0].trim();
@@ -178,7 +195,7 @@ if (mode === 'after-merge') {
     const mi = hunkRanges(bl, reviewed, f);
     const ma = hunkRanges(bl, lastMain, f);
     if (!mi.length || !ma.length) return '바뀐 줄을 못 읽음(바이너리 등)';
-    for (const x of mi) for (const y of ma) if (x[0] - MARGIN <= y[1] && y[0] - MARGIN <= x[1]) return `main 이 고친 줄이 내 줄과 ${MARGIN}줄 안`;
+    if (near(mi, ma)) return `main 이 고친 줄이 내 줄과 ${MARGIN}줄 안`;
     return null;
   };
   const bad = [];

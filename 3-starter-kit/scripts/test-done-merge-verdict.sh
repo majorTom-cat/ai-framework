@@ -62,8 +62,18 @@ setup; put feat docs/adr/0001-a.md changed; put main docs/adr/0001-b.md changed
 t '번호가 같은 기존 ADR 을 각자 «수정»만 함(새로 만든 게 아님) → 그대로' 0 그대로 '안 겹친다' main-moved main
 
 echo "── B. main-moved — 겹치거나 위험하면 합치기 (막아야 하는 쪽)"
+setup; sedx feat docs/x.md 's/^L1$/L1mine/'; sedx main docs/x.md 's/^mid3$/mid3theirs/'
+t '같은 파일·main 이 내 줄(1행)에서 3줄 떨어진 4행을 고침 → 합치기(가깝다)' 0 합치기 '같은 파일' main-moved main
+setup; sedx feat docs/x.md 's/^L1$/L1mine/'; sedx main docs/x.md 's/^mid4$/mid4theirs/'
+t '같은 파일·4줄 떨어진 5행 → 그대로(after-merge 와 같은 경계 · #1130)' 0 그대로 '사유에서 뺐다: docs/x.md' main-moved main
 setup; sedx feat docs/x.md 's/^L1$/L1mine/'; sedx main docs/x.md 's/^L14$/L14theirs/'
-t '같은 파일(글자 충돌은 없음) → 합치기' 0 합치기 '같은 파일' main-moved main
+t '같은 파일·멀리(1행 vs 14행)·충돌 없음 → 그대로 + 참고 줄(#1130)' 0 그대로 '참고: 같은 파일 1개' main-moved main
+setup; sedx feat docs/x.md 's/^L1$/L1mine/'; sedx main docs/x.md 's/^L14$/L14theirs/'; sedx feat docs/x.md 's/^mid12$/mid12mine/'
+t '같은 파일·내 두 번째 변경(13행)이 main 의 14행과 붙음 → 합치기' 0 합치기 '같은 파일' main-moved main
+setup; sedx feat docs/x.md 's/^L1$/L1mine/'; rmf main docs/x.md
+t '내가 고친 파일을 main 이 지움 → 합치기(면제 안 함)' 0 합치기 '같은 파일' main-moved main
+setup; sedx feat docs/x.md 's/^L1$/L1mine/'; sedx main docs/x.md 's/^L14$/L14theirs/'; put feat src/modules/people/a.ts mine; put main src/shared/s.ts changed
+t '같은 파일은 멀어도 main 의 위험 경로(shared)는 여전히 합치기' 0 합치기 '위험 경로' main-moved main
 setup; put feat prisma/schema/a.prisma mine; put main prisma/schema/migrations/20260102_000000_b/migration.sql sql
 t 'main 에 새 마이그레이션 + 나도 prisma/ 를 바꿈 → 합치기' 0 합치기 '위험 경로' main-moved main
 setup; put feat prisma/schema/migrations/20260103_000000_mine/migration.sql sql; put main prisma/schema/migrations/20260102_000000_b/migration.sql sql
