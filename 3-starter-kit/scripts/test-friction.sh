@@ -101,6 +101,21 @@ OUT=$(T count); case "$OUT" in "막힘 2건 / 안 닫힌 줄 13건"*) ok;; *) no
 T list --closed 2>/dev/null | grep -q '새보관:' && ok || no "list --closed 에 월별 보관 파일이 안 보인다"
 T archive --keep 3 | grep -q '옮길 닫힌 파일 없음' && ok || no "두 번째 archive 가 «없음» 을 안 알렸다"
 T 엉뚱 >/dev/null 2>&1; [ "$?" = 1 ] && ok || no "모르는 명령을 받았다"
+# ── archive 는 git main 에서 멈춘다(본 클론 main 에 커밋 안 된 이동을 남기지 않게 · bnsone 2026-11-16) — 작업 브랜치에선 돈다
+if command -v git >/dev/null 2>&1; then
+  G="$D/깃"; mkdir -p "$G/docs/friction" "$G/scripts" && cp "$TOOL" "$G/scripts/friction.py"
+  for i in 1 2 3; do printf '%s\n' "2026-10-0$i /todo — 닫힌 줄 $i [닫힘:#$i]" > "$G/docs/friction/2026-10-0$i-0-aaaaa$i.md"; done
+  git -C "$G" init -q -b main >/dev/null 2>&1 && git -C "$G" -c user.name=t -c user.email=t@t add -A && git -C "$G" -c user.name=t -c user.email=t@t commit -qm x
+  OUT=$(python3 "$G/scripts/friction.py" archive --keep 0 2>&1); RC=$?
+  [ "$RC" = 2 ] && ok || no "main 에서 archive 가 멈추지 않았다(RC=$RC): $OUT"
+  case "$OUT" in *"작업 브랜치"*) ok;; *) no "main 거절 안내에 «작업 브랜치» 가 없다: $OUT";; esac
+  [ ! -d "$G/docs/friction/보관" ] && [ -z "$(git -C "$G" status --porcelain)" ] && ok || no "main 에서 거절했는데 파일이 움직였다"
+  git -C "$G" checkout -q -b fix/x
+  python3 "$G/scripts/friction.py" archive --keep 0 >/dev/null 2>&1; RC=$?
+  [ "$RC" = 0 ] && [ "$(find "$G/docs/friction/보관" -name '*.md' | wc -l | tr -d ' ')" = 3 ] && ok || no "작업 브랜치에서 archive 가 안 돌았다(RC=$RC)"
+else
+  no "git 이 없어 main 거절 시험을 못 돌렸다 — 검증 불능"
+fi
 
 # ── 옛 friction.md 의 열린 줄 닫기: 제자리 편집, 다른 줄은 바이트 그대로
 cp docs/friction.md "$D/legacy.before"

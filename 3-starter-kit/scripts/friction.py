@@ -14,10 +14,10 @@
   python3 scripts/friction.py count                      「막힘 N / 안 닫힌 줄 M — 가장 오래된 날짜」 (`/todo` 0-c 값)
   python3 scripts/friction.py close <고유6자리|파일명> <값>   줄 끝에 ` [닫힘:값]` 을 붙인다
   python3 scripts/friction.py close "<옛 friction.md 줄의 문구 12자 이상>" <값>   옛 파일의 열린 줄 하나를 제자리에서 닫는다
-  python3 scripts/friction.py archive [--keep 5]         닫힌 파일을 최신 N개만 남기고 `보관/<YYYY-MM>/` 으로 옮긴다(삭제 아님)
+  python3 scripts/friction.py archive [--keep 5]         닫힌 파일을 최신 N개만 남기고 `보관/<YYYY-MM>/` 으로 옮긴다(삭제 아님 · main 에선 멈춘다 — 작업 브랜치에서)
 종료: 0 정상 · 1 입력 오류 · 2 읽기 불능
 """
-import sys, os, re, secrets, datetime, shutil
+import sys, os, re, secrets, datetime, shutil, subprocess
 
 for _s in (sys.stdout, sys.stderr):      # Windows cp949 콘솔에서 «—»·«⚠️» 로 죽지 않게(check-append-only.py 와 같은 이유)
     try:
@@ -196,7 +196,7 @@ def cmd_count(root, args):
         print(f"막힘 {blocked}건 / 안 닫힌 줄 {opened}건 — 가장 오래된 {oldest}({days}일째)")
     stale = sum(1 for _, l in folder_entries(root) if is_closed(l))
     if stale > ARCHIVE_HINT:      # 닫힌 파일이 열린 쪽에 쌓이면 폴더가 길어진다 — 사람이 안 비우면 아무도 안 비운다
-        print(f"⚠️ 닫힌 파일 {stale}개가 열린 쪽에 쌓였다 — `python3 scripts/friction.py archive` 로 보관하라(삭제 아님)")
+        print(f"⚠️ 닫힌 파일 {stale}개가 열린 쪽에 쌓였다 — `python3 scripts/friction.py archive` 로 보관하라(삭제 아님 · 본 클론 main 말고 작업 브랜치·워크트리에서 돌려 MR 에 같이)")
 
 
 def find_open(root, ref):
@@ -253,6 +253,15 @@ def cmd_close(root, args):
     print(p)
 
 
+def current_branch(root):
+    """root 의 git 브랜치 이름 — git 저장소가 아니거나 못 읽으면 None."""
+    try:
+        r = subprocess.run(["git", "-C", root, "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
 def cmd_archive(root, args):
     keep = 5
     if args:
@@ -260,6 +269,9 @@ def cmd_archive(root, args):
             keep = int(args[1])
         else:
             die("사용: friction.py archive [--keep N]")
+    # 보관은 파일을 옮긴다 — 본 클론 main 에서 돌리면 커밋 안 된 이동이 main 에 남아 다른 세션의 «main 따라잡기»(diff --quiet)를 막는다(bnsone 2026-11-16 · 34건)
+    if current_branch(root) in ("main", "master"):
+        die("⛔ main 에서는 보관하지 않는다 — 커밋 안 된 파일 이동이 main 에 남아 다른 세션의 main 따라잡기를 막는다. 작업 브랜치(워크트리)에서 돌려 MR 에 같이 올려라", 2)
     closed = [(n, l) for n, l in folder_entries(root) if is_closed(l)]
     closed.sort(key=lambda x: x[0])          # 파일명이 날짜로 시작 — 오래된 것이 앞
     movable = closed[:-keep] if keep else closed
