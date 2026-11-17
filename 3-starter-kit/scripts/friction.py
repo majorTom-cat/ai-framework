@@ -235,8 +235,8 @@ def cmd_close(root, args):
     if len(args) != 2:
         die("사용: friction.py close <고유6자리|파일명> <값>")
     ref, val = args
-    if not val or re.search(r"\s", val) or "]" in val:
-        die("닫힘 값에 공백·`]`·줄바꿈을 넣지 마라(괄호를 끼우면 기계가 못 센다 — 부가정보는 콜론 뒤)")
+    if not val or (val != "이 커밋" and re.search(r"\s", val)) or "]" in val:  # 규약이 허용하는 값 «이 커밋» 만 공백 예외
+        die("닫힘 값에 공백·`]`·줄바꿈을 넣지 마라(괄호를 끼우면 기계가 못 센다 — 부가정보는 콜론 뒤 · 공백이 든 값은 `이 커밋` 만 된다)")
     hits = find_open(root, ref)
     if len(hits) == 0 and len(ref) >= 12:
         return close_legacy(root, ref, val)

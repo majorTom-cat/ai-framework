@@ -47,6 +47,9 @@ reset
 printf '%s\n' "$L1 [닫힘:#12]" > docs/friction/2026-10-20-0-aaaaaa.md
 expect "닫힘 표시 추가" 0 "OK"
 reset
+printf '%s\n' "$L1 [닫힘:이 커밋]" > docs/friction/2026-10-20-0-aaaaaa.md
+expect "닫힘 값 «이 커밋»(규약 허용 공백)" 0 "OK"
+reset
 mkdir -p docs/friction/보관
 printf '%s\n' "$L1 [닫힘:#12]" > docs/friction/보관/2026-10-20-0-aaaaaa.md
 rm docs/friction/2026-10-20-0-aaaaaa.md

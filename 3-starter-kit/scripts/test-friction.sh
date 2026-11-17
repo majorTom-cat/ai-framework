@@ -166,6 +166,10 @@ OUT=$(T add "--help-ish 오타" 2>&1); RC=$?
 [ "$RC" = 1 ] && ok || no "옵션 모양으로 시작하는 줄을 기록했다 RC=$RC"
 [ "$(ls "$D/docs/friction" | wc -l | tr -d ' ')" = "$BEFORE" ] && ok || no "도움말·옵션 오타가 기록 파일을 만들었다"
 
+# ── 닫힘 값 «이 커밋» — 규약(friction.md 머리)이 허용하는 유일한 공백 든 값 (배포처 bnsone 마찰 707-sm01m4)
+Q=$(T add "2026-10-27 /todo — 이 커밋으로 닫을 줄"); T close "$(basename "$Q" .md | sed -E 's/.*-//')" "이 커밋" >/dev/null 2>&1; RC=$?
+[ "$RC" = 0 ] && grep -q '\[닫힘:이 커밋\]$' "$D/docs/friction/$(basename "$Q")" && ok || no "규약이 허용한 닫힘 값 «이 커밋» 을 거절했다 RC=$RC"
+
 cd / && rm -r "$D"
 echo "통과 $pass / 실패 $fail"
 [ "$fail" -eq 0 ] && [ "$pass" -ge 57 ]

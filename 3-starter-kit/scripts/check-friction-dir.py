@@ -31,7 +31,7 @@ for _s in (sys.stdout, sys.stderr):
 NAME = re.compile(r"^(\d{4}-\d{2}-\d{2})-(\d+|0)-([a-z0-9]{6})\.md$")
 ENTRY = re.compile(r"^\d{4}-\d{2}-\d{2}")
 MONTH = re.compile(r"^\d{4}-\d{2}$")
-CLOSE_TAIL = re.compile(r" \[닫힘:[^\]\s]+\]$")
+CLOSE_TAIL = re.compile(r" \[닫힘:(?:[^\]\s]+|이 커밋)\]$")  # 공백 든 값은 규약이 허용한 «이 커밋» 만(friction.py close 와 같다)
 D = "docs/friction"
 ARCH = D + "/보관"
 LEGACY = ("docs/friction.md", "docs/friction-보관.md")
