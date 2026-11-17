@@ -30,3 +30,4 @@
 - `.claude/**`·`CLAUDE.md` 를 건드리면 `셀프승인` 라벨을 **MR 생성 인자**로 넣는다(라벨은 파이프라인 «생성» 시점에 읽힌다 — `/done` `함정.md` §2). 스킬을 옮기면 `skill-size` 한도도 같이 돈다.
 - 머지 뒤 1절의 검사기를 다시 돌려 남은 것이 «의도한 것»뿐인지 본다.
 - ★**동기 워크트리는 `/done` 을 안 거치므로 여기서 지운다**(안 지우면 쌓인다 — bnsone 2026-10-16: 4개 방치): ①`MR state=merged` 를 `glab mr view` 로 본다(또는 MR 이 닫히고 같은 내용이 다른 브랜치로 들어갔으면 ②) ②배포처 본 클론에서 `git fetch origin` 후 `node scripts/worktree-sweep.cjs`(울타리 밖) — 내 워크트리가 «정리 가능» 이면 `/done` 단계상세 §4 의 순서대로 지운다(`worktree remove` → `fetch --prune` → `branch -d`, `--force` 금지). «보류» 면 지우지 말고 사유만 보고.
+  - **`branch -d` 전에 본 클론 main 을 따라잡아라** — 본 클론 로컬 main 이 낡으면 머지 커밋을 못 봐 «not fully merged» 로 거부된다(bnsone 2026-11-17 `kitsync/5cf0ea0`). `CLAUDE.md` «main 따라잡기» 조건(체크아웃 main · `diff --quiet`·`diff --cached --quiet` 통과 · `rev-list --count origin/main..HEAD` 0)이 맞을 때만 `git -C {본클론} pull --ff-only origin main`. 안 맞으면 `-D` 로 우기지 말고 사유만 보고.
