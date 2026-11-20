@@ -28,6 +28,7 @@
 - 커밋 첫 줄 = `킷동기: <킷 해시>`(여러 개면 `·` 로 잇는다) — 동기 검사기의 기준점이다. 카드 면제(`CLAUDE.md` '작업 절차').
 - ★**배포처에만 있는 게이트를 먼저 본다** — 그 repo `.gitlab-ci.yml` 잡 목록. bnsone 은 `change-summary` 가 **마지막 커밋**에 `달라지는 것:` 블록을 요구한다(불릿 한 줄씩 · 올리기 전 `bash scripts/extract-change-summary.sh < 메시지파일`). 빠졌으면 **새 커밋 하나 추가**(force push 금지).
 - `.claude/**`·`CLAUDE.md` 를 건드리면 `셀프승인` 라벨을 **MR 생성 인자**로 넣는다(라벨은 파이프라인 «생성» 시점에 읽힌다 — `/done` `함정.md` §2). 스킬을 옮기면 `skill-size` 한도도 같이 돈다.
+- ★**사용자가 동기를 이미 시켰고 묻지 말고 끝까지 하라는 뜻을 밝혔으면 MR 만들기에서 멈추지 마라** — CI 초록 뒤 머지·아래 워크트리 정리까지 «머지할까요?» 없이 한다(`CLAUDE.md` «여기서 아니오가 나올 수 있나»: 없다). 멈추는 건 CI 대기·빨간불·미처리 경고뿐이다(bnsone 2026-11-20 !2234·11-11 #1155 — 두 번 다 push·MR 뒤 따로 물었다).
 - 머지 뒤 1절의 검사기를 다시 돌려 남은 것이 «의도한 것»뿐인지 본다.
 - ★**동기 워크트리는 `/done` 을 안 거치므로 여기서 지운다**(안 지우면 쌓인다 — bnsone 2026-10-16: 4개 방치): ①`MR state=merged` 를 `glab mr view` 로 본다(또는 MR 이 닫히고 같은 내용이 다른 브랜치로 들어갔으면 ②) ②배포처 본 클론에서 `git fetch origin` 후 `node scripts/worktree-sweep.cjs`(울타리 밖) — 내 워크트리가 «정리 가능» 이면 `/done` 단계상세 §4 의 순서대로 지운다(`worktree remove` → `fetch --prune` → `branch -d`, `--force` 금지). «보류» 면 지우지 말고 사유만 보고.
   - **`branch -d` 전에 본 클론 main 을 따라잡아라** — 본 클론 로컬 main 이 낡으면 머지 커밋을 못 봐 «not fully merged» 로 거부된다(bnsone 2026-11-17 `kitsync/5cf0ea0`). `CLAUDE.md` «main 따라잡기» 조건(체크아웃 main · `diff --quiet`·`diff --cached --quiet` 통과 · `rev-list --count origin/main..HEAD` 0)이 맞을 때만 `git -C {본클론} pull --ff-only origin main`. 안 맞으면 `-D` 로 우기지 말고 사유만 보고.
