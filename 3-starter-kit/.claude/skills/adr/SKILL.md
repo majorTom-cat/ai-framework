@@ -22,6 +22,7 @@ allowed-tools: Read Edit Write Glob Grep Bash(git *) Bash(glab *)
 4. **두 모듈 간 계약이면**: 인터페이스 시그니처(함수 이름·입출력)를 결정에 명시하고 양쪽 모듈 소유자를 @멘션(병렬 착수 *전* 계약 확정이 목적) + 관련 카드 링크.
 5. **`INDEX.md`를 같은 커밋에서 갱신**(대체면 옛 항목 상태도) → 커밋 첫 줄 `#<카드> docs: ADR NNNN 요약`.
    — **커밋 직전 번호를 «열린 MR 까지» 재확인한다**: `git fetch -q --prune origin` 뒤 `git for-each-ref --format='%(refname)' refs/remotes/origin | xargs -I{} git ls-tree -r --name-only {} docs/adr/ | sort -u` — 모든 원격 브랜치의 ADR 파일명을 모아 그 뒤 번호를 쓴다.
+     같은 저장소의 다른 작업 폴더(워크트리)에는 push 안 한 브랜치도 있다(배포처 bnsone #1509) — 위 `refs/remotes/origin` 뒤에 `refs/heads` 를 함께 적어라(별도 클론·다른 PC 것은 아래 «예약» 줄로만 보인다).
      `origin/main` 이나 로컬 INDEX만 보면 아직 안 머지된 MR 이 쓴 번호를 못 본다. 두 브랜치가 INDEX의 서로 다른 줄에 추가하면 자동 병합이 충돌 없이 통과해 번호가 중복되고, git도 CI도 못 잡는다.
    — **번호 «예약»은 파일로만 된다** — 인계문·메모에 «0061 로 바꾼다»만 적으면 위 조회가 못 보므로 그 사이 다른 세션이 그 번호를 쓴다. 바꾸거나 비워 둘 번호가 있으면 그 자리에서 파일을 만들어 브랜치로 push 한다.
    — 번호를 인용하는 자리를 «머지 뒤 못 고치는 파일»(마이그레이션 SQL 주석 등)에 두지 않는다 — 번호는 머지 순서로 바뀔 수 있으니 거기엔 **카드 번호**를 적는다(`rules/migrations.md`).
